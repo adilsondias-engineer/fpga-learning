@@ -16,7 +16,7 @@
 *.vcd
 *.ghw
 
-# Bitstream files (optional - include if you want to share)
+# Bitstream files
 # *.bit
 # *.bin
 
