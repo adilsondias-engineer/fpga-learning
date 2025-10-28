@@ -6,3 +6,4 @@
 - XDC syntax for single signals vs vectors
 - Synchronous vs asynchronous reset trade-offs
 - Generic parameters for design flexibility
+- Bug Fixes During Development
