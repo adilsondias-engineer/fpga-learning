@@ -1,3 +1,9 @@
+![FPGA](https://img.shields.io/badge/FPGA-Xilinx%20Artix--7-red)
+![Language](https://img.shields.io/badge/Language-VHDL-blue)
+![Status](https://img.shields.io/badge/Status-Active%20Learning-green)
+![Hardware Verified](https://img.shields.io/badge/Hardware-Verified-brightgreen)
+![Projects](https://img.shields.io/badge/Projects-2%2F10-orange)
+
 # FPGA Learning for Trading Systems
 
 A hands-on journey learning FPGA development with a focus on skills relevant to high-frequency trading and low-latency systems.
