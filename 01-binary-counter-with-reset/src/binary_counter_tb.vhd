@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
+-- Company: API-led Pty Ltd
+-- Engineer: Adilson Dias
 -- 
 -- Create Date: 27.10.2025 19:19:44
 -- Design Name: 
@@ -17,7 +17,6 @@
 -- Additional Comments:
 -- 
 ----------------------------------------------------------------------------------
-
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
