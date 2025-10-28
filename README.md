@@ -56,7 +56,3 @@ Each project includes:
 ---
 
 _Learning in public. All feedback welcome!_
-
-```
-
-```
