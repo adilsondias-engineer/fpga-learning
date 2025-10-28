@@ -280,7 +280,7 @@ btn_prev <= btn_stable;  -- Update last
 **Related Projects:**
 
 - Project 1: Binary Counter (basic FPGA flow)
-- Project 2.5: 2 Buttons to handle the LED, 1 button only turn it on and the other button only turn it off
+- Project 2.5: 2 Buttons to handle the LED, 1 button only turn it on and the other button only turn it off -- coming soon
 
 ## Status
 
