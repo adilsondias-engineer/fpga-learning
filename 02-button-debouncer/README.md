@@ -137,7 +137,7 @@ uut: button_debouncer
     )
 ```
 
-**Simulation time:** ~60μs (5 seconds on typical PC)
+**Simulation time:** ~150μs (5 seconds on typical PC)
 
 ### Full Timing Simulation
 
