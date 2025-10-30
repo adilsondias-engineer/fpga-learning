@@ -8,7 +8,7 @@ Interactive FIFO buffer demonstration on Xilinx Arty A7-100T FPGA with physical 
 
 ## Overview
 
-This project brings the FIFO buffer from [Project 3](../Project_3_FIFO) to life on real hardware. Users can interact with a working FIFO using physical buttons and switches, with real-time visual feedback through LEDs. This demonstrates the complete FPGA development workflow: simulation → synthesis → implementation → hardware deployment.
+This project brings the FIFO buffer from [Project 3](../03-fifo) to life on real hardware. Users can interact with a working FIFO using physical buttons and switches, with real-time visual feedback through LEDs. This demonstrates the complete FPGA development workflow: simulation → synthesis → implementation → hardware deployment.
 
 **Key Achievement:** This is my first complete system integration project - combining multiple IP blocks (FIFO, debouncer, edge detector) with hardware interfacing to create an interactive demonstration.
 
@@ -48,22 +48,24 @@ This project brings the FIFO buffer from [Project 3](../Project_3_FIFO) to life 
 
 ### Physical Controls
 
-┌─────────────────────────────────────┐
-│ Arty A7-100T Board │
-│ │
-│ SW3 SW2 SW1 SW0 ← Data Input │
-│ │ │ │ │ (4 bits) │
-│ └────┴────┴────┘ │
-│ │
-│ [BTN2] [BTN1] [BTN0] ← Controls │
-│ Reset Read Write │
-│ │
-│ ● ← RGB Status LED │
-│ (RGB0) │
-│ │
-│ [LD3] [LD2] [LD1] [LD0] │
-│ Data Output LEDs │
-└─────────────────────────────────────┘
+```
++-------------------------------------+
+|         Arty A7-100T Board          |
+|                                     |
+|  SW3  SW2  SW1  SW0  <- Data Input |
+|   |    |    |    |      (4 bits)   |
+|   +----+----+----+                  |
+|                                     |
+|  [BTN2] [BTN1] [BTN0]  <- Controls |
+|  Reset   Read   Write               |
+|                                     |
+|     *  <- RGB Status LED            |
+|   (RGB0)                            |
+|                                     |
+|  [LD3] [LD2] [LD1] [LD0]           |
+|    Data Output LEDs                 |
++-------------------------------------+
+```
 
 ### Button Functions
 
@@ -86,183 +88,195 @@ This project brings the FIFO buffer from [Project 3](../Project_3_FIFO) to life 
 ### Basic Operation
 
 **1. Reset the System**
+
+```
 Action: Press BTN2
 Result: RGB0 glows GREEN (empty)
-LD0-LD3 turn off
-
+        LD0-LD3 turn off
 ```
 
 **2. Write Data to FIFO**
+
 ```
-
 Action: Set switches to binary value (e.g., 1010 = 0xA)
-Press BTN0
+        Press BTN0
 Result: RGB0 changes to BLUE (has data)
-Value stored in FIFO
-
+        Value stored in FIFO
 ```
 
 **3. Read Data from FIFO**
-```
 
+```
 Action: Press BTN1
 Result: LD0-LD3 display the value (e.g., 1010)
-First value written appears first (FIFO order!)
-
+        First value written appears first (FIFO order!)
 ```
 
 ### Test Scenarios
 
 #### Test 1: Single Write/Read
-```
 
+```
 1. Reset (BTN2) → GREEN
 2. Switches: 0101 (5)
 3. Write (BTN0) → BLUE
 4. Read (BTN1) → LEDs show: 0101 ✓
 5. Read again → GREEN (empty)
-
 ```
 
 #### Test 2: FIFO Order Verification
-```
 
+```
 1. Reset
 2. Write sequence: 0001, 0010, 0011, 0100
 3. Read 4 times
 4. LEDs display: 0001, 0010, 0011, 0100 (same order!) ✓
-
 ```
 
 #### Test 3: Full Condition
-```
 
+```
 1. Reset
 2. Write 16 different values
 3. RGB0 turns RED (full) ✓
 4. Attempt 17th write → Ignored (still RED)
-
 ```
 
 #### Test 4: Empty Condition
-```
 
+```
 1. After filling, read 16 times
 2. RGB0 turns GREEN (empty) ✓
 3. Attempt another read → LEDs unchanged (no data)
-
 ```
 
 #### Test 5: Binary Counter Demo
-```
 
+```
 1. Reset
 2. Write: 0000, 0001, 0010, 0011, 0100, 0101, 0110, 0111
 3. Read 8 times watching LEDs
 4. LEDs count up: 0→1→2→3→4→5→6→7 ✓
-
 ```
 
 ## Architecture
 
 ### System Block Diagram
+
 ```
-
 User Input
-↓
-┌──────────────────────────────────────────┐
-│ Hardware Interface Layer │
-│ │
-│ Switches[3:0] ──────────────┐ │
-│ │ │
-│ BTN0 ──→ Debouncer ──→ Edge │ │
-│ BTN1 ──→ Debouncer ──→ Edge ├──→ Ctrl │
-│ BTN2 ──→ Debouncer ──→ Edge │ Logic │
-│ │ │
-└──────────────────────────────┼───────────┘
-↓
-┌───────────────────────┐
-│ FIFO Core │
-│ (from Project 3) │
-│ │
-│ • 4-bit data width │
-│ • 16-entry depth │
-│ • Full/Empty flags │
-└───────────────────────┘
-↓
-┌───────────────────────────────────────────┐
-│ Output Display │
-│ │
-│ LEDs[3:0] ←────── data_out │
-│ RGB0_R ←────── full │
-│ RGB0_G ←────── empty │
-│ RGB0_B ←────── partial (Blue logic) │
-└───────────────────────────────────────────┘
-
+    |
+    v
++-------------------------------------------+
+|         Hardware Interface Layer          |
+|                                           |
+|  Switches[3:0] ----------------+          |
+|                                |          |
+|  BTN0 --> Debouncer --> Edge   |          |
+|  BTN1 --> Debouncer --> Edge   +--> Ctrl |
+|  BTN2 --> Debouncer --> Edge   |    Logic|
+|                                |          |
++--------------------------------+----------+
+                                 |
+                                 v
+                    +------------------------+
+                    |    FIFO Core           |
+                    |  (from Project 3)      |
+                    |                        |
+                    |  - 4-bit data width    |
+                    |  - 16-entry depth      |
+                    |  - Full/Empty flags    |
+                    +------------------------+
+                                 |
+                                 v
++-------------------------------------------+
+|            Output Display                 |
+|                                           |
+|  LEDs[3:0] <------ data_out              |
+|  RGB0_R    <------ full                  |
+|  RGB0_G    <------ empty                 |
+|  RGB0_B    <------ partial (Blue logic)  |
++-------------------------------------------+
 ```
 
 ### Component Hierarchy
+
 ```
-
 fifo_demo (top-level)
-├── debouncer_btn0 (debouncer)
-│ └── 3-stage synchronizer + counter
-├── debouncer_btn1 (debouncer)
-├── debouncer_btn2 (debouncer)
-├── edge_det_btn0 (edge_detector)
-│ └── Delayed signal comparison
-├── edge_det_btn1 (edge_detector)
-├── edge_det_btn2 (edge_detector)
-└── fifo_inst (fifo)
-├── Memory array (16 x 4-bit)
-├── Write pointer [3:0]
-├── Read pointer [3:0]
-└── Count register [4:0]
-
+    |
+    +-- debouncer_btn0 (debouncer)
+    |       |
+    |       +-- 3-stage synchronizer + counter
+    |
+    +-- debouncer_btn1 (debouncer)
+    +-- debouncer_btn2 (debouncer)
+    |
+    +-- edge_det_btn0 (edge_detector)
+    |       |
+    |       +-- Delayed signal comparison
+    |
+    +-- edge_det_btn1 (edge_detector)
+    +-- edge_det_btn2 (edge_detector)
+    |
+    +-- fifo_inst (fifo)
+            |
+            +-- Memory array (16 x 4-bit)
+            +-- Write pointer [3:0]
+            +-- Read pointer [3:0]
+            +-- Count register [4:0]
 ```
 
 ### Signal Flow
 
 **Write Operation:**
-```
 
+```
 User presses BTN0
-↓
+    |
+    v
 Debouncer (20ms filter)
-↓
+    |
+    v
 Edge Detector (rising edge)
-↓
+    |
+    v
 FIFO wr_en = 1 (single cycle pulse)
-↓
-data_in[3:0] ← switches[3:0]
-↓
+    |
+    v
+data_in[3:0] <- switches[3:0]
+    |
+    v
 FIFO stores at write pointer location
-↓
+    |
+    v
 Write pointer increments
 Count increments
 Status updates
-
 ```
 
 **Read Operation:**
-```
 
+```
 User presses BTN1
-↓
+    |
+    v
 Debouncer (20ms filter)
-↓
+    |
+    v
 Edge Detector (rising edge)
-↓
+    |
+    v
 FIFO rd_en = 1 (single cycle pulse)
-↓
-data_out[3:0] ← memory[read pointer]
-↓
+    |
+    v
+data_out[3:0] <- memory[read pointer]
+    |
+    v
 Read pointer increments
 Count decrements
 LEDs update
 Status updates
-
-````
+```
 
 ## Design Components
 
@@ -271,16 +285,18 @@ Status updates
 **Purpose:** Eliminate mechanical bounce from physical buttons
 
 **Implementation:**
+
 - 3-stage synchronizer (metastability protection)
 - 20ms debounce counter
 - Stable output only after sustained state
 
 **Key Parameters:**
+
 ```vhdl
 CLK_FREQ    : 100 MHz
 DEBOUNCE_MS : 20 ms
 DEBOUNCE_COUNT : 2,000,000 clock cycles
-````
+```
 
 ### 2. Edge Detector (Reused from Project 2)
 
@@ -376,17 +392,23 @@ led0_b <= not fifo_empty and not fifo_full;  -- Blue when partial
 
 ```
 Design Entry (VHDL)
-    ↓
+    |
+    v
 Behavioral Simulation (Optional for this project)
-    ↓
-Synthesis (RTL → Gates)
-    ↓
+    |
+    v
+Synthesis (RTL -> Gates)
+    |
+    v
 Implementation (Place & Route)
-    ↓
+    |
+    v
 Bitstream Generation
-    ↓
+    |
+    v
 Hardware Programming
-    ↓
+    |
+    v
 Physical Testing ✓
 ```
 
@@ -409,6 +431,24 @@ Physical Testing ✓
 - Immediate visual feedback (LEDs + RGB)
 - Intuitive controls (one button per function)
 - Clear status indication
+
+## Trading Systems Relevance
+
+This project demonstrates skills directly applicable to FPGA-based trading systems:
+
+**Concept Mapping:**
+
+| Project Component | Trading System Equivalent     |
+| ----------------- | ----------------------------- |
+| FIFO Buffer       | Market data packet buffer     |
+| Button Debounce   | External signal conditioning  |
+| Edge Detection    | Trigger generation for orders |
+| Status LEDs       | System health monitoring      |
+| Full/Empty Flags  | Backpressure / flow control   |
+
+**Interview Talking Points:**
+
+> "I built an interactive FIFO demonstration showing complete system integration - from button conditioning to buffer management to visual feedback. The debouncing and edge detection techniques apply directly to handling asynchronous external signals, while the FIFO with flow control mirrors packet buffering in high-frequency trading systems."
 
 ## Known Limitations
 
@@ -494,8 +534,8 @@ This project builds on concepts from the classic FPGA learning path, adapted for
 ---
 
 **Status:** ✅ Completed and verified on hardware  
-**Completed:** 30/10/2025
-**Last Updated:** 30/10/2025
+**Completed:** 30/10/2025  
+**Last Updated:** 30/10/2025  
 **Time Invested:** ~10 hours (design, debug, testbench fixes, verification)
 
 **Next Project:** Display expansion with external LEDs and OLED
