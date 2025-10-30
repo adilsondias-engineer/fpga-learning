@@ -446,10 +446,6 @@ This project demonstrates skills directly applicable to FPGA-based trading syste
 | Status LEDs       | System health monitoring      |
 | Full/Empty Flags  | Backpressure / flow control   |
 
-**Interview Talking Points:**
-
-> "I built an interactive FIFO demonstration showing complete system integration - from button conditioning to buffer management to visual feedback. The debouncing and edge detection techniques apply directly to handling asynchronous external signals, while the FIFO with flow control mirrors packet buffering in high-frequency trading systems."
-
 ## Known Limitations
 
 **Current Constraints:**
