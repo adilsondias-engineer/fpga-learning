@@ -10,11 +10,12 @@
 *.sim/
 *.tmp/
 .Xil/
-.srcs
+.srcs/
 # Simulation files
 *.wdb
 *.vcd
 *.ghw
+*.dcp
 
 # Bitstream files
 # *.bit

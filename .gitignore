@@ -10,6 +10,7 @@
 *.sim/
 *.tmp/
 .Xil/
+.srcs/
 
 # Simulation files
 *.wdb
