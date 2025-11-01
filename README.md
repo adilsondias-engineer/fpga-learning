@@ -59,6 +59,53 @@ Each project includes:
 - Clock domain crossing
 - Hardware/software integration
 
+## Skills Demonstrated
+### HDL Design & Architecture
+
+- VHDL design - Binary counters, button debouncers, FIFO buffers, rotary encoder interfaces
+- Generic parameters - Configurable debounce timing, FIFO depth, clock division ratios
+- Hierarchical design - Component instantiation and port mapping across multiple modules
+- State machine design - Quadrature decoder for rotary encoder, FIFO controller states
+
+### Digital Design Fundamentals
+
+- Clock management - Clock division from 100MHz to 1Hz, clock domain understanding
+- Metastability protection - Three-stage synchronizer chains for asynchronous inputs
+- Debouncing implementation - 20ms stable period filtering for mechanical switches
+- Edge detection - Rising/falling edge detection with proper sequential logic ordering
+- FIFO buffer architecture - 16-depth x 8-bit circular buffer with full/empty flags
+
+### Verification & Testing
+
+- Testbench development - Self-checking testbenches with assert statements
+- Procedure-based testing - Reusable test procedures for encoder rotation, button presses
+- Waveform analysis - Signal debugging in Vivado simulator
+- Hardware verification - All designs validated on Xilinx Arty A7-100T (XC7A100T)
+- Coverage scenarios - Normal operation, boundary conditions, error states
+
+### Hardware Integration
+
+- Peripheral interfaces - Rotary encoder (quadrature decoding), piezo buzzer (frequency generation)
+- LED displays - Binary counters, 8-bit rainbow LED arrays with bit-weighted color mapping
+- User input handling - Buttons (BTN0-3), switches, rotary encoder with button
+- Audio feedback - Frequency-coded buzzer for status transitions (880Hz/523Hz/262Hz)
+
+### Development Workflow
+
+- Synthesis & Implementation - Successful builds through complete Vivado flow
+- Constraint management - XDC files for pin assignments, timing constraints
+- Simulation methodology - Fast simulation with reduced timing parameters
+- Debug techniques - Resolved synthesis/simulation mode conflicts, fixed testbench procedures
+- Git workflow - Version control with structured project directories
+
+### Trading-Relevant Skills Built
+
+- Data buffering - FIFO implementation essential for packet queuing
+- Flow control - Full/empty flag management for backpressure handling
+- Synchronization - CDC techniques critical for asynchronous market data
+- Latency awareness - Understanding of clock cycles and timing paths
+- Reliability patterns - Metastability protection mandatory for production systems
+
 ---
 
 _Learning in public. All feedback welcome!_
