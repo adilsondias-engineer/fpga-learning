@@ -37,7 +37,8 @@ set_property -dict {PACKAGE_PIN A4 IOSTANDARD LVCMOS33} [get_ports encoder_b]
 ## Encoder SW  -> ChipKit A9  [analog pin 9]  -> FPGA pin E5
 set_property -dict {PACKAGE_PIN E5 IOSTANDARD LVCMOS33} [get_ports encoder_sw]
 ## multimeter testing shows encoder switch connects to 3.3v when pressed
-set_property PULLDOWN TRUE [get_ports encoder_sw] ## Use PULLDOWN since switch connects to 3.3v(HIGH) when pressed - ACTIVE HIGH
+set_property PULLDOWN TRUE [get_ports encoder_sw] 
+## Use PULLDOWN since switch connects to 3.3v(HIGH) when pressed - ACTIVE HIGH
 ## low 0 when not pressed, high 1 when pressed
 ## ============================================================================
 

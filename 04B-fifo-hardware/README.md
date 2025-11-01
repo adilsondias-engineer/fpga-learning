@@ -461,8 +461,8 @@ Project_4B/
 ├── docs/
 │   └── pictures
 │
-└── sim/
-    └── tb_fifo.vhd                    # Testbench (optional)
+└── simulation/
+    └── tb_fifo_hardware_8bit_encoder.vhd                    # Testbench (optional)
 ```
 
 ---
