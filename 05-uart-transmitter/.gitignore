@@ -11,13 +11,13 @@
 *.tmp/
 .Xil/
 *.srcs/
-*.mcs
-*.prm
-
 # Simulation files
 *.wdb
 *.vcd
 *.ghw
+*.dcp
+*.mcs
+*.prm
 
 # Bitstream files
 # *.bit
@@ -31,4 +31,3 @@ Thumbs.db
 # Backup files
 *.bak
 *.old
-dfx_runtime.txt
