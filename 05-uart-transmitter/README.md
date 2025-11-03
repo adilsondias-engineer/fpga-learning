@@ -699,8 +699,8 @@ For questions or contributions, please open an issue on GitHub.
 
 ---
 
-**Built with:** VHDL, Vivado, Python, VS Code, Arty A7-100T, and many debugging sessions 🐛
-**Status:** 🟡 Core features working, binary protocol race condition requires refactor
+**Built with:** VHDL, Vivado, Python, VS Code, Arty A7-100T, and many debugging sessions
+**Status:** Core features working, binary protocol race condition requires refactor
 **Completed:** 02/11/2025
 **Last Updated:** 03/11/2025
 **Time Invested:** ~32 hours (incremental features, extensive debugging, multiple fix attempts)
