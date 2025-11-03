@@ -201,73 +201,77 @@ end if
 
 ## Known Issues & Debug History
 
-### 🐛 **CRITICAL BUG: Binary Protocol Echo Race Condition**
+### 🔧 **FIXED: Binary Protocol Echo Race Condition**
 
-**Status:** ⚠️ UNRESOLVED - Requires code restructure
+**Status:** ✅ RESOLVED - Unified state machine implemented
 
-**Symptom:**
-Binary protocol command/data bytes are being echoed back to the host, causing tests to fail.
+**Original Symptom:**
+Binary protocol command/data bytes were being echoed back to the host, causing tests to fail.
 
-**Example:**
+**Example of Bug:**
 
 ```python
 Send: AA 01 01 10 10
-Receive: 01 10  # Should receive nothing!
+Receive: 01 10  # Unwanted echo!
 ```
 
 **Root Cause:**
-The protocol parser and ASCII echo handler exist in **separate VHDL processes**. When bytes arrive, both processes evaluate on the **same clock edge** and see the **same old signal values**, creating a race condition.
+The protocol parser and ASCII echo handler existed in **separate VHDL processes**. When bytes arrived, both processes evaluated on the **same clock edge** and saw the **same old signal values**, creating a race condition.
 
-**Timeline of Fix Attempts:**
+**Failed Fix Attempts (4 attempts):**
 
-1. **First Attempt: `protocol_active` flag**
-
-   ```vhdl
-   -- Set flag when START_BYTE detected
-   if rx_data = START_BYTE then
-       protocol_active <= '1';
-   end if
-
-   -- Check in ASCII handler
-   elsif rx_valid = '1' and protocol_active = '0' then
-       -- Process ASCII
-   ```
-
-   **Result:** ❌ Failed - Both processes see old value '0' on same cycle
-
-2. **Second Attempt: Remove redundant `protocol_active <= '0'` in IDLE**
-
-   ```vhdl
-   when IDLE =>
-       -- Don't reset protocol_active here!
-       if rx_valid = '1' and rx_data = START_BYTE then
-           protocol_active <= '1';
-   ```
-
-   **Result:** ❌ Failed - Same race condition
-
-3. **Third Attempt: Check `protocol_state` directly**
-
-   ```vhdl
-   elsif rx_valid = '1' and protocol_state = IDLE and rx_data /= START_BYTE then
-   ```
-
-   **Result:** ❌ Failed - State transitions have same 1-cycle delay
-
-4. **Fourth Attempt: Double-check (state AND flag)**
-   ```vhdl
-   elsif rx_valid = '1' and protocol_state = IDLE and protocol_active = '0' and rx_data /= START_BYTE then
-   ```
-   **Result:** ⏳ Testing - Likely will also fail
+1. **`protocol_active` flag** - ❌ Both processes saw old value '0'
+2. **Remove redundant reset** - ❌ Same race condition
+3. **Check `protocol_state` directly** - ❌ State transitions have 1-cycle delay
+4. **Double-check (state AND flag)** - ❌ Same fundamental timing issue
 
 **Fundamental Issue:**
-Two separate processes reading the same signals on the same clock edge will always see the old values, regardless of flags or state checks used.
+Two separate processes reading the same signals on the same clock edge will always see old values, regardless of flags or state checks used.
 
-**Proposed Solution (Future):**
-Merge protocol parser and ASCII handler into a **single unified state machine** that processes `rx_valid` bytes in one place, eliminating the race condition.
+**SUCCESSFUL SOLUTION:**
+Merged both handlers into a **unified state machine** ([uart_echo_top.vhd:353-660](src/uart_echo_top.vhd#L353-L660)) that routes bytes immediately:
 
-**Workaround (Current):**
-ASCII-only mode works perfectly. Binary protocol currently non-functional in hardware.
+```vhdl
+when WAIT_RX =>
+    elsif rx_valid = '1' then
+        -- Check START_BYTE in same cycle!
+        if rx_data = START_BYTE then
+            protocol_checksum_calc <= (others => '0');
+            state <= PROTO_WAIT_CMD;  -- Route to binary protocol
+        else
+            -- Route to ASCII handler
+            case rx_data is
+                when X"52" => -- 'R' Reset
+                when X"49" => -- 'I' Increment
+                ...
+            end case;
+        end if;
+    end if;
+```
+
+**Why This Works:**
+Single process reads `rx_data` and routes to appropriate handler immediately in the same cycle - no inter-process communication delay.
+
+**Test Results:**
+
+```
+1. Setting counter to 0x10
+   Sending: AA 01 01 10 10
+   (No unexpected echo!)  ✅
+
+2. Querying counter value
+   Response: 31 30 = b'10'
+   PASS  ✅
+
+3. Adding 0x05 to counter
+   Sending: AA 02 01 05 06
+
+4. Querying counter after add
+   Response: b'15'
+   PASS  ✅
+```
+
+**Date Fixed:** 03/11/2025
 
 ---
 
@@ -380,6 +384,64 @@ reset <= btn(0);  -- Active high from debounced button
 ```
 
 **Status:** ✅ Fixed
+
+---
+
+### 🔧 **FIXED: RGB LEDs Not Visible (Too Fast)**
+
+**Status:** ✅ RESOLVED - Pulse stretching implemented
+
+**Symptom:**
+RGB LED was always blue, red and green LEDs never visible to human eye.
+
+**Root Cause:**
+Signal pulses too brief for human perception:
+
+- **Red (rx_valid):** Only 10ns @ 100MHz → invisible
+- **Green (tx_busy):** ~87μs per byte → barely visible flash
+- **Blue (idle):** Constant true → always on
+
+**Solution:**
+Added 100ms pulse stretchers ([uart_echo_top.vhd:670-692](src/uart_echo_top.vhd#L670-L692)):
+
+```vhdl
+-- RGB LED pulse stretchers (100ms @ 100MHz = 10,000,000 cycles)
+constant LED_STRETCH_TIME : integer := 10_000_000;
+signal led_r_stretch : integer range 0 to LED_STRETCH_TIME := 0;
+signal led_g_stretch : integer range 0 to LED_STRETCH_TIME := 0;
+
+process(clk)
+begin
+    if rising_edge(clk) then
+        -- Red: Stretch rx_valid pulse
+        if rx_valid = '1' then
+            led_r_stretch <= LED_STRETCH_TIME;
+        elsif led_r_stretch > 0 then
+            led_r_stretch <= led_r_stretch - 1;
+        end if;
+
+        -- Green: Stretch tx_busy
+        if tx_busy = '1' then
+            led_g_stretch <= LED_STRETCH_TIME;
+        elsif led_g_stretch > 0 then
+            led_g_stretch <= led_g_stretch - 1;
+        end if;
+    end if;
+end process;
+
+-- LED assignments
+led0_r <= '1' when led_r_stretch > 0 else '0';
+led0_g <= '1' when led_g_stretch > 0 else '0';
+led0_b <= '1' when state = WAIT_RX and led_r_stretch = 0 and led_g_stretch = 0 else '0';
+```
+
+**Result:**
+
+- Red LED now visible for 100ms when receiving data
+- Green LED now visible for 100ms when transmitting
+- Blue LED only shows when truly idle (not receiving/transmitting)
+
+**Date Fixed:** 03/11/2025
 
 ---
 
@@ -520,7 +582,7 @@ Press: G        → Response: "Hello"
 Press: S        → Response: "00" (FIFO empty)
 ```
 
-### Binary Protocol Mode (⚠️ Currently Non-Functional)
+### Binary Protocol Mode
 
 **Set Counter Example:**
 
@@ -561,11 +623,12 @@ print(f"Counter value: {response}")  # Should be ASCII hex like "42"
 2. Check for line endings (some terminals send CR+LF)
 3. Use hex mode to confirm exact bytes sent
 
-### Binary Protocol Fails
+### Binary Protocol Issues
 
-1. **Known Issue** - See "Critical Bug" section above
-2. Use ASCII mode as workaround
-3. Wait for unified state machine refactor
+1. Verify message format: [0xAA][CMD][LEN][DATA...][CHECKSUM]
+2. Ensure checksum calculation: XOR of CMD + LEN + all DATA bytes
+3. Check baud rate and serial port settings
+4. Use test script: `python test/uart.py` to verify functionality
 
 ### LEDs Show Wrong Value
 
@@ -636,9 +699,9 @@ print(f"Counter value: {response}")  # Should be ASCII hex like "42"
 
 ### High Priority
 
-- [ ] **Fix binary protocol race condition** - Merge into unified state machine
 - [ ] Add regression test suite
 - [ ] Implement timeout/retry logic
+- [ ] Add comprehensive error handling and reporting
 
 ### Medium Priority
 
@@ -699,13 +762,16 @@ For questions or contributions, please open an issue on GitHub.
 
 ---
 
-**Built with:** VHDL, Vivado, Python, VS Code, Arty A7-100T, and many debugging sessions
-**Status:** Core features working, binary protocol race condition requires refactor
-**Completed:** 02/11/2025
-**Last Updated:** 03/11/2025
-**Time Invested:** ~32 hours (incremental features, extensive debugging, multiple fix attempts)
+- **Built with:** VHDL, Vivado, Python, VS Code, Arty A7-100T, and many debugging sessions
+- **Status:** ✅ All features fully functional - Binary protocol and RGB LEDs fixed!
+- **Completed:** 02/11/2025
+- **Last Updated:** 03/11/2025
+- **Time Invested:** ~34 hours (incremental features, extensive debugging, successful fixes)
 
-**Next Steps:** Code restructure to fix binary protocol race condition
+**Recent Fixes:**
+
+- ✅ Binary protocol race condition resolved via unified state machine (03/11/2025)
+- ✅ RGB LED visibility fixed with 100ms pulse stretching (03/11/2025)
 
 ---
 

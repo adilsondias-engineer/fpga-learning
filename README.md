@@ -2,7 +2,7 @@
 ![Language](https://img.shields.io/badge/Language-VHDL-blue)
 ![Status](https://img.shields.io/badge/Status-Active%20Learning-green)
 ![Hardware Verified](https://img.shields.io/badge/Hardware-Verified-brightgreen)
-![Projects](https://img.shields.io/badge/Projects-2%2F10-orange)
+![Projects](https://img.shields.io/badge/Projects-5%2F10-orange)
 
 # FPGA Learning for Trading Systems
 
@@ -62,18 +62,22 @@ Each project includes:
 ## Skills Demonstrated
 ### HDL Design & Architecture
 
-- VHDL design - Binary counters, button debouncers, FIFO buffers, rotary encoder interfaces
-- Generic parameters - Configurable debounce timing, FIFO depth, clock division ratios
+- VHDL design - Binary counters, button debouncers, FIFO buffers, rotary encoder interfaces, UART transceivers
+- Generic parameters - Configurable debounce timing, FIFO depth, clock division ratios, baud rate generation
 - Hierarchical design - Component instantiation and port mapping across multiple modules
-- State machine design - Quadrature decoder for rotary encoder, FIFO controller states
+- State machine design - Quadrature decoder for rotary encoder, FIFO controller states, UART protocol parsers, unified state machines
+- Multi-protocol support - Binary protocol (trading-style) and ASCII command interface coexisting
 
 ### Digital Design Fundamentals
 
-- Clock management - Clock division from 100MHz to 1Hz, clock domain understanding
+- Clock management - Clock division from 100MHz to 1Hz, baud rate generation (115200 bps), clock domain understanding
 - Metastability protection - Three-stage synchronizer chains for asynchronous inputs
 - Debouncing implementation - 20ms stable period filtering for mechanical switches
 - Edge detection - Rising/falling edge detection with proper sequential logic ordering
 - FIFO buffer architecture - 16-depth x 8-bit circular buffer with full/empty flags
+- UART communication - 8N1 format, mid-bit sampling, busy/started handshake flags
+- Protocol parsing - Binary message framing (START_BYTE, LENGTH, DATA, CHECKSUM)
+- Pulse stretching - 100ms counters to make brief signals human-visible on LEDs
 
 ### Verification & Testing
 
@@ -82,11 +86,14 @@ Each project includes:
 - Waveform analysis - Signal debugging in Vivado simulator
 - Hardware verification - All designs validated on Xilinx Arty A7-100T (XC7A100T)
 - Coverage scenarios - Normal operation, boundary conditions, error states
+- Python test scripts - Automated UART protocol testing with PySerial
+- Protocol validation - Checksum verification, message framing, error detection
 
 ### Hardware Integration
 
-- Peripheral interfaces - Rotary encoder (quadrature decoding), piezo buzzer (frequency generation)
-- LED displays - Binary counters, 8-bit rainbow LED arrays with bit-weighted color mapping
+- Peripheral interfaces - Rotary encoder (quadrature decoding), piezo buzzer (frequency generation), USB-UART bridge
+- Serial communication - UART RX/TX at 115200 baud, PC-FPGA communication, echo/command processing
+- LED displays - Binary counters, 8-bit rainbow LED arrays, RGB status indicators with pulse stretching
 - User input handling - Buttons (BTN0-3), switches, rotary encoder with button
 - Audio feedback - Frequency-coded buzzer for status transitions (880Hz/523Hz/262Hz)
 
@@ -105,6 +112,10 @@ Each project includes:
 - Synchronization - CDC techniques critical for asynchronous market data
 - Latency awareness - Understanding of clock cycles and timing paths
 - Reliability patterns - Metastability protection mandatory for production systems
+- Binary protocols - START_BYTE framing, length-prefixed messages, XOR checksums (mirrors FIX/ITCH/OUCH)
+- Message parsing - State machine-based protocol decoder with checksum validation
+- Error detection - Checksum mismatches, framing errors, graceful error recovery
+- Multi-protocol support - Handling both binary (efficient) and ASCII (debug) interfaces
 
 ---
 
