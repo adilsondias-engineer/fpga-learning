@@ -636,7 +636,7 @@ begin
                     when ECHO_TX =>
                         -- Wait for transmission to start, then wait for it to complete
                         if tx_busy = '1' then
-                            tx_started <= '1';  -- Mark that we've seen transmission start
+                            tx_started <= '1';  -- Mark that  I've seen transmission start
                         elsif tx_started = '1' and tx_busy = '0' then
                             -- Transmission has completed
                             tx_started <= '0';  -- Clear flag
@@ -655,7 +655,7 @@ begin
                     when SEND_HEX_LOW =>
                         -- Wait for low nibble transmission to start and complete
                         if tx_busy = '1' then
-                            tx_started <= '1';  -- Mark that we've seen transmission start
+                            tx_started <= '1';  -- Mark that  I've seen transmission start
                         elsif tx_started = '1' and tx_busy = '0' then
                             -- Transmission has completed
                             tx_started <= '0';  -- Clear flag
@@ -665,7 +665,7 @@ begin
                     when SEND_FIFO_DATA =>
                         -- Transmit all data from FIFO
                         if tx_busy = '1' then
-                            tx_started <= '1';  -- Mark that we've seen transmission start
+                            tx_started <= '1';  -- Mark that  I've seen transmission start
                         elsif tx_started = '1' and tx_busy = '0' then
                             -- Previous transmission completed
                             tx_started <= '0';
