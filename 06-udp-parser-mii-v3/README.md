@@ -23,7 +23,7 @@ Full integration of MDIO controller with Phases 1A and 1B Ethernet receiver pipe
 - Link status and speed detection
 - PHY identification verification
 
-**Phase 1C (Current):**
+**Phase 1C (Complete):**
 
 - **Integrated pipeline:** MDIO + MII receiver + MAC parser running simultaneously
 - **Button control:** BTN3 toggles between frame stats and MDIO register display
