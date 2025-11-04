@@ -18,14 +18,14 @@ Hardware verification was insufficient prior to implementation. The Arty A7 Refe
 
 ## Technical Analysis
 
-| Specification | RGMII (Implemented) | MII (Required) | Impact |
-|---------------|-------------------|----------------|---------|
-| **Speed** | 1000 Mbps | 10/100 Mbps | Interface incompatible |
-| **Protocol** | RGMII | MII | Wrong physical layer |
-| **Clock Source** | FPGA → PHY (TX) | PHY → FPGA (TX/RX) | Incorrect architecture |
-| **Clock Frequency** | 125 MHz | 25 MHz | 5× frequency error |
-| **Data Sampling** | DDR (both edges) | SDR (rising edge) | Wrong timing |
-| **Pin Count** | ~12 | ~18 | Incorrect pinout |
+| Specification       | RGMII (Implemented) | MII (Required)     | Impact                 |
+| ------------------- | ------------------- | ------------------ | ---------------------- |
+| **Speed**           | 1000 Mbps           | 10/100 Mbps        | Interface incompatible |
+| **Protocol**        | RGMII               | MII                | Wrong physical layer   |
+| **Clock Source**    | FPGA → PHY (TX)     | PHY → FPGA (TX/RX) | Incorrect architecture |
+| **Clock Frequency** | 125 MHz             | 25 MHz             | 5× frequency error     |
+| **Data Sampling**   | DDR (both edges)    | SDR (rising edge)  | Wrong timing           |
+| **Pin Count**       | ~12                 | ~18                | Incorrect pinout       |
 
 ---
 
@@ -47,7 +47,7 @@ Compatibility: Gigabit Ethernet PHYs only
 ### MII (Required - Correct)
 
 ```
-Interface: Media Independent Interface  
+Interface: Media Independent Interface
 Maximum Speed: 100 Mbps (10 Mbps optional)
 Data Width: 4-bit SDR (sampled on rising edge only)
 Clock Frequency: 25 MHz (100 Mbps mode)
@@ -81,11 +81,13 @@ They are kept here for educational purposes only.
 Some modules can be adapted for MII:
 
 ✅ **Can reuse with modifications:**
+
 - MAC frame parser logic (byte-level processing)
 - Statistics counter (no changes needed)
 - General architecture concepts
 
 ❌ **Cannot reuse:**
+
 - RGMII receiver (DDR sampling, wrong protocol)
 - Clock generation (wrong frequencies)
 - Pin constraints (wrong pins for wrong signals)
@@ -95,11 +97,13 @@ Some modules can be adapted for MII:
 ## Correct Implementation
 
 **See the correct MII implementation:**
+
 ```
 📁 ../06-udp-parser-mii/
 ```
 
 The MII version:
+
 - ✅ Uses correct interface (MII not RGMII)
 - ✅ Correct clock architecture (PHY provides clocks)
 - ✅ Generates 25 MHz reference clock for PHY
@@ -128,11 +132,13 @@ Inadequate hardware verification during project initialization led to incompatib
 Hardware specifications were available in public documentation:
 
 1. **Arty A7 Reference Manual** - Section 6: Ethernet PHY
+
    - Interface type clearly specified (MII)
    - PHY part number listed (DP83848J)
    - Speed limitations documented (10/100 Mbps)
 
 2. **Master XDC Constraint File** - GitHub repository
+
    - All 18 MII signal pins defined
    - Pin locations and standards specified
 
@@ -157,6 +163,7 @@ Documentation review (30 minutes) would have prevented this development cycle.
 ### Implementation Statistics
 
 - **VHDL Source Code:** ~600 lines
+
   - RGMII receiver: ~150 lines
   - MAC parser: ~150 lines
   - Top-level integration: ~200 lines
@@ -181,6 +188,7 @@ Documentation review (30 minutes) would have prevented this development cycle.
 **Project Location:** `../06-udp-parser-mii/`
 
 The corrected implementation features:
+
 - MII interface (hardware compatible)
 - 25 MHz reference clock generation
 - PHY-provided data clocks
@@ -189,15 +197,23 @@ The corrected implementation features:
 
 ---
 
+## Key Takeaway
+
+Hardware verification must precede implementation. Comprehensive documentation review during project initialization prevents architectural incompatibilities.
+
+---
+
 ## Repository Status
 
+**Status:** Discontinued
 **Date Discontinued:** November 4, 2025  
 **Reason:** Hardware interface incompatibility (RGMII vs MII)  
 **Replacement:** See `../06-udp-parser-mii/`  
 **Archive Purpose:** Development process documentation
+**Completed:** November 3, 2025  
+**Last Updated:** November 4, 2025  
+**Hardware:** Xilinx Arty A7-100T (XC7A100T-1CSG324C)
 
 ---
 
-## Key Takeaway
-
-Hardware verification must precede implementation. Comprehensive documentation review during project initialization prevents architectural incompatibilities.
+_Part of FPGA Learning Journey - Building trading-relevant hardware skills_

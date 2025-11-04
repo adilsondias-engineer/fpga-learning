@@ -1,0 +1,1 @@
+"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source program.tcl -tclargs %1
