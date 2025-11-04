@@ -2,7 +2,7 @@
 ![Language](https://img.shields.io/badge/Language-VHDL-blue)
 ![Status](https://img.shields.io/badge/Status-Active%20Learning-green)
 ![Hardware Verified](https://img.shields.io/badge/Hardware-Verified-brightgreen)
-![Projects](https://img.shields.io/badge/Projects-5%2F10-orange)
+![Projects](https://img.shields.io/badge/Projects-6%2F10-orange)
 
 # FPGA Learning for Trading Systems
 
@@ -25,10 +25,12 @@ Projects are designed to build from fundamentals toward trading-relevant skills:
 - Clock management and timing constraints
 - Synchronous design and metastability handling
 - Serial communication protocols (UART, SPI)
+- Network protocols (Ethernet, MII interface)
 - Data processing pipelines
 - Hardware timestamping
 - Clock domain crossing (CDC)
 - FIFO buffers and flow control
+- PLL/MMCM clock generation
 
 ## Projects
 
@@ -70,13 +72,14 @@ Each project includes:
 
 ### Digital Design Fundamentals
 
-- Clock management - Clock division from 100MHz to 1Hz, baud rate generation (115200 bps), clock domain understanding
-- Metastability protection - Three-stage synchronizer chains for asynchronous inputs
+- Clock management - Clock division from 100MHz to 1Hz, baud rate generation (115200 bps), PLL/MMCM clock generation (25 MHz reference for Ethernet PHY)
+- Metastability protection - Three-stage synchronizer chains for asynchronous inputs, 2FF synchronizers for clock domain crossing
 - Debouncing implementation - 20ms stable period filtering for mechanical switches
 - Edge detection - Rising/falling edge detection with proper sequential logic ordering
 - FIFO buffer architecture - 16-depth x 8-bit circular buffer with full/empty flags
 - UART communication - 8N1 format, mid-bit sampling, busy/started handshake flags
-- Protocol parsing - Binary message framing (START_BYTE, LENGTH, DATA, CHECKSUM)
+- Ethernet communication - MII interface (4-bit nibbles), preamble/SFD stripping, MAC frame parsing with address filtering
+- Protocol parsing - Binary message framing (START_BYTE, LENGTH, DATA, CHECKSUM), Ethernet frame structure
 - Pulse stretching - 100ms counters to make brief signals human-visible on LEDs
 
 ### Verification & Testing
@@ -86,13 +89,15 @@ Each project includes:
 - Waveform analysis - Signal debugging in Vivado simulator
 - Hardware verification - All designs validated on Xilinx Arty A7-100T (XC7A100T)
 - Coverage scenarios - Normal operation, boundary conditions, error states
-- Python test scripts - Automated UART protocol testing with PySerial
-- Protocol validation - Checksum verification, message framing, error detection
+- Python test scripts - Automated UART protocol testing with PySerial, Ethernet frame injection with Scapy
+- Protocol validation - Checksum verification, message framing, error detection, MAC address filtering
+- Network testing - Raw Ethernet frame transmission, Wireshark packet analysis
 
 ### Hardware Integration
 
-- Peripheral interfaces - Rotary encoder (quadrature decoding), piezo buzzer (frequency generation), USB-UART bridge
+- Peripheral interfaces - Rotary encoder (quadrature decoding), piezo buzzer (frequency generation), USB-UART bridge, Ethernet PHY (DP83848J)
 - Serial communication - UART RX/TX at 115200 baud, PC-FPGA communication, echo/command processing
+- Network communication - MII Ethernet interface (10/100 Mbps), PHY reset timing (10ms minimum), reference clock generation
 - LED displays - Binary counters, 8-bit rainbow LED arrays, RGB status indicators with pulse stretching
 - User input handling - Buttons (BTN0-3), switches, rotary encoder with button
 - Audio feedback - Frequency-coded buzzer for status transitions (880Hz/523Hz/262Hz)
@@ -116,6 +121,8 @@ Each project includes:
 - Message parsing - State machine-based protocol decoder with checksum validation
 - Error detection - Checksum mismatches, framing errors, graceful error recovery
 - Multi-protocol support - Handling both binary (efficient) and ASCII (debug) interfaces
+- Network packet parsing - Ethernet frame reception, MAC address filtering, preamble/SFD detection
+- Hardware acceleration - Direct PHY interfacing bypasses OS network stack for minimal latency
 
 ---
 

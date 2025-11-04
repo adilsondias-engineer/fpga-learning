@@ -516,4 +516,400 @@ end if;
 - Mirrors real systems (control plane ASCII, data plane binary)
 
 ---
-This document grows with each project. Latest update includes Projects 1-5.
+
+## Project 06: UDP Packet Parser - MII Ethernet Receiver
+
+### Critical Lesson: Documentation BEFORE Implementation
+
+**Major Mistake:** Initially implemented RGMII interface when hardware requires MII.
+
+**Time Wasted:** 4+ hours implementing wrong interface
+- 2 hours RGMII implementation
+- 1.5 hours debugging
+- 15 minutes identifying root cause
+
+**Root Cause:** Insufficient hardware verification before implementation
+
+**What Should Have Been Done:**
+1. Read Arty A7 Reference Manual (Section 6: Ethernet PHY)
+2. Check PHY part number (DP83848J datasheet)
+3. Verify interface type (MII, not RGMII)
+4. Review master XDC for pin assignments
+5. THEN begin implementation
+
+**Lesson Learned:** **Documentation -> Planning -> Coding**
+- 30 minutes of documentation review prevents hours of wasted implementation
+- Hardware specifications are non-negotiable - software assumptions don't apply
+- Always verify PHY capabilities before selecting interface protocol
+
+### MII vs RGMII Comparison
+
+**Key Differences:**
+
+| Specification    | MII (Required)      | RGMII (Wrong)       |
+| ---------------- | ------------------- | ------------------- |
+| Speed            | 10/100 Mbps         | 1000 Mbps           |
+| Data Width       | 4-bit               | 4-bit               |
+| Data Rate        | SDR (rising edge)   | DDR (both edges)    |
+| Clock Frequency  | 25 MHz / 2.5 MHz    | 125 MHz             |
+| Clock Source     | PHY -> FPGA         | FPGA -> PHY         |
+| Reference Clock  | FPGA -> PHY         | None                |
+| Pin Count        | ~18 signals         | ~12 signals         |
+| Compatible PHY   | DP83848J            | RTL8211E, etc.      |
+
+**Arty A7 Hardware:**
+- PHY: Texas Instruments DP83848J
+- Interface: MII only (10/100 Mbps)
+- No RGMII support
+
+### MII Interface Implementation
+
+**Clock Architecture (Critical Understanding):**
+
+```
+FPGA generates:  25 MHz -> eth_ref_clk -> PHY X1 pin (reference clock)
+
+PHY generates:   25 MHz -> eth_rx_clk -> FPGA (RX data sampling clock)
+                 25 MHz -> eth_tx_clk -> FPGA (TX data clocking)
+```
+
+**This is OPPOSITE of RGMII!**
+- RGMII: FPGA drives TX_CLK and RX_CLK
+- MII: PHY provides both data clocks, FPGA provides reference
+
+### PLL/MMCM Clock Generation
+
+**Challenge:** Generate 25 MHz reference clock from 100 MHz system clock
+
+**Solution:** PLLE2_BASE primitive (Xilinx 7-Series)
+
+```vhdl
+PLLE2_BASE
+    generic map (
+        CLKFBOUT_MULT   => 8,        -- 100 MHz * 8 = 800 MHz (VCO)
+        CLKOUT0_DIVIDE  => 32,       -- 800 MHz / 32 = 25 MHz
+        CLKIN1_PERIOD   => 10.0,     -- 100 MHz input (10ns period)
+        DIVCLK_DIVIDE   => 1,
+        STARTUP_WAIT    => "FALSE"   -- STRING literal, not boolean!
+    )
+    port map (
+        CLKIN1   => CLK,             -- 100 MHz system clock
+        CLKFBOUT => clkfb,
+        CLKFBIN  => clkfb,
+        CLKOUT0  => eth_ref_clk_unbuf,
+        LOCKED   => pll_locked,
+        PWRDWN   => '0',
+        RST      => '0'
+    );
+```
+
+**Critical Bug - Xilinx Primitive Parameters:**
+- **WRONG:** `STARTUP_WAIT => FALSE` (boolean)
+- **CORRECT:** `STARTUP_WAIT => "FALSE"` (string literal)
+- Error: "type error near false; current type boolean; expected type string"
+- **Lesson:** Xilinx primitives require STRING LITERALS for generic parameters
+- Always check UG953 (Vivado 7 Series Libraries Guide)
+
+### PHY Reset Timing
+
+**DP83848J Datasheet Requirement:** Minimum 10ms reset pulse
+
+**Implementation:**
+```vhdl
+-- Counter for 20ms @ 100MHz = 2,000,000 cycles
+signal reset_counter : unsigned(23 downto 0) := (others => '0');
+
+process(clk_100mhz)
+begin
+    if rising_edge(clk_100mhz) then
+        if btn_reset = '1' then
+            reset_counter <= (others => '0');
+            reset_sync <= '1';
+        elsif reset_counter < 2_000_000 then
+            reset_counter <= reset_counter + 1;
+            reset_sync <= '1';
+        else
+            reset_sync <= '0';
+        end if;
+    end if;
+end process;
+
+eth_rst_n <= not reset_sync;  -- PHY reset is active LOW
+```
+
+**Lesson:**
+- Add safety margin (20ms when 10ms required)
+- Use counter at known frequency for accurate timing
+- Improper reset prevents PHY link establishment
+- PHY won't function without proper reset sequence
+
+### Preamble/SFD Stripping (Critical for MII)
+
+**Problem:** MII receiver passes preamble bytes to FPGA
+
+**Ethernet Frame Structure:**
+```
+Preamble (7 bytes): 0x55 0x55 0x55 0x55 0x55 0x55 0x55
+SFD (1 byte):       0xD5 (Start Frame Delimiter)
+Dest MAC (6 bytes): 0x00 0x0A 0x35 0x02 0xAF 0x9A
+Src MAC (6 bytes):  ...
+Type (2 bytes):     0x08 0x00 (IPv4)
+Payload:            ...
+FCS (4 bytes):      Frame Check Sequence
+```
+
+**Bug:** MAC parser expected destination MAC as first byte, but received preamble
+
+**Symptom:** LEDs stuck at 0000 despite link established and frames transmitted
+
+**Root Cause Analysis:**
+1. Wireshark confirmed frames sent correctly
+2. Link LEDs showed PHY connection established
+3. FPGA not incrementing frame counter
+4. Traced data path: PHY -> mii_rx -> mac_parser
+5. Realized: MII passes preamble, RMII/RGMII strip it
+
+**Solution:** SFD Detection in mii_rx.vhd
+
+```vhdl
+signal sfd_detected : std_logic := '0';
+
+process(eth_rx_clk)
+begin
+    if rising_edge(eth_rx_clk) then
+        if rx_dv = '1' then
+            -- Detect SFD (0xD5)
+            if rx_data = X"D5" then
+                sfd_detected <= '1';
+            end if;
+
+            -- Only output data AFTER SFD
+            if sfd_detected = '1' and rx_data /= X"D5" then
+                data_out <= rx_data;
+                data_valid <= '1';
+            end if;
+        else
+            sfd_detected <= '0';  -- Reset on frame end
+        end if;
+    end if;
+end process;
+```
+
+**Lesson:**
+- Different PHY interfaces handle framing differently
+- MII: FPGA must strip preamble/SFD
+- RMII/RGMII: PHY may strip automatically (check datasheet!)
+- Always verify byte-level frame structure
+- IEEE 802.3 specification is authoritative
+
+### MAC Address Filtering
+
+**Purpose:** Only process frames addressed to FPGA
+
+**Target MAC:** `00:0a:35:02:af:9a` (Digilent OUI + board serial)
+
+**Implementation:**
+```vhdl
+constant FPGA_MAC : std_logic_vector(47 downto 0) := X"000a3502af9a";
+signal mac_match : std_logic;
+
+-- Receive destination MAC (first 6 bytes)
+case byte_count is
+    when 0 => dest_mac(47 downto 40) <= rx_data;
+    when 1 => dest_mac(39 downto 32) <= rx_data;
+    when 2 => dest_mac(31 downto 24) <= rx_data;
+    when 3 => dest_mac(23 downto 16) <= rx_data;
+    when 4 => dest_mac(15 downto 8)  <= rx_data;
+    when 5 => dest_mac(7 downto 0)   <= rx_data;
+              -- Check match after last byte
+              if dest_mac(47 downto 8) & rx_data = FPGA_MAC then
+                  mac_match <= '1';
+              else
+                  mac_match <= '0';  -- Reject frame
+              end if;
+end case;
+
+-- Also accept broadcast
+if dest_mac = X"ffffffffffff" then
+    mac_match <= '1';
+end if;
+```
+
+**Testing:**
+- Frames to FPGA_MAC: Accepted, LEDs increment
+- Frames to wrong MAC: Rejected, no increment
+- Broadcast frames: Accepted
+
+### Clock Domain Crossing (25 MHz -> 100 MHz)
+
+**Challenge:** `frame_valid` pulse generated in 25 MHz domain, stats counter in 100 MHz domain
+
+**Solution:** 2-Flip-Flop Synchronizer
+
+```vhdl
+signal frame_valid_sync1 : std_logic := '0';
+signal frame_valid_sync2 : std_logic := '0';
+
+process(clk_100mhz)
+begin
+    if rising_edge(clk_100mhz) then
+        frame_valid_sync1 <= frame_valid_cdc;  -- First FF
+        frame_valid_sync2 <= frame_valid_sync1; -- Second FF (stable)
+    end if;
+end process;
+
+-- Use sync2 for counter increment
+```
+
+**Timing Constraints (XDC):**
+```tcl
+set_max_delay -from [get_clocks eth_rx_clk] -to [get_clocks sys_clk] 40.0
+set_max_delay -from [get_clocks sys_clk] -to [get_clocks eth_rx_clk] 10.0
+```
+
+**Lesson:**
+- 2FF synchronizer is minimum for CDC
+- First FF may go metastable
+- Second FF guarantees stability
+- Proper timing constraints essential
+- Same pattern used in Project 2 (button debouncer)
+
+### Python/Scapy Testing
+
+**Test Script:** Send raw Ethernet frames directly to FPGA MAC
+
+```python
+from scapy.all import Ether, sendp
+
+FPGA_MAC = "00:0a:35:02:af:9a"
+frame = Ether(dst=FPGA_MAC, src=MY_MAC, type=0x0800) / b"Hello FPGA!"
+sendp(frame, iface="Ethernet 17", count=10, verbose=False)
+```
+
+**Benefits:**
+- Bypasses OS network stack
+- Full control over frame contents
+- Can test MAC filtering, broadcasts, malformed frames
+- Real hardware validation
+
+**Testing Scenarios:**
+1. Correct MAC -> LEDs increment
+2. Wrong MAC -> LEDs don't change
+3. Broadcast -> LEDs increment
+4. Various frame sizes (64 to 1518 bytes)
+5. Burst testing (100 frames rapidly)
+
+### Nibble-to-Byte Assembly
+
+**MII Interface:** 4-bit nibbles @ 25 MHz
+
+**Assembly Logic:**
+```vhdl
+signal nibble_count : std_logic := '0';
+signal byte_lower   : std_logic_vector(3 downto 0);
+
+process(eth_rx_clk)
+begin
+    if rising_edge(eth_rx_clk) then
+        if rx_dv = '1' then
+            if nibble_count = '0' then
+                byte_lower <= rxd;     -- Store lower nibble
+                nibble_count <= '1';
+            else
+                -- Upper nibble received, output complete byte
+                data_out <= rxd & byte_lower;  -- Concatenate
+                data_valid <= '1';
+                nibble_count <= '0';
+            end if;
+        end if;
+    end if;
+end process;
+```
+
+**Bit Ordering:** Network byte order (big-endian)
+- First nibble received = bits [3:0]
+- Second nibble received = bits [7:4]
+
+### Module Hierarchy
+
+```
+mii_eth_top
+├── PLLE2_BASE (100 MHz -> 25 MHz reference clock)
+├── mii_rx (MII receiver - nibble assembly, SFD detection)
+├── mac_parser (MAC frame parser with filtering)
+├── 2FF synchronizer (25 MHz -> 100 MHz CDC)
+└── stats_counter (LED display + activity indicator)
+```
+
+**Clean separation of concerns:**
+- mii_rx: Physical layer (nibble assembly, preamble stripping)
+- mac_parser: Data link layer (MAC filtering, frame validation)
+- stats_counter: Application layer (counting, display)
+
+### Timing Analysis Results
+
+**WNS (Worst Negative Slack):** +7.234 ns (PASSING)
+**TNS (Total Negative Slack):** 0 ns
+**Setup/Hold:** All constraints met
+
+**Critical Path:** eth_rx_clk to sys_clk crossing
+- Properly constrained with set_max_delay
+- 2FF synchronizer adds latency but guarantees stability
+
+### Hardware Verification
+
+**Visual Confirmation:**
+1. Blue LED ON after 5 seconds (PHY reset complete)
+2. RJ45 link LEDs illuminate (PHY negotiated link)
+3. LEDs count frames in binary (LD0-LD2)
+4. Green LED pulses on frame reception
+
+**Wireshark Validation:**
+- Confirmed frames transmitted correctly
+- Destination MAC matches FPGA
+- Source MAC shows PC adapter
+- Frame structure correct per IEEE 802.3
+
+**LED Counter Test:**
+- Send 1 frame: LEDs show 0001
+- Send 10 frames: LEDs show 1010 (wraps to lower 3 bits)
+- Send 100 frames: LEDs show 100 (mod 8 = 4)
+
+### Process Improvements Implemented
+
+**New Development Workflow:**
+1. **Documentation Review** (30 min) - Read reference manuals, datasheets
+2. **Planning** (15 min) - Module hierarchy, interfaces, constraints
+3. **Coding** (2-3 hours) - Implementation with proper synchronizers
+4. **Hardware Testing** (30 min) - Real board verification
+
+**Old (Wrong) Workflow:**
+1. Make assumptions about hardware
+2. Start coding immediately
+3. Debug for hours when it doesn't work
+4. Finally read documentation and discover wrong interface
+
+**Time Saved:** Hours of debugging prevented by upfront documentation review
+
+### Trading System Relevance
+
+**Market Data Reception:**
+- Direct PHY interfacing = minimal latency
+- Bypasses OS network stack completely
+- MAC filtering reduces processing load
+- Hardware timestamps possible (next phase)
+
+**Packet Processing:**
+- Preamble stripping at wire speed
+- Immediate MAC filtering (not CPU-based)
+- Dedicated state machines for protocol parsing
+- Deterministic latency (no OS scheduling)
+
+**Next Steps (Phase 1B):**
+- IP header parsing
+- UDP packet extraction
+- Hardware timestamping (sub-microsecond precision)
+- MDIO interface for PHY register access
+
+---
+This document grows with each project. Latest update includes Projects 1-6.
