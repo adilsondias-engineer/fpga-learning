@@ -1,10 +1,10 @@
-# Project 6: MII Ethernet Frame Receiver (CORRECTED)
+# Project 6: MII Ethernet Frame Receiver (CORRECTED) - Phase 1A
 
 **Hardware Ethernet Frame Receiver using MII Interface**
 
 ---
 
-## 🔴 Important: RGMII vs MII
+##Important: RGMII vs MII
 
 **Previous Mistake:** The initial implementation used RGMII (Reduced Gigabit MII), which is WRONG for the Arty A7.
 
@@ -12,12 +12,12 @@
 
 **Key Differences:**
 
-| Feature         | RGMII (Wrong) | MII (Correct)       |
-| --------------- | ------------- | ------------------- |
-| Speed           | 1000 Mbps     | 10/100 Mbps         |
-| Data Width      | 4-bit DDR     | 4-bit SDR           |
-| Clock Freq      | 125 MHz       | 25 MHz (100 Mbps)   |
-| Clock Source    | FPGA drives   | PHY provides        |
+| Feature         | RGMII (Wrong) | MII (Correct)         |
+| --------------- | ------------- | --------------------- |
+| Speed           | 1000 Mbps     | 10/100 Mbps           |
+| Data Width      | 4-bit DDR     | 4-bit SDR             |
+| Clock Freq      | 125 MHz       | 25 MHz (100 Mbps)     |
+| Clock Source    | FPGA drives   | PHY provides          |
 | Reference Clock | None          | FPGA -> 25 MHz -> PHY |
 
 **Process Improvement:** Always check official board documentation FIRST!
