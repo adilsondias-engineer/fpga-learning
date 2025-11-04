@@ -1,6 +1,6 @@
 # Project 6: UDP Packet Parser (RGMII) - ABANDONED
 
-**Status:** ⛔ **DISCONTINUED - HARDWARE INTERFACE MISMATCH**
+**Status:** DISCONTINUED - HARDWARE INTERFACE MISMATCH
 
 ---
 
@@ -22,7 +22,7 @@ Hardware verification was insufficient prior to implementation. The Arty A7 Refe
 | ------------------- | ------------------- | ------------------ | ---------------------- |
 | **Speed**           | 1000 Mbps           | 10/100 Mbps        | Interface incompatible |
 | **Protocol**        | RGMII               | MII                | Wrong physical layer   |
-| **Clock Source**    | FPGA → PHY (TX)     | PHY → FPGA (TX/RX) | Incorrect architecture |
+| **Clock Source**    | FPGA -> PHY (TX)     | PHY -> FPGA (TX/RX) | Incorrect architecture |
 | **Clock Frequency** | 125 MHz             | 25 MHz             | 5× frequency error     |
 | **Data Sampling**   | DDR (both edges)    | SDR (rising edge)  | Wrong timing           |
 | **Pin Count**       | ~12                 | ~18                | Incorrect pinout       |
@@ -70,7 +70,7 @@ This directory contains the **incorrect RGMII implementation**:
 - `src/stats_counter.vhd` - Statistics counter (reusable)
 - `constraints/arty_a7_100t.xdc` - Constraints with wrong pin assignments
 
-**⚠️ DO NOT USE THESE FILES WITH ARTY A7!**
+**WARNING: DO NOT USE THESE FILES WITH ARTY A7!**
 
 They are kept here for educational purposes only.
 
@@ -80,13 +80,13 @@ They are kept here for educational purposes only.
 
 Some modules can be adapted for MII:
 
-✅ **Can reuse with modifications:**
+**Can reuse with modifications:**
 
 - MAC frame parser logic (byte-level processing)
 - Statistics counter (no changes needed)
 - General architecture concepts
 
-❌ **Cannot reuse:**
+**Cannot reuse:**
 
 - RGMII receiver (DDR sampling, wrong protocol)
 - Clock generation (wrong frequencies)
@@ -99,17 +99,17 @@ Some modules can be adapted for MII:
 **See the correct MII implementation:**
 
 ```
-📁 ../06-udp-parser-mii/
+../06-udp-parser-mii/
 ```
 
 The MII version:
 
-- ✅ Uses correct interface (MII not RGMII)
-- ✅ Correct clock architecture (PHY provides clocks)
-- ✅ Generates 25 MHz reference clock for PHY
-- ✅ Proper pin assignments from official docs
-- ✅ Single Data Rate (simpler than DDR!)
-- ✅ Actually works with Arty A7 hardware
+- Uses correct interface (MII not RGMII)
+- Correct clock architecture (PHY provides clocks)
+- Generates 25 MHz reference clock for PHY
+- Proper pin assignments from official docs
+- Single Data Rate (simpler than DDR!)
+- Actually works with Arty A7 hardware
 
 ---
 
@@ -177,9 +177,9 @@ Documentation review (30 minutes) would have prevented this development cycle.
 
 ### Deliverables
 
-- ❌ Non-functional RGMII implementation
-- ✅ Improved development process documentation
-- ✅ Hardware verification checklist
+- Non-functional RGMII implementation
+- Improved development process documentation
+- Hardware verification checklist
 
 ---
 

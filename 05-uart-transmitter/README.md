@@ -41,14 +41,14 @@ Testing binary protocol...
 
 2. Querying counter value
    Response: 31 30 = b'10'
-   PASS ✓
+   PASS
 
 3. Adding 0x05 to counter
    Sending: AA 02 01 05 06
 
 4. Querying counter after add
    Response: b'15'
-   PASS ✓
+   PASS
 ```
 
 ### 3. Manual Testing (Optional)
@@ -188,17 +188,17 @@ AA 01 01 42 42
 
 **States:**
 
-- `WAIT_RX` → Waiting for input (ASCII or binary START_BYTE)
-- `PROTO_WAIT_CMD` → Binary protocol: reading command byte
-- `PROTO_WAIT_LEN` → Binary protocol: reading length byte
-- `PROTO_WAIT_DATA` → Binary protocol: reading N data bytes
-- `PROTO_WAIT_CSUM` → Binary protocol: validating checksum
-- `PROTO_PROCESS` → Binary protocol: executing command
-- `ECHO_TX` → Transmitting echo/response
-- `SEND_HEX_LOW` → Sending second hex digit
-- `SEND_FIFO_DATA` → Transmitting FIFO contents
+- `WAIT_RX` - Waiting for input (ASCII or binary START_BYTE)
+- `PROTO_WAIT_CMD` - Binary protocol: reading command byte
+- `PROTO_WAIT_LEN` - Binary protocol: reading length byte
+- `PROTO_WAIT_DATA` - Binary protocol: reading N data bytes
+- `PROTO_WAIT_CSUM` - Binary protocol: validating checksum
+- `PROTO_PROCESS` - Binary protocol: executing command
+- `ECHO_TX` - Transmitting echo/response
+- `SEND_HEX_LOW` - Sending second hex digit
+- `SEND_FIFO_DATA` - Transmitting FIFO contents
 
-**Key Design Decision:** Unified state machine eliminates race conditions between ASCII and binary protocol handlers (see Lessons Learned).
+**Key Design Decision:** Unified state machine eliminates race conditions between ASCII and binary protocol handlers (see Process Improvement).
 
 ---
 
@@ -225,7 +225,7 @@ All buttons feature professional 3-stage synchronizer + 20ms debounce + edge det
 - **Green:** Transmitting data (100ms pulse stretch)
 - **Blue:** Idle (no activity)
 
-_Pulse stretching makes brief signals visible to human eye (10ns → 100ms)_
+_Pulse stretching makes brief signals visible to human eye (10ns -> 100ms)_
 
 ### Pin Assignments (Arty A7-100T)
 
@@ -278,11 +278,11 @@ vivado -mode batch -source program.tcl -tclargs 05-uart-transmitter
 
 ### GUI Build
 
-1. Open project: `File → Project → Open: 05-uart-transmitter.xpr`
+1. Open project: `File -> Project -> Open: 05-uart-transmitter.xpr`
 2. Run complete flow:
-   - `Flow → Run Implementation`
-   - `Flow → Generate Bitstream`
-   - `Flow → Open Hardware Manager`
+   - `Flow -> Run Implementation`
+   - `Flow -> Generate Bitstream`
+   - `Flow -> Open Hardware Manager`
    - `Program Device`
 
 ### Testing
@@ -303,9 +303,9 @@ python uart.py
 **Test Commands:**
 
 ```
-Type: I I I Q    → Counter increments, query returns "03"
-Type: R Q        → Reset counter, query returns "00"
-Type: Hello S G  → Store in FIFO, check status, retrieve
+Type: I I I Q    - Counter increments, query returns "03"
+Type: R Q        - Reset counter, query returns "00"
+Type: Hello S G  - Store in FIFO, check status, retrieve
 ```
 
 **Binary Protocol Testing:**
@@ -315,8 +315,8 @@ Type: Hello S G  → Store in FIFO, check status, retrieve
 python test/uart.py
 
 # Or send binary manually (requires hex-capable terminal)
-AA 01 01 10 10  → Set counter to 0x10
-AA 03 00 03     → Query counter (returns "10")
+AA 01 01 10 10  - Set counter to 0x10
+AA 03 00 03     - Query counter (returns "10")
 ```
 
 ---
@@ -339,7 +339,7 @@ AA 03 00 03     → Query counter (returns "10")
 
 ## Known Issues & Debug History
 
-### ✅ FIXED: Binary Protocol Race Condition
+### FIXED: Binary Protocol Race Condition
 
 **Status:** RESOLVED - Unified state machine implemented (03/11/2025)
 
@@ -375,7 +375,7 @@ when WAIT_RX =>
 
 **Key Lesson:** Architectural problems require architectural solutions - cannot fix multi-process race conditions with flags.
 
-### ✅ FIXED: RGB LEDs Not Visible
+### FIXED: RGB LEDs Not Visible
 
 **Status:** RESOLVED - 100ms pulse stretching implemented (03/11/2025)
 
@@ -397,7 +397,7 @@ elsif led_r_stretch > 0 then
 end if;
 ```
 
-### ✅ FIXED: Other Issues
+### FIXED: Other Issues
 
 - **Query returning wrong data** - Reading `last_received` instead of `value_counter`
 - **Unprintable hex output** - Missing nibble-to-ASCII conversion
@@ -441,7 +441,7 @@ _Full debug history documented in README for portfolio demonstration._
 
 ---
 
-## Lessons Learned
+## Process Improvement
 
 ### Critical Insights
 
@@ -538,17 +538,17 @@ _Full debug history documented in README for portfolio demonstration._
 
 ```
 # Basic counter control
-I I I         → Counter = 0x03
-Q             → Response: "03"
-D             → Counter = 0x02
-Q             → Response: "02"
-R             → Counter = 0x00
+I I I         - Counter = 0x03
+Q             - Response: "03"
+D             - Counter = 0x02
+Q             - Response: "02"
+R             - Counter = 0x00
 
 # FIFO operations
-Hello         → Queued in FIFO (5 bytes)
-S             → Response: "05" (5 bytes queued)
-G             → Response: "Hello"
-S             → Response: "00" (FIFO empty)
+Hello         - Queued in FIFO (5 bytes)
+S             - Response: "05" (5 bytes queued)
+G             - Response: "Hello"
+S             - Response: "00" (FIFO empty)
 ```
 
 ### Binary Protocol Mode
@@ -652,16 +652,16 @@ For questions or contributions, please open an issue on GitHub.
 
 ---
 
-**Status:** ✅ Complete - All features fully functional  
+**Status:** Complete - All features fully functional  
 **Completed:** November 2, 2025  
 **Last Updated:** November 3, 2025  
 **Hardware:** Xilinx Arty A7-100T (XC7A100T-1CSG324C)
 
 **Recent Fixes:**
 
-- ✅ Binary protocol race condition resolved via unified state machine (03/11/2025)
-- ✅ RGB LED visibility fixed with 100ms pulse stretching (03/11/2025)
-- ✅ All Python automated tests passing (03/11/2025)
+- Binary protocol race condition resolved via unified state machine (03/11/2025)
+- RGB LED visibility fixed with 100ms pulse stretching (03/11/2025)
+- All Python automated tests passing (03/11/2025)
 
 ---
 

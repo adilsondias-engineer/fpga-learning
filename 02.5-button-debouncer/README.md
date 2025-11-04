@@ -18,8 +18,8 @@ Physical buttons are electrically noisy - they "bounce" when pressed, creating m
 
 ## What It Does
 
-- Press BTN0 (ON button) → LED turns ON
-- Press BTN1 (OFF button) → LED turns OFF
+- Press BTN0 (ON button) - LED turns ON
+- Press BTN1 (OFF button) - LED turns OFF
 
 **Key Features:**
 
@@ -36,15 +36,15 @@ The design uses a 4-stage pipeline **for each button**:
 
 ```
 Physical Buttons (ON/OFF)
-    ↓
+    |
 STAGE 1: Synchronizers (3 flip-flops each)
-    ↓ (Prevents metastability)
+    | (Prevents metastability)
 STAGE 2: Debouncers (20ms filter each)
-    ↓ (Removes mechanical bouncing)
+    | (Removes mechanical bouncing)
 STAGE 3: Edge Detectors (one per button)
-    ↓ (Triggers once per press, not continuous)
+    | (Triggers once per press, not continuous)
 STAGE 4: LED Control Logic
-    ↓
+    |
 Clean, reliable output
 ```
 
@@ -180,10 +180,10 @@ run all
 
 The testbench covers:
 
-- ✅ TEST 1: ON button press (LED turns on)
-- ✅ TEST 2: OFF button press (LED turns off)
-- ✅ TEST 3: Button bounce simulation (rapid noise filtered correctly)
-- ✅ TEST 4: Multiple distinct presses (alternating ON/OFF sequences)
+- TEST 1: ON button press (LED turns on)
+- TEST 2: OFF button press (LED turns off)
+- TEST 3: Button bounce simulation (rapid noise filtered correctly)
+- TEST 4: Multiple distinct presses (alternating ON/OFF sequences)
 
 **Test Results:** All 4 tests pass with proper initialization.
 
@@ -223,13 +223,13 @@ add_wave {/button_debouncer_tb/led_out_tb}                # LED output
 
 ### Expected Behavior
 
-1. Power on → LED off
-2. Press BTN0 (ON) → LED turns on
-3. Release BTN0 → LED stays on
-4. Press BTN0 again → LED stays on (already on)
-5. Press BTN1 (OFF) → LED turns off
-6. Release BTN1 → LED stays off
-7. Rapid button presses → Each press registers once (no double-triggers)
+1. Power on - LED off
+2. Press BTN0 (ON) - LED turns on
+3. Release BTN0 - LED stays on
+4. Press BTN0 again - LED stays on (already on)
+5. Press BTN1 (OFF) - LED turns off
+6. Release BTN1 - LED stays off
+7. Rapid button presses - Each press registers once (no double-triggers)
 
 ### Troubleshooting
 
@@ -249,7 +249,7 @@ add_wave {/button_debouncer_tb/led_out_tb}                # LED output
 - Possible metastability (shouldn't happen with 3-stage sync)
 - Check clock constraints in XDC
 
-## Lessons Learned
+## Process Improvement
 
 ### Critical Bug Fixes During Development
 
@@ -330,11 +330,11 @@ btn_in_tb(1) <= '0';
 
 **Compared to toggle button:**
 
-✅ **Explicit control** - No ambiguity about LED state
-✅ **Easier testing** - Can directly command desired state
-✅ **Real-world applicability** - Many systems use separate ON/OFF controls
-✅ **Demonstrates parallelism** - Two independent signal paths
-✅ **No state tracking issues** - LED state doesn't depend on previous presses
+**Explicit control** - No ambiguity about LED state
+**Easier testing** - Can directly command desired state
+**Real-world applicability** - Many systems use separate ON/OFF controls
+**Demonstrates parallelism** - Two independent signal paths
+**No state tracking issues** - LED state doesn't depend on previous presses
 
 **Use cases:**
 
@@ -371,12 +371,12 @@ btn_in_tb(1) <= '0';
 
 ## Status
 
-✅ Design complete
-✅ Simulation verified (all 4 tests pass)
-✅ Synthesis successful
-✅ Implementation complete
-✅ Hardware verified on Arty A7-100T
-✅ Testbench bugs fixed (initialization, timing, button conflicts)
+Design complete
+Simulation verified (all 4 tests pass)
+Synthesis successful
+Implementation complete
+Hardware verified on Arty A7-100T
+Testbench bugs fixed (initialization, timing, button conflicts)
 
 ---
 

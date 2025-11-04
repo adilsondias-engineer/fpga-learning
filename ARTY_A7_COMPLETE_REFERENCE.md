@@ -56,8 +56,8 @@ create_clock -period 10.000 -name sys_clk_pin [get_ports CLK100MHz]
 
 - **2-wire serial:** TXD + RXD
 - **FPGA Pins:**
-  - TX (FPGA → PC): A9
-  - RX (FPGA ← PC): D10
+  - TX (FPGA -> PC): A9
+  - RX (FPGA <- PC): D10
 - **Status LEDs:**
   - LD10: Transmit activity
   - LD9: Receive activity
@@ -166,7 +166,7 @@ set_property -dict { PACKAGE_PIN T10 IOSTANDARD LVCMOS33 } [get_ports { led[3] }
 - **Colors:** Red, Green, Blue per LED
 - **Connection:** Cathode-driven through transistor (INVERTED)
 - **Logic:** HIGH = LED ON (inverted by transistor)
-- **⚠️ WARNING:** Use PWM! Maximum 50% duty cycle recommended
+- **WARNING:** Use PWM! Maximum 50% duty cycle recommended
 - **Reason:** Direct HIGH = uncomfortably bright
 
 **Pin Assignments:**
@@ -232,7 +232,7 @@ end process;
 - **Power:** VCC (3.3V) + GND on pins 5,6,11,12
 - **Logic:** 8 signal pins per connector
 - **Max Current:** 1A per VCC/GND pair
-- **⚠️ WARNING:** Do NOT exceed 3.4V on any pin!
+- **WARNING:** Do NOT exceed 3.4V on any pin!
 
 ### Connector Types
 
@@ -249,7 +249,7 @@ end process;
 - **Use Case:** Differential signaling, high speed
 - **Paired Signals:**
   - Pins 1&2, 3&4, 7&8, 9&10
-- **⚠️ WARNING:** No short-circuit protection!
+- **WARNING:** No short-circuit protection!
 
 ### Pin Assignments
 
@@ -362,8 +362,8 @@ Choose the correct file:
 CLK100MHz: E3
 
 ## UART
-uart_txd_in:  A9   # FPGA → PC
-uart_rxd_out: D10  # FPGA ← PC
+uart_txd_in:  A9   # FPGA -> PC
+uart_rxd_out: D10  # FPGA <- PC
 
 ## LEDs
 led[0:3]: H5, J5, T9, T10

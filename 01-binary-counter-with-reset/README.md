@@ -85,12 +85,12 @@ LEDs display binary count (LSB to MSB):
 ---
 
 **Status:**
-✅ Design complete
-✅ Simulation verified (all tests pass)
-✅ Synthesis successful
-✅ Implementation complete
-✅ Hardware verified on Arty A7-100T
-✅ Flash programmed - boots autonomously
+Design complete
+Simulation verified (all tests pass)
+Synthesis successful
+Implementation complete
+Hardware verified on Arty A7-100T
+Flash programmed - boots autonomously
 
 ---
 

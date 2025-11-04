@@ -117,14 +117,14 @@ set_false_path -from [get_ports btn[*]]
 ## ============================================================================
 ## PREVIOUS ERRORS FIXED:
 ## ============================================================================
-## ❌ OLD (WRONG): encoder_a -> V12  (This is Pmod JC pin, not analog A11!)
-## ✅ NEW (RIGHT): encoder_a -> A3   (ChipKit analog pin A11)
+## OLD (WRONG): encoder_a -> V12  (This is Pmod JC pin, not analog A11!)
+## NEW (CORRECT): encoder_a -> A3   (ChipKit analog pin A11)
 ##
-## ❌ OLD (WRONG): encoder_b -> W16  (This pin DOESN'T EXIST on Arty A7-100T!)
-## ✅ NEW (RIGHT): encoder_b -> A4   (ChipKit analog pin A10)
+## OLD (WRONG): encoder_b -> W16  (This pin DOESN'T EXIST on Arty A7-100T!)
+## NEW (CORRECT): encoder_b -> A4   (ChipKit analog pin A10)
 ##
-## ❌ OLD (WRONG): encoder_sw -> J15 (This is Pmod JB pin, not analog A9!)
-## ✅ NEW (RIGHT): encoder_sw -> E5  (ChipKit analog pin A9)
+## OLD (WRONG): encoder_sw -> J15 (This is Pmod JB pin, not analog A9!)
+## NEW (CORRECT): encoder_sw -> E5  (ChipKit analog pin A9)
 ##
 ## Also updated LED pins from outer digital header (IO0-IO7) to inner digital
 ## header (IO26-IO33) for better physical layout on board.

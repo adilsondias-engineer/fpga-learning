@@ -203,12 +203,12 @@ begin
                 display_mode <= '0';
                 
             elsif cw_pulse = '1' then
-                -- Increment (wraps at 255 → 0)
+                -- Increment (wraps at 255 -> 0)
                 current_value <= current_value + 1;
                 display_mode <= '0';  -- Back to edit mode
-                
+
             elsif ccw_pulse = '1' then
-                -- Decrement (wraps at 0 → 255)
+                -- Decrement (wraps at 0 -> 255)
                 current_value <= current_value - 1;
                 display_mode <= '0';  -- Back to edit mode
            elsif btn1_rise = '1' then

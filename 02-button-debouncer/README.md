@@ -16,7 +16,7 @@ Physical buttons are electrically noisy - they "bounce" when pressed, creating m
 
 ## What It Does
 
-Press the button → LED toggles ON/OFF
+Press the button - LED toggles ON/OFF
 
 **Key Features:**
 
@@ -31,15 +31,15 @@ The design uses a 4-stage pipeline:
 
 ```
 Physical Button
-    ↓
+    |
 STAGE 1: Synchronizer (3 flip-flops)
-    ↓ (Prevents metastability)
+    | (Prevents metastability)
 STAGE 2: Debouncer (20ms filter)
-    ↓ (Removes mechanical bouncing)
+    | (Removes mechanical bouncing)
 STAGE 3: Edge Detector
-    ↓ (Triggers once per press, not continuous)
+    | (Triggers once per press, not continuous)
 STAGE 4: LED Toggle
-    ↓
+    |
 Clean, reliable output
 ```
 
@@ -164,11 +164,11 @@ run all
 
 The testbench covers:
 
-- ✅ Basic toggle functionality (press → LED changes)
-- ✅ Debounce filtering (rapid bounces ignored)
-- ✅ Edge detection (held button doesn't continuously trigger)
-- ✅ Multiple sequential presses (5 rapid presses all counted)
-- ✅ Timing verification (debounce period enforced)
+- Basic toggle functionality (press - LED changes)
+- Debounce filtering (rapid bounces ignored)
+- Edge detection (held button doesn't continuously trigger)
+- Multiple sequential presses (5 rapid presses all counted)
+- Timing verification (debounce period enforced)
 
 **Test Results:** All 4 tests pass with fast simulation timing.
 
@@ -189,11 +189,11 @@ add_wave {/button_debouncer_tb/led_tb}                    # LED output
 
 ### Expected Behavior
 
-1. Power on → LED off
-2. Press BTN0 → LED turns on
-3. Release BTN0 → LED stays on
-4. Press BTN0 again → LED turns off
-5. Rapid button presses → Each press toggles LED once (no double-triggers)
+1. Power on - LED off
+2. Press BTN0 - LED turns on
+3. Release BTN0 - LED stays on
+4. Press BTN0 again - LED turns off
+5. Rapid button presses - Each press toggles LED once (no double-triggers)
 
 ### Troubleshooting
 
@@ -213,7 +213,7 @@ add_wave {/button_debouncer_tb/led_tb}                    # LED output
 - Possible metastability (shouldn't happen with 3-stage sync)
 - Check clock constraints in XDC
 
-## Lessons Learned
+## Process Improvement
 
 ### Bug Fixes During Development
 
@@ -284,12 +284,12 @@ btn_prev <= btn_stable;  -- Update last
 
 ## Status
 
-✅ Design complete
-✅ Simulation verified (all tests pass)
-✅ Synthesis successful
-✅ Implementation complete
-✅ Hardware verified on Arty A7-100T
-✅ Flash programmed - boots autonomously
+Design complete
+Simulation verified (all tests pass)
+Synthesis successful
+Implementation complete
+Hardware verified on Arty A7-100T
+Flash programmed - boots autonomously
 
 ---
 

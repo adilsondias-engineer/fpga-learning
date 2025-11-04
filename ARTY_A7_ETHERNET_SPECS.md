@@ -20,14 +20,14 @@
 
 ## Critical Clock Requirements
 
-### Reference Clock (FPGA → PHY)
+### Reference Clock (FPGA -> PHY)
 
 - **FPGA MUST generate 25 MHz clock** for PHY X1 pin
 - Signal name: `ETH_REF_CLK`
 - This clock is **required** for PHY operation
 - Generated from 100 MHz system clock using MMCM/PLL
 
-### Data Clocks (PHY → FPGA)
+### Data Clocks (PHY -> FPGA)
 
 - `eth_rx_clk` - 25 MHz (for 100 Mbps) or 2.5 MHz (for 10 Mbps)
 - `eth_tx_clk` - 25 MHz (for 100 Mbps) or 2.5 MHz (for 10 Mbps)
@@ -109,7 +109,7 @@ set_output_delay -clock eth_tx_clk -max 10.0 [get_ports {eth_txd[*] eth_tx_en}]
 set_output_delay -clock eth_tx_clk -min 0.0 [get_ports {eth_txd[*] eth_tx_en}]
 ```
 
-## Clock Generation (100 MHz → 25 MHz)
+## Clock Generation (100 MHz -> 25 MHz)
 
 Use MMCME2_BASE or PLLE2_BASE:
 
@@ -150,8 +150,8 @@ Per the manual, these IP cores support this PHY:
 | Data width   | 4-bit               | 4-bit             |
 | Data rate    | SDR (Single)        | DDR (Double)      |
 | Clock freq   | 25 MHz / 2.5 MHz    | 125 MHz           |
-| Clock source | PHY → FPGA          | FPGA → PHY        |
-| Reference    | FPGA → PHY (25 MHz) | None              |
+| Clock source | PHY -> FPGA          | FPGA -> PHY        |
+| Reference    | FPGA -> PHY (25 MHz) | None              |
 | Total pins   | ~18                 | ~12               |
 
 ## Reset Timing

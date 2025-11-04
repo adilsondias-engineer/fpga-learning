@@ -66,7 +66,7 @@ A FIFO (First-In, First-Out) buffer is a fundamental data structure in digital s
 ```
 Internal Memory Array (16 x 8-bit):
 ┌─────────┐
-│ Entry 0 │ ← rd_ptr points here when reading oldest data
+│ Entry 0 │ <- rd_ptr points here when reading oldest data
 ├─────────┤
 │ Entry 1 │
 ├─────────┤
@@ -74,7 +74,7 @@ Internal Memory Array (16 x 8-bit):
 ├─────────┤
 │   ...   │
 ├─────────┤
-│ Entry 15│ ← wr_ptr points here when writing new data
+│ Entry 15│ <- wr_ptr points here when writing new data
 └─────────┘
 
 Pointers wrap around:
@@ -326,12 +326,12 @@ count:    ──1───1──  (stays constant)
 **Last Updated:** 30/10/2025
 **Time Invested:** ~6 hours (design, debug, testbench fixes, verification)
 **Key Learning:**
-✅ **FIFO Architecture:** How circular buffers work  
-✅ **Memory Management:** Pointer arithmetic and wraparound  
-✅ **Flow Control:** Using full/empty flags  
-✅ **Data Integrity:** Preserving order in buffers  
-✅ **Testbench Design:** Comprehensive verification methodology  
-✅ **Resource Inference:** How HDL maps to hardware
+**FIFO Architecture:** How circular buffers work  
+**Memory Management:** Pointer arithmetic and wraparound  
+**Flow Control:** Using full/empty flags  
+**Data Integrity:** Preserving order in buffers  
+**Testbench Design:** Comprehensive verification methodology  
+**Resource Inference:** How HDL maps to hardware
 
 ---
 

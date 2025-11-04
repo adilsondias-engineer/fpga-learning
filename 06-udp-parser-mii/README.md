@@ -18,9 +18,9 @@
 | Data Width      | 4-bit DDR     | 4-bit SDR           |
 | Clock Freq      | 125 MHz       | 25 MHz (100 Mbps)   |
 | Clock Source    | FPGA drives   | PHY provides        |
-| Reference Clock | None          | FPGA → 25 MHz → PHY |
+| Reference Clock | None          | FPGA -> 25 MHz -> PHY |
 
-**Lesson Learned:** Always check official board documentation FIRST!
+**Process Improvement:** Always check official board documentation FIRST!
 
 ---
 
@@ -74,9 +74,9 @@ This is the foundation for building low-latency market data receivers used in hi
 **Clock Flow:**
 
 ```
-FPGA generates 25 MHz → eth_ref_clk → PHY X1 pin
-PHY generates 25 MHz → eth_rx_clk → FPGA (for RX sampling)
-PHY generates 25 MHz → eth_tx_clk → FPGA (for TX clocking)
+FPGA generates 25 MHz -> eth_ref_clk -> PHY X1 pin
+PHY generates 25 MHz -> eth_rx_clk -> FPGA (for RX sampling)
+PHY generates 25 MHz -> eth_tx_clk -> FPGA (for TX clocking)
 ```
 
 **This is OPPOSITE of RGMII where FPGA drives both clocks!**
@@ -89,7 +89,7 @@ PHY generates 25 MHz → eth_tx_clk → FPGA (for TX clocking)
 
 ```
 mii_eth_top
-├── PLLE2_BASE (100 MHz → 25 MHz reference clock)
+├── PLLE2_BASE (100 MHz -> 25 MHz reference clock)
 ├── mii_rx (MII receiver - nibble assembly)
 ├── mac_parser (MAC frame parser with filtering)
 └── stats_counter (LED display + activity indicator)
@@ -108,15 +108,15 @@ mii_eth_top
 
 ```
 Ethernet Cable
-    ↓
+    |
 PHY (DP83848J)
-    ↓ (MII - 4-bit nibbles @ 25 MHz)
-mii_rx (assemble nibbles → bytes)
-    ↓ (8-bit bytes)
+    | (MII - 4-bit nibbles @ 25 MHz)
+mii_rx (assemble nibbles -> bytes)
+    | (8-bit bytes)
 mac_parser (parse frame, filter by MAC)
-    ↓ (frame_valid pulse)
-2FF Synchronizer (25 MHz → 100 MHz)
-    ↓
+    | (frame_valid pulse)
+2FF Synchronizer (25 MHz -> 100 MHz)
+    |
 stats_counter (count frames, drive LEDs)
 ```
 
@@ -163,7 +163,7 @@ wait_on_run impl_1
 
 **Check Timing:**
 
-- Open `Reports → Timing Summary`
+- Open `Reports -> Timing Summary`
 - WNS (Worst Negative Slack) must be POSITIVE
 - All setup/hold times must pass
 
@@ -186,8 +186,8 @@ program_hw_devices
 **Windows:**
 
 ```
-Control Panel → Network Connections → Ethernet Adapter
-Properties → TCP/IPv4 → Use the following IP address:
+Control Panel -> Network Connections -> Ethernet Adapter
+Properties -> TCP/IPv4 -> Use the following IP address:
 
 IP Address: 192.168.1.1
 Subnet Mask: 255.255.255.0
@@ -216,8 +216,8 @@ sudo ifconfig eth0 192.168.1.1 netmask 255.255.255.0 up
 **After programming:**
 
 1. Wait 5 seconds for PHY initialization
-2. **LED1 (blue)** should turn ON → PHY ready
-3. Check Ethernet link LEDs in RJ45 jack → Should show link
+2. **LED1 (blue)** should turn ON - PHY ready
+3. Check Ethernet link LEDs in RJ45 jack - Should show link
 
 ### Send Test Frames
 
@@ -275,7 +275,7 @@ Each ping generates ~2 frames (ARP + ICMP), so LEDs should count:
 **Check:**
 
 1. Wait at least 5 seconds after programming
-2. Verify RGB LED1 (blue) is ON → PHY reset complete
+2. Verify RGB LED1 (blue) is ON - PHY reset complete
 3. Check Ethernet cable is securely connected
 4. Verify PC network adapter is enabled
 5. Check timing report (WNS must be positive)
@@ -320,7 +320,7 @@ eth.dst == 00:0a:35:02:af:9a
 ### 1. Reference Clock Generation
 
 ```vhdl
--- 100 MHz → 25 MHz using PLL
+-- 100 MHz -> 25 MHz using PLL
 PLLE2_BASE (
     CLKFBOUT_MULT => 8,      -- 100 × 8 = 800 MHz VCO
     CLKOUT0_DIVIDE => 32     -- 800 ÷ 32 = 25 MHz
@@ -355,7 +355,7 @@ end if;
 ### 4. Clock Domain Crossing
 
 ```vhdl
--- 2FF synchronizer: 25 MHz → 100 MHz
+-- 2FF synchronizer: 25 MHz -> 100 MHz
 process(sys_clk)
 begin
     if rising_edge(sys_clk) then
@@ -420,7 +420,7 @@ end process;
 
 - Wasted 4+ hours implementing wrong interface (RGMII vs MII)
 - Could have been avoided by reading manual first
-- **New rule:** Documentation → Planning → Coding
+- **New rule:** Documentation -> Planning -> Coding
 
 ### 2. MII is Simpler Than RGMII
 
@@ -438,7 +438,7 @@ end process;
 
 - Minimum 10ms reset pulse required
 - Use 20ms to be safe
-- Improper reset → No link establishment
+- Improper reset -> No link establishment
 
 ---
 
@@ -484,7 +484,7 @@ PLLE2_BASE
         CLKOUT0_DIVIDE   => 32,
         CLKIN1_PERIOD    => 10.0,
         DIVCLK_DIVIDE    => 1,
-        STARTUP_WAIT     => FALSE    -- ❌ Boolean (wrong type)
+        STARTUP_WAIT     => FALSE    -- Boolean (wrong type)
     )
 ```
 
@@ -498,7 +498,7 @@ PLLE2_BASE
         CLKOUT0_DIVIDE   => 32,
         CLKIN1_PERIOD    => 10.0,
         DIVCLK_DIVIDE    => 1,
-        STARTUP_WAIT     => "FALSE"  -- ✅ String literal (correct)
+        STARTUP_WAIT     => "FALSE"  -- String literal (correct)
     )
 ```
 
@@ -580,10 +580,10 @@ end if;
 
 ```
 Sending 10 frames to 00:0a:35:02:af:9a...
-✓ LEDs counting: 0001 → 0010 → 0011 → 0100...
-✓ Green LED blinking on each frame
-✓ Blue LED steady (PHY ready)
-✓ Red LED off (no errors)
+LEDs counting: 0001 -> 0010 -> 0011 -> 0100...
+Green LED blinking on each frame
+Blue LED steady (PHY ready)
+Red LED off (no errors)
 ```
 
 **Lesson Learned:**
@@ -604,12 +604,12 @@ The preamble stripping issue was diagnosed through systematic analysis despite W
 
 ```
 Observed:
-✓ Ethernet link established (RJ45 LEDs ON, PC shows connection)
-✓ Wireshark shows frames being sent to correct MAC (00:0a:35:02:af:9a)
-✓ Frame rate visible on RJ45 orange LED (blinking when sending)
-✗ FPGA LEDs stuck at 0000 (not counting frames)
-✗ Blue LED ON (PHY ready - no initialization problem)
-✗ Red LED OFF (no errors signaled by PHY)
++ Ethernet link established (RJ45 LEDs ON, PC shows connection)
++ Wireshark shows frames being sent to correct MAC (00:0a:35:02:af:9a)
++ Frame rate visible on RJ45 orange LED (blinking when sending)
+- FPGA LEDs stuck at 0000 (not counting frames)
+- Blue LED ON (PHY ready - no initialization problem)
+- Red LED OFF (no errors signaled by PHY)
 ```
 
 **Conclusion:** Hardware is working, frames are arriving, but software logic is rejecting them.
@@ -621,7 +621,7 @@ Wireshark filter: `eth.dst == 00:0a:35:02:af:9a`
 ```
 Frame 1: 60 bytes on wire
 Ethernet II, Src: PC_MAC, Dst: 00:0a:35:02:af:9a
-    Destination: 00:0a:35:02:af:9a  ← Correct!
+    Destination: 00:0a:35:02:af:9a  <- Correct!
     Source: xx:xx:xx:xx:xx:xx
     Type: IPv4 (0x0800)
 Internet Protocol...
@@ -629,9 +629,9 @@ Internet Protocol...
 
 **What Wireshark CANNOT show:**
 
-- ❌ Preamble (7 bytes of 0x55)
-- ❌ SFD (1 byte of 0xD5)
-- ❌ FCS/CRC (4 bytes at end)
+- Preamble (7 bytes of 0x55)
+- SFD (1 byte of 0xD5)
+- FCS/CRC (4 bytes at end)
 
 **Why?** The host PC's NIC strips these before passing frames to the OS.
 
@@ -642,12 +642,12 @@ Internet Protocol...
 Traced the data path:
 
 ```
-PHY → mii_rx_dv/mii_rxd (nibbles)
-    → mii_rx module (assemble to bytes)
-    → rx_data/rx_valid
-    → mac_parser (filter by MAC)
-    → frame_valid
-    → stats_counter (increment LEDs)
+PHY -> mii_rx_dv/mii_rxd (nibbles)
+    -> mii_rx module (assemble to bytes)
+    -> rx_data/rx_valid
+    -> mac_parser (filter by MAC)
+    -> frame_valid
+    -> stats_counter (increment LEDs)
 ```
 
 **Question:** What byte does `mac_parser` expect first?
@@ -680,7 +680,7 @@ Byte 1:  0x55  (preamble)
 ...
 Byte 6:  0x55  (preamble)
 Byte 7:  0xD5  (SFD)
-Byte 8:  0x00  (Dest MAC byte 0)  ← mac_parser expects THIS as first byte
+Byte 8:  0x00  (Dest MAC byte 0)  <- mac_parser expects THIS as first byte
 Byte 9:  0x0A  (Dest MAC byte 1)
 ...
 ```
@@ -798,16 +798,16 @@ The specification research revealed that MII provides raw frame data including p
 
 ---
 
-**Status:** ✅ Tested and worked on hardware  
-**Completed:** November 4, 2025  
-**Last Updated:** November 4, 2025  
+**Status:** Tested and working on hardware
+**Completed:** November 4, 2025
+**Last Updated:** November 4, 2025
 **Hardware:** Xilinx Arty A7-100T (XC7A100T-1CSG324C)
 
 **Recent Fixes:**
 
-- ✅ PLLE2_BASE generic parameter type corrected (boolean → string) (04/11/2025)
-- ✅ MII preamble/SFD stripping implemented - frames now counted correctly (04/11/2025)
-- ✅ Hardware verification complete - all tests passing (04/11/2025)
+- PLLE2_BASE generic parameter type corrected (boolean -> string) (04/11/2025)
+- MII preamble/SFD stripping implemented - frames now counted correctly (04/11/2025)
+- Hardware verification complete - all tests passing (04/11/2025)
 
 ---
 

@@ -1,7 +1,7 @@
 ## What I Learned so far
 ### FPGA Development Workflow
 
-- Complete design → simulation → synthesis → implementation → hardware verification cycle
+- Complete design -> simulation -> synthesis -> implementation -> hardware verification cycle
 - Importance of setting correct top module for synthesis vs simulation (different "tops" for different purposes)
 - Synthesis is for actual hardware designs only - testbenches cannot be synthesized
 - Flash programming for autonomous boot on power-up
@@ -52,7 +52,7 @@
 - Bug discovered: Order matters in sequential logic
 - Must detect edge BEFORE updating previous state storage
 - Ambiguous evaluation order can cause missed edges
-- Correct pattern: read → compare → update
+- Correct pattern: read -> compare -> update
 
 ### Generic Parameters
 
@@ -285,12 +285,12 @@ CHECKSUM = CMD ⊕ LENGTH ⊕ DATA[0] ⊕ DATA[1] ⊕ ... ⊕ DATA[N-1]
 ```
 
 **Protocol State Machine:**
-- `WAIT_RX` → Waiting for START_BYTE (0xAA)
-- `PROTO_WAIT_CMD` → Reading command byte
-- `PROTO_WAIT_LEN` → Reading length byte
-- `PROTO_WAIT_DATA` → Reading N data bytes
-- `PROTO_WAIT_CSUM` → Validating checksum
-- `PROTO_PROCESS` → Executing validated command
+- `WAIT_RX` - Waiting for START_BYTE (0xAA)
+- `PROTO_WAIT_CMD` - Reading command byte
+- `PROTO_WAIT_LEN` - Reading length byte
+- `PROTO_WAIT_DATA` - Reading N data bytes
+- `PROTO_WAIT_CSUM` - Validating checksum
+- `PROTO_PROCESS` - Executing validated command
 
 **Commands Implemented:**
 - `0x01` - Set counter (LENGTH=1, DATA=value)
@@ -309,7 +309,7 @@ CHECKSUM = CMD ⊕ LENGTH ⊕ DATA[0] ⊕ DATA[1] ⊕ ... ⊕ DATA[N-1]
 ### UART Communication Best Practices
 
 **Baud Rate Generation:**
-- 100MHz clock → 115200 baud
+- 100MHz clock -> 115200 baud
 - Clock division: 100,000,000 / 115,200 ≈ 868 cycles per bit
 - Mid-bit sampling: Sample at cycle 434 for noise immunity
 
@@ -340,9 +340,9 @@ when ECHO_TX =>
 ### RGB LED Pulse Stretching
 
 **Problem:** Brief signals invisible to human eye
-- Red LED (`rx_valid`): Only 10ns @ 100MHz → invisible
-- Green LED (`tx_busy`): ~87μs per byte → barely visible flash
-- Blue LED (idle): Constant → always on (no indication of activity)
+- Red LED (`rx_valid`): Only 10ns @ 100MHz - invisible
+- Green LED (`tx_busy`): ~87μs per byte - barely visible flash
+- Blue LED (idle): Constant - always on (no indication of activity)
 
 **Solution:** 100ms pulse stretchers
 ```vhdl

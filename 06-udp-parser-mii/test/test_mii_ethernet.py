@@ -37,7 +37,7 @@ def send_test_frames(interface, count=10):
         print(f"Sent frame {i+1}/{count}")
         time.sleep(0.5)  # 500ms between frames
     
-    print("\n✓ All frames sent!")
+    print("\nAll frames sent!")
     print("\nExpected behavior:")
     print("- LED0-3 should increment in binary (0001, 0010, 0011, ...)")
     print("- LED0 (green) should blink briefly on each frame")
@@ -89,11 +89,11 @@ def main():
     try:
         send_test_frames(interface, count)
     except PermissionError:
-        print("\n❌ Permission denied!")
+        print("\nERROR: Permission denied!")
         print("Run with sudo: sudo python3 test_mii_ethernet.py")
         return
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\nERROR: {e}")
         return
 
 if __name__ == "__main__":

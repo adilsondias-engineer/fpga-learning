@@ -10,13 +10,13 @@
 --   - Statistics counter (LED display)
 --
 -- Hardware: Xilinx Arty A7-100T
---   - 100 MHz oscillator → System clock
---   - RTL8211E PHY → Ethernet interface (RGMII)
---   - 4 LEDs → Status display
---   - 4 Buttons → Control inputs
+--   - 100 MHz oscillator - System clock
+--   - RTL8211E PHY - Ethernet interface (RGMII)
+--   - 4 LEDs - Status display
+--   - 4 Buttons - Control inputs
 --
 -- Test Setup:
---   PC USB Ethernet (192.168.1.1) → Arty (192.168.1.100)
+--   PC USB Ethernet (192.168.1.1) - Arty (192.168.1.100)
 --   Send: ping 192.168.1.100
 --   See: LEDs show frame count in binary!
 ----------------------------------------------------------------------------------
@@ -177,8 +177,8 @@ begin
     mmcm_tx_clock : MMCME2_BASE
         generic map (
             BANDWIDTH          => "OPTIMIZED",
-            CLKFBOUT_MULT_F    => 10.0,      -- 100 MHz × 10 = 1000 MHz (VCO)
-            CLKOUT0_DIVIDE_F   => 8.0,       -- 1000 MHz ÷ 8 = 125 MHz
+            CLKFBOUT_MULT_F    => 10.0,      -- 100 MHz * 10 = 1000 MHz (VCO)
+            CLKOUT0_DIVIDE_F   => 8.0,       -- 1000 MHz / 8 = 125 MHz
             CLKIN1_PERIOD      => 10.0,      -- 100 MHz input (10ns period)
             DIVCLK_DIVIDE      => 1,
             STARTUP_WAIT       => FALSE
@@ -282,7 +282,7 @@ begin
         );
     
     ----------------------------------------------------------------------------------
-    -- Clock Domain Crossing (125 MHz → 100 MHz)
+    -- Clock Domain Crossing (125 MHz -> 100 MHz)
     --
     -- Use 2-stage synchronizer to safely cross clock domains
     -- Same technique as used in Project 2 (Button Debouncer)

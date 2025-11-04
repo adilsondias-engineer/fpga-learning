@@ -189,35 +189,35 @@ This project implements a parameterized 8-bit FIFO (First-In-First-Out) queue on
 **Rotary Encoder (HW-040):**
 
 ```
-Encoder → Arty A7
-─────────────────
-  +    → 3.3V
-  GND  → GND
-  CLK  → A11 (Pin A3)
-  DT   → A10 (Pin A4)
-  SW   → A9  (Pin E5) + 10kΩ pulldown to GND
+Encoder to Arty A7
+------------------
+  +    - 3.3V
+  GND  - GND
+  CLK  - A11 (Pin A3)
+  DT   - A10 (Pin A4)
+  SW   - A9  (Pin E5) + 10kΩ pulldown to GND
 ```
 
 **8 Rainbow LEDs:**
 
 ```
-Each LED: FPGA IO pin → 330Ω resistor → LED anode → GND
+Each LED: FPGA IO pin -> 330Ω resistor -> LED anode -> GND
 Use color-matched resistors for balanced brightness:
-  Bit 7 (RED)    → 680Ω
-  Bit 6 (YELLOW) → 470Ω
-  Bit 5 (GREEN)  → 330Ω
-  Bit 4-0        → 330Ω (or adjust per LED efficiency)
+  Bit 7 (RED)    - 680Ω
+  Bit 6 (YELLOW) - 470Ω
+  Bit 5 (GREEN)  - 330Ω
+  Bit 4-0        - 330Ω (or adjust per LED efficiency)
 ```
 
 **Buzzer Circuit:**
 
 ```
-FPGA IO40 → 1kΩ → 2N2222 Base
-                   Collector → Buzzer+ → 5V
-                   Emitter → GND
+FPGA IO40 -> 1kΩ -> 2N2222 Base
+                   Collector -> Buzzer+ -> 5V
+                   Emitter -> GND
 ```
 
-⚠️ **Critical:** HW-040 encoder SW pin requires **external 10kΩ pulldown resistor** to GND.
+**CRITICAL:** HW-040 encoder SW pin requires **external 10kΩ pulldown resistor** to GND.
 
 ### Synthesis and Implementation
 
@@ -248,24 +248,24 @@ FPGA IO40 → 1kΩ → 2N2222 Base
 4. **Run Synthesis:**
 
    ```
-   Vivado: Flow → Run Synthesis
+   Vivado: Flow -> Run Synthesis
    ```
 
 5. **Run Implementation:**
 
    ```
-   Vivado: Flow → Run Implementation
+   Vivado: Flow -> Run Implementation
    ```
 
 6. **Generate Bitstream:**
 
    ```
-   Vivado: Flow → Generate Bitstream
+   Vivado: Flow -> Generate Bitstream
    ```
 
 7. **Program Device:**
    ```
-   Vivado: Flow → Open Hardware Manager → Program Device
+   Vivado: Flow -> Open Hardware Manager -> Program Device
    ```
 
 ---
@@ -369,8 +369,8 @@ Turn encoder                 -- Back to edit mode
 
 **Solution:** Adjust current-limiting resistors:
 
-- Dimmer: Increase resistance (470Ω → 680Ω)
-- Brighter: Decrease resistance (330Ω → 220Ω)
+- Dimmer: Increase resistance (470Ω -> 680Ω)
+- Brighter: Decrease resistance (330Ω -> 220Ω)
 - Balance colors: Use different values per LED efficiency
 
 ### Buzzer Too Quiet
@@ -473,8 +473,8 @@ For questions or contributions, please open an issue on GitHub.
 
 ---
 
-**Built with:** VHDL, Vivado, VS Code, Arty A7-100T, and a lot of coffee ☕
-**Status:** ✅ Completed and verified on hardware  
+**Built with:** VHDL, Vivado, VS Code, Arty A7-100T
+**Status:** Completed and verified on hardware  
 **Completed:** 31/10/2025  
 **Last Updated:** 01/11/2025  
 **Time Invested:** ~16 hours (design, debug, testbench fixes, verification)

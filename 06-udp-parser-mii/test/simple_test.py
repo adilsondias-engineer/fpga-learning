@@ -18,7 +18,7 @@ import sys
 try:
     from scapy.all import Ether, sendp, get_if_list
 except ImportError:
-    print("\n❌ ERROR: Scapy not installed")
+    print("\nERROR: Scapy not installed")
     print("\nInstall with:")
     print("  pip3 install scapy")
     print("  or")
@@ -28,7 +28,7 @@ except ImportError:
 # Check for root privileges
 import os
 if os.name != 'nt' and os.geteuid() != 0:
-    print("\n❌ ERROR: This script requires root privileges")
+    print("\nERROR: This script requires root privileges")
     print("\nRun with sudo:")
     print(f"  sudo python3 {sys.argv[0]}")
     sys.exit(1)
@@ -52,7 +52,7 @@ def get_if_hwaddr_safe(iface):
         return None
 
 # List interfaces with MAC addresses
-print("\n📡 Available network interfaces:")
+print("\nAvailable network interfaces:")
 interfaces = get_if_list()
 interface_map = {}
 for i, iface in enumerate(interfaces):
@@ -66,17 +66,17 @@ interface = None
 for i, (iface, mac) in interface_map.items():
     if mac and mac.lower() == PC_INTERFACE_MAC.lower().replace('-', ':'):
         interface = iface
-        print(f"\n✓ Auto-detected USB Ethernet: {iface} (MAC: {mac})")
+        print(f"\nAuto-detected USB Ethernet: {iface} (MAC: {mac})")
         break
 
 if interface is None:
     # Manual selection
-    print(f"\n⚠ Could not auto-detect USB Ethernet with MAC {PC_INTERFACE_MAC}")
+    print(f"\nWARNING: Could not auto-detect USB Ethernet with MAC {PC_INTERFACE_MAC}")
     print("   Please select manually:")
     print("\n")
 if interface is None:
     # Manual selection
-    print(f"\n⚠ Could not auto-detect USB Ethernet with MAC {PC_INTERFACE_MAC}")
+    print(f"\nWARNING: Could not auto-detect USB Ethernet with MAC {PC_INTERFACE_MAC}")
     print("   Please select manually:")
     print("\n")
     while True:
@@ -94,7 +94,7 @@ if interface is None:
             if choice in interfaces:
                 interface = choice
                 break
-            print("❌ Invalid selection. Try again.")
+            print("ERROR: Invalid selection. Try again.")
         except KeyboardInterrupt:
             print("\n\nAborted.")
             sys.exit(0)
@@ -116,12 +116,12 @@ else:
                 if choice in interfaces:
                     interface = choice
                     break
-                print("❌ Invalid selection. Try again.")
+                print("ERROR: Invalid selection. Try again.")
             except KeyboardInterrupt:
                 print("\n\nAborted.")
                 sys.exit(0)
 
-print(f"\n✓ Using interface: {interface}")
+print(f"\nUsing interface: {interface}")
 
 # Menu
 print("\n" + "="*70)
@@ -151,7 +151,7 @@ while True:
         elif choice == '4':
             count = None  # Continuous
         else:
-            print("❌ Invalid choice")
+            print("ERROR: Invalid choice")
             continue
         
         # Create Ethernet frame
@@ -159,7 +159,7 @@ while True:
         
         if count is None:
             # Continuous mode
-            print("\n📡 Sending frames continuously...")
+            print("\nSending frames continuously...")
             print("   Press Ctrl+C to stop")
             print()
             sent = 0
@@ -170,19 +170,19 @@ while True:
                     if sent % 10 == 0:
                         print(f"\r   Sent: {sent} frames", end='', flush=True)
             except KeyboardInterrupt:
-                print(f"\n\n✓ Sent {sent} frames total")
+                print(f"\n\nSent {sent} frames total")
         else:
             # Fixed count
-            print(f"\n📡 Sending {count} frame(s) to {FPGA_MAC}...")
+            print(f"\nSending {count} frame(s) to {FPGA_MAC}...")
             sendp(frame, iface=interface, count=count, verbose=False)
-            print(f"✓ Sent {count} frame(s)")
-            print(f"\n💡 Expected LED count: {count % 16} (displays lower 4 bits)")
+            print(f"Sent {count} frame(s)")
+            print(f"\nExpected LED count: {count % 16} (displays lower 4 bits)")
             
     except KeyboardInterrupt:
         print("\n\nReturning to menu...")
         continue
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\nERROR: {e}")
         continue
 
-print("\nDone! 🎉")
+print("\nDone!")

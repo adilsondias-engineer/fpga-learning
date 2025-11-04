@@ -42,7 +42,7 @@ set_property -dict { PACKAGE_PIN G4  IOSTANDARD LVCMOS33 } [get_ports { led1_b }
 ## Ethernet PHY (RTL8211E-VL) - RGMII Interface
 ####################################################################################
 
-## Receive Path (PHY → FPGA)
+## Receive Path (PHY -> FPGA)
 set_property -dict { PACKAGE_PIN D18 IOSTANDARD LVCMOS33 } [get_ports { eth_rxd[0] }];
 set_property -dict { PACKAGE_PIN E17 IOSTANDARD LVCMOS33 } [get_ports { eth_rxd[1] }];
 set_property -dict { PACKAGE_PIN E18 IOSTANDARD LVCMOS33 } [get_ports { eth_rxd[2] }];
@@ -50,7 +50,7 @@ set_property -dict { PACKAGE_PIN G17 IOSTANDARD LVCMOS33 } [get_ports { eth_rxd[
 set_property -dict { PACKAGE_PIN F16 IOSTANDARD LVCMOS33 } [get_ports { eth_rx_clk }];
 set_property -dict { PACKAGE_PIN G16 IOSTANDARD LVCMOS33 } [get_ports { eth_rx_ctl }];
 
-## Transmit Path (FPGA → PHY)
+## Transmit Path (FPGA -> PHY)
 set_property -dict { PACKAGE_PIN H14 IOSTANDARD LVCMOS33 } [get_ports { eth_txd[0] }];
 set_property -dict { PACKAGE_PIN J14 IOSTANDARD LVCMOS33 } [get_ports { eth_txd[1] }];
 set_property -dict { PACKAGE_PIN J13 IOSTANDARD LVCMOS33 } [get_ports { eth_txd[2] }];
@@ -81,7 +81,7 @@ set_input_delay -clock [get_clocks eth_rx_clk] -min 0.0 [get_ports {eth_rxd[*] e
 set_output_delay -clock [get_clocks eth_rx_clk] -max 2.0 [get_ports {eth_txd[*] eth_tx_ctl}]
 set_output_delay -clock [get_clocks eth_rx_clk] -min 0.0 [get_ports {eth_txd[*] eth_tx_ctl}]
 
-## Clock domain crossing (125 MHz eth_rx_clk → 100 MHz sys_clk)
+## Clock domain crossing (125 MHz eth_rx_clk -> 100 MHz sys_clk)
 ## Allow some additional time for CDC paths
 set_max_delay -from [get_clocks eth_rx_clk] -to [get_clocks sys_clk] 10.000
 set_max_delay -from [get_clocks sys_clk] -to [get_clocks eth_rx_clk] 8.000

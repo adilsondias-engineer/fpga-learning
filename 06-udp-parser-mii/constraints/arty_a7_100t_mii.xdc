@@ -24,7 +24,7 @@ set_property -dict { PACKAGE_PIN G18  IOSTANDARD LVCMOS33 } [get_ports { eth_ref
 ## PHY Reset (active LOW)
 set_property -dict { PACKAGE_PIN C16  IOSTANDARD LVCMOS33 } [get_ports { eth_rstn }];
 
-## MII RX Interface (PHY → FPGA)
+## MII RX Interface (PHY -> FPGA)
 set_property -dict { PACKAGE_PIN F15  IOSTANDARD LVCMOS33 } [get_ports { eth_rx_clk }];
 set_property -dict { PACKAGE_PIN G16  IOSTANDARD LVCMOS33 } [get_ports { eth_rx_dv }];
 set_property -dict { PACKAGE_PIN D18  IOSTANDARD LVCMOS33 } [get_ports { eth_rxd[0] }];
@@ -33,7 +33,7 @@ set_property -dict { PACKAGE_PIN E18  IOSTANDARD LVCMOS33 } [get_ports { eth_rxd
 set_property -dict { PACKAGE_PIN G17  IOSTANDARD LVCMOS33 } [get_ports { eth_rxd[3] }];
 set_property -dict { PACKAGE_PIN C17  IOSTANDARD LVCMOS33 } [get_ports { eth_rx_er }];
 
-## MII TX Interface (FPGA → PHY) - Not used but must be constrained
+## MII TX Interface (FPGA -> PHY) - Not used but must be constrained
 set_property -dict { PACKAGE_PIN H16  IOSTANDARD LVCMOS33 } [get_ports { eth_tx_clk }];
 set_property -dict { PACKAGE_PIN H15  IOSTANDARD LVCMOS33 } [get_ports { eth_tx_en }];
 set_property -dict { PACKAGE_PIN H14  IOSTANDARD LVCMOS33 } [get_ports { eth_txd[0] }];
@@ -94,7 +94,7 @@ set_output_delay -clock eth_tx_clk -max 10.0 [get_ports {eth_txd[*] eth_tx_en}]
 set_output_delay -clock eth_tx_clk -min 0.0 [get_ports {eth_txd[*] eth_tx_en}]
 
 ## Clock domain crossing constraints
-## eth_rx_clk (25 MHz) → sys_clk (100 MHz) via 2FF synchronizer
+## eth_rx_clk (25 MHz) -> sys_clk (100 MHz) via 2FF synchronizer
 set_max_delay -from [get_clocks eth_rx_clk] -to [get_clocks sys_clk] 40.0
 set_max_delay -from [get_clocks sys_clk] -to [get_clocks eth_rx_clk] 10.0
 

@@ -116,7 +116,7 @@ architecture Behavioral of mii_eth_top is
 begin
 
     ----------------------------------------------------------------------------------
-    -- Clock Generation: 100 MHz → 25 MHz Reference Clock for PHY
+    -- Clock Generation: 100 MHz -> 25 MHz Reference Clock for PHY
     -- Using PLLE2_BASE (simpler than MMCM for this application)
     ----------------------------------------------------------------------------------
     
@@ -221,7 +221,7 @@ begin
         );
     
     ----------------------------------------------------------------------------------
-    -- Clock Domain Crossing: 25 MHz → 100 MHz
+    -- Clock Domain Crossing: 25 MHz -> 100 MHz
     -- 2-stage synchronizer for frame_valid signal
     ----------------------------------------------------------------------------------
     

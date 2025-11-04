@@ -126,7 +126,7 @@ process(rx_clk)
                 
                 -- Process data when in frame
                 if in_frame = '1' and rx_ctl_reg = '1' then
-                    -- Nibble assembly: 2 nibbles → 1 byte
+                    -- Nibble assembly: 2 nibbles to 1 byte
                     if nibble_count = '0' then
                         -- First nibble (lower 4 bits)
                         byte_lower   <= rxd_reg;

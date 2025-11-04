@@ -54,7 +54,7 @@ From the repository root directory:
 
 1. Accepts project directory as command-line argument
 2. Automatically finds the `.xpr` file in that directory
-3. Runs full build flow: synthesis → implementation → bitstream generation
+3. Runs full build flow: synthesis -> implementation -> bitstream generation
 4. Reports errors if build fails at any stage
 
 ### program.tcl

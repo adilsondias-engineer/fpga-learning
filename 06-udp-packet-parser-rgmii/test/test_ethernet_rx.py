@@ -41,11 +41,11 @@ def print_test(text):
 
 def print_success(text):
     """Print success message"""
-    print(f"{GREEN}[✓]{RESET} {text}")
+    print(f"{GREEN}[PASS]{RESET} {text}")
 
 def print_error(text):
     """Print error message"""
-    print(f"{RED}[✗]{RESET} {text}")
+    print(f"{RED}[ERROR]{RESET} {text}")
 
 def send_frame(packet, description, count=1):
     """Send Ethernet frame and report"""

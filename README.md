@@ -43,7 +43,7 @@ Each project includes:
 
 ## Goals
 
-1. Master FPGA development workflow (design → simulation → synthesis → hardware)
+1. Master FPGA development workflow (design -> simulation -> synthesis -> hardware)
 2. Build trading-relevant projects (market data parsing, order book, latency measurement)
 3. Understand hardware acceleration advantages for low-latency systems
 4. Create portfolio demonstrating full-stack engineering (software + hardware)

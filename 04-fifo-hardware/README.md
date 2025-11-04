@@ -8,7 +8,7 @@ Interactive FIFO buffer demonstration on Xilinx Arty A7-100T FPGA with physical 
 
 ## Overview
 
-This project brings the FIFO buffer from [Project 3](../03-fifo) to life on real hardware. Users can interact with a working FIFO using physical buttons and switches, with real-time visual feedback through LEDs. This demonstrates the complete FPGA development workflow: simulation → synthesis → implementation → hardware deployment.
+This project brings the FIFO buffer from [Project 3](../03-fifo) to life on real hardware. Users can interact with a working FIFO using physical buttons and switches, with real-time visual feedback through LEDs. This demonstrates the complete FPGA development workflow: simulation -> synthesis -> implementation -> hardware deployment.
 
 **Key Achievement:** This is my first complete system integration project - combining multiple IP blocks (FIFO, debouncer, edge detector) with hardware interfacing to create an interactive demonstration.
 
@@ -24,13 +24,13 @@ This project brings the FIFO buffer from [Project 3](../03-fifo) to life on real
 
 ## Features
 
-✅ **Interactive Controls**
+**Interactive Controls**
 
 - Push buttons for write, read, and reset operations
 - Hardware debouncing for reliable button presses
 - Edge detection for single-cycle triggers
 
-✅ **Visual Feedback**
+**Visual Feedback**
 
 - 4 standard LEDs display FIFO data output (4-bit values: 0x0-0xF)
 - RGB LED provides status indication:
@@ -38,7 +38,7 @@ This project brings the FIFO buffer from [Project 3](../03-fifo) to life on real
   - 🔴 Red = FIFO full (16/16 entries)
   - 🔵 Blue = Partially filled (1-15 entries)
 
-✅ **Robust Design**
+**Robust Design**
 
 - Metastability protection on all inputs
 - 20ms debounce filtering
@@ -73,7 +73,7 @@ This project brings the FIFO buffer from [Project 3](../03-fifo) to life on real
 | -------- | -------- | ---------------------------------------------- |
 | **BTN0** | Write    | Store current switch value into FIFO           |
 | **BTN1** | Read     | Retrieve next value from FIFO, display on LEDs |
-| **BTN2** | Reset    | Clear FIFO (count → 0, status → empty)         |
+| **BTN2** | Reset    | Clear FIFO (count -> 0, status -> empty)       |
 
 ### Status LED Color Codes
 
@@ -117,11 +117,11 @@ Result: LD0-LD3 display the value (e.g., 1010)
 #### Test 1: Single Write/Read
 
 ```
-1. Reset (BTN2) → GREEN
+1. Reset (BTN2) - GREEN
 2. Switches: 0101 (5)
-3. Write (BTN0) → BLUE
-4. Read (BTN1) → LEDs show: 0101 ✓
-5. Read again → GREEN (empty)
+3. Write (BTN0) - BLUE
+4. Read (BTN1) - LEDs show: 0101
+5. Read again - GREEN (empty)
 ```
 
 #### Test 2: FIFO Order Verification
@@ -130,7 +130,7 @@ Result: LD0-LD3 display the value (e.g., 1010)
 1. Reset
 2. Write sequence: 0001, 0010, 0011, 0100
 3. Read 4 times
-4. LEDs display: 0001, 0010, 0011, 0100 (same order!) ✓
+4. LEDs display: 0001, 0010, 0011, 0100 (same order!)
 ```
 
 #### Test 3: Full Condition
@@ -138,16 +138,16 @@ Result: LD0-LD3 display the value (e.g., 1010)
 ```
 1. Reset
 2. Write 16 different values
-3. RGB0 turns RED (full) ✓
-4. Attempt 17th write → Ignored (still RED)
+3. RGB0 turns RED (full)
+4. Attempt 17th write - Ignored (still RED)
 ```
 
 #### Test 4: Empty Condition
 
 ```
 1. After filling, read 16 times
-2. RGB0 turns GREEN (empty) ✓
-3. Attempt another read → LEDs unchanged (no data)
+2. RGB0 turns GREEN (empty)
+3. Attempt another read - LEDs unchanged (no data)
 ```
 
 #### Test 5: Binary Counter Demo
@@ -156,7 +156,7 @@ Result: LD0-LD3 display the value (e.g., 1010)
 1. Reset
 2. Write: 0000, 0001, 0010, 0011, 0100, 0101, 0110, 0111
 3. Read 8 times watching LEDs
-4. LEDs count up: 0→1→2→3→4→5→6→7 ✓
+4. LEDs count up: 0->1->2->3->4->5->6->7
 ```
 
 ## Architecture
@@ -319,7 +319,7 @@ falling edge = (NOT sig_in) AND sig_delayed
 
 - Data width: 4 bits (modified from 8-bit for this demo)
 - Depth: 16 entries
-- Circular buffer (pointers wrap at 15→0)
+- Circular buffer (pointers wrap at 15->0)
 
 **Generic modified for 4-bit:**
 
@@ -381,12 +381,12 @@ led0_b <= not fifo_empty and not fifo_full;  -- Blue when partial
 
 ### Technical Skills Acquired
 
-✅ **IP Reuse:** Integrated three separate IP blocks into a cohesive system  
-✅ **Hardware Interfacing:** Mapped VHDL signals to physical pins  
-✅ **Metastability Handling:** Understood importance of synchronizers  
-✅ **Flow Control:** Implemented safe buffering with full/empty protection  
-✅ **System Integration:** Connected multiple modules with proper signal management  
-✅ **Constraints:** Wrote XDC file for pin locations and timing
+**IP Reuse:** Integrated three separate IP blocks into a cohesive system  
+**Hardware Interfacing:** Mapped VHDL signals to physical pins  
+**Metastability Handling:** Understood importance of synchronizers  
+**Flow Control:** Implemented safe buffering with full/empty protection  
+**System Integration:** Connected multiple modules with proper signal management  
+**Constraints:** Wrote XDC file for pin locations and timing
 
 ### FPGA Development Workflow Mastered
 
@@ -409,7 +409,7 @@ Bitstream Generation
 Hardware Programming
     |
     v
-Physical Testing ✓
+Physical Testing
 ```
 
 ### Real-World Design Principles Applied
@@ -529,7 +529,7 @@ This project builds on concepts from the classic FPGA learning path, adapted for
 
 ---
 
-**Status:** ✅ Completed and verified on hardware  
+**Status:** Completed and verified on hardware  
 **Completed:** 30/10/2025  
 **Last Updated:** 30/10/2025  
 **Time Invested:** ~10 hours (design, debug, testbench fixes, verification)
