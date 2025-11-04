@@ -177,6 +177,6 @@ Per the manual, these IP cores support this PHY:
 
 **ALWAYS check the official hardware documentation FIRST before writing any code!**
 
-The 2+ hours spent implementing RGMII could have been avoided by reading the manual which clearly states:
+The 4+ hours spent implementing RGMII could have been avoided by reading the manual which clearly states:
 
 > "The TI PHY uses the MII interface and supports 10/100 Mb/s."
