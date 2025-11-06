@@ -19,6 +19,8 @@ if { [llength $xpr_files] == 0 } {
     exit 1
 }
 
+set_param general.maxThreads 16
+
 set project_file [lindex $xpr_files 0]
 puts "=========================================="
 puts "Building project: $project_file"
