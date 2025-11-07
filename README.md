@@ -54,7 +54,7 @@ Projects are designed to build from fundamentals toward trading-relevant skills:
      - XDC timing constraints for production reliability
      - 1000+ packet stress test validation
 
-Each project includes:
+Each project includes, where it might be relevant/required:
 
 - Complete VHDL source code
 - Comprehensive testbenches with self-checking assertions
