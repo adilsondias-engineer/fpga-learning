@@ -1,5 +1,135 @@
-## What I Learned so far
-### FPGA Development Workflow
+# FPGA Development - Lessons Learned
+
+Critical insights from FPGA development for trading systems. This document includes both a **Quick Reference** (organized by category) and **Detailed Project History** (chronological, in-depth).
+
+---
+
+## Quick Reference by Category
+
+### VHDL Language Gotchas
+
+**1. `with...select` - Single Signal Only**
+```vhdl
+-- WRONG: Cannot use 'and' in when clause
+with mode select led <= nibble when MODE_UDP and counter = 0,
+
+-- RIGHT: Use intermediate signal
+with counter select temp <= nibble_data(15 downto 12) when 0,
+with mode select led <= temp when MODE_UDP,
+```
+**Lesson:** VHDL `with...select` limited to one signal. Use intermediate signals for complex logic.
+
+**2. Signal Assignment Timing**
+- All assignments take effect on **next** clock edge
+- Transitioning to IDLE with old state values can cause spurious errors
+- **Lesson:** Explicitly clear ALL state variables when entering new states
+
+**3. Xilinx Primitive Generic Types**
+```vhdl
+-- WRONG: STARTUP_WAIT => FALSE
+-- RIGHT: STARTUP_WAIT => "FALSE"  -- String literal required
+```
+**Lesson:** Xilinx primitives require string literals for parameters (check UG953)
+
+### Hardware & Timing
+
+**4. Power-Up Initialization Glitches**
+- Combinational error signals assert when registers initialize to '0'
+- **Fix:** Gate error detection with `initialized` flag set after first reset
+- **Lesson:** Always protect error latches from power-up glitches
+
+**5. Human-Visible Timing**
+- Hardware events: 10ns (1 clock @ 100MHz)
+- Human eye persistence: 100ms
+- **Ratio: 10,000,000× too fast!**
+- **Fix:** Pulse stretcher with 100ms-1sec timer
+- **Lesson:** Use pulse stretchers for visual indicators
+
+**6. MII Preamble Stripping**
+- MII PHY sends preamble (7×0x55) + SFD (0xD5) before frame
+- MAC parser must detect SFD and skip preamble
+- **Lesson:** PHY interface behavior varies (MII vs RGMII). Check IEEE 802.3 spec.
+
+### Debug Strategies
+
+**7. Testbench Timing for Transient Signals**
+```vhdl
+-- WRONG: Check at fixed time (pulse might be gone)
+wait for 390 ns;
+assert udp_valid = '1';
+
+-- RIGHT: Actively monitor and capture
+for i in 0 to 20 loop
+    wait for CLK_PERIOD;
+    if udp_valid = '1' then
+        valid_captured := '1';  -- Capture occurrence
+        port_captured := udp_dst_port;  -- Sample data
+    end if;
+end loop;
+assert valid_captured = '1';
+```
+**Lesson:** Actively monitor for transient pulses, don't just check at fixed time
+
+**8. Waveform Analysis Essential**
+- Transcript shows "what failed"
+- Waveforms show "why it failed" and **when**
+- **Lesson:** Always generate waveforms for failing tests
+
+**9. Synthesis Warnings Judgment**
+- "Unused register removed" → Check if intentional vs broken
+- "Unconnected port" → Likely real issue if port should be used
+- **Lesson:** Review all warnings, verify functionality, check timing
+
+### Design Patterns
+
+**10. State Machine for Protocols**
+```vhdl
+type state_type is (IDLE, PREAMBLE, HEADER, VALIDATE, PAYLOAD);
+```
+Benefits: Clear structure, easy to extend, self-documenting
+
+**11. Clock Domain Crossing Checklist**
+1. Identify all signals crossing boundary
+2. Single-bit → 2FF synchronizer
+3. Multi-bit → Sample on valid pulse
+4. Add XDC timing constraints (ASYNC_REG, set_false_path)
+**Lesson:** Systematically synchronize EVERY signal (don't forget status/error signals!)
+
+**12. Error Detection with Pulse Stretcher**
+1. Detect brief error pulse (1 cycle)
+2. Set timer (e.g., 50M clocks = 0.5 sec)
+3. Keep LED ON while timer > 0
+4. New errors restart timer
+**Lesson:** Makes transient hardware events visible to operators
+
+### Development Workflow
+
+**13. Documentation First**
+- **Mistake:** Coded RGMII interface without reading docs (wasted 4 hours)
+- **Correct:** 30 min reading Arty A7 manual → found MII interface
+- **Savings:** 3.5 hours
+- **Lesson:** Read hardware docs before coding
+
+**14. Incremental Integration**
+- Phase 1A: MII + MAC → Verify
+- Phase 1D: + IP → Verify
+- Phase 1F: + UDP → Verify
+- **Anti-pattern:** Build entire stack, debug all layers at once
+- **Lesson:** Verify each layer before adding next
+
+**15. Component Interface Management**
+- **Solutions:**
+  - Direct entity instantiation (recommended - single source of truth)
+  - Auto-generate component from entity
+  - Avoid manual component declarations
+- **Lesson:** Use direct `entity work.module` instantiation
+
+---
+
+## Detailed Project History
+
+### What I Learned so far
+#### FPGA Development Workflow
 
 - Complete design -> simulation -> synthesis -> implementation -> hardware verification cycle
 - Importance of setting correct top module for synthesis vs simulation (different "tops" for different purposes)
@@ -1317,4 +1447,7 @@ end if;
 5. **README.md** - Full documentation of Bug #13 journey (1,502 lines)
 
 ---
-This document grows with each project. **Latest update: Project 6 Phase 1F v5 - Bug #13 Resolution Complete (November 7, 2025)**
+
+**Last Updated:** Project 7 ITCH Parser - CDC Fixes & False Trigger Bug Resolution (November 8, 2025)
+
+This document grows with each project and includes lessons from all phases.
