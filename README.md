@@ -2,7 +2,7 @@
 ![Language](https://img.shields.io/badge/Language-VHDL-blue)
 ![Status](https://img.shields.io/badge/Status-Active%20Learning-green)
 ![Hardware Verified](https://img.shields.io/badge/Hardware-Verified-brightgreen)
-![Projects](https://img.shields.io/badge/Projects-6%2F10-orange)
+![Projects](https://img.shields.io/badge/Projects-6%20Complete-brightgreen)
 
 # FPGA Learning for Trading Systems
 
@@ -34,14 +34,34 @@ Projects are designed to build from fundamentals toward trading-relevant skills:
 
 ## Projects
 
+### Completed Projects
+
+1. **Project 01** - Rotary Encoder Counter (Quadrature decoding, debouncing)
+2. **Project 02** - Button Debouncer with LED Display (Metastability protection)
+3. **Project 03** - FIFO Buffer Implementation (Circular buffer, flow control)
+4. **Project 04** - Rotary Encoder with Buzzer (Audio feedback, frequency generation)
+5. **Project 05** - UART Transceiver with Binary Protocol (Trading-style message framing)
+6. **Project 06** - MII Ethernet Receiver with UDP Parser ✅ **Phase 1F Complete**
+   - Phase 1A: MII Physical Layer Reception
+   - Phase 1B: MDIO PHY Management
+   - Phase 1C: MAC Frame Parsing
+   - Phase 1D: IP Header Parsing
+   - Phase 1E: UDP Parser (v3b - deprecated due to CDC issues)
+   - **Phase 1F (v5): Production-Ready UDP Parser** 🎯
+     - **Bug #13 RESOLVED** - Critical CDC race condition fixed
+     - Real-time byte-by-byte architecture (1% → 100% success rate)
+     - Comprehensive clock domain crossing synchronization
+     - XDC timing constraints for production reliability
+     - 1000+ packet stress test validation
+
 Each project includes:
 
-- Complete VHDL/Verilog source code
-- Comprehensive testbenches
+- Complete VHDL source code
+- Comprehensive testbenches with self-checking assertions
 - Simulation waveforms
-- Constraint files (XDC)
-- Hardware verification videos/photos
-- Documentation of concepts learned
+- Constraint files (XDC) with timing analysis
+- Hardware verification on Arty A7-100T
+- Detailed documentation of concepts and bugs resolved
 
 ## Goals
 
@@ -73,13 +93,15 @@ Each project includes:
 ### Digital Design Fundamentals
 
 - Clock management - Clock division from 100MHz to 1Hz, baud rate generation (115200 bps), PLL/MMCM clock generation (25 MHz reference for Ethernet PHY)
+- **Clock Domain Crossing (CDC) mastery** - 2-FF synchronizers for single-bit signals, valid-gated capture for multi-bit buses, reset synchronization across domains, comprehensive XDC constraints (ASYNC_REG, set_false_path), production-ready patterns ⭐
 - Metastability protection - Three-stage synchronizer chains for asynchronous inputs, 2FF synchronizers for clock domain crossing
 - Debouncing implementation - 20ms stable period filtering for mechanical switches
 - Edge detection - Rising/falling edge detection with proper sequential logic ordering
 - FIFO buffer architecture - 16-depth x 8-bit circular buffer with full/empty flags
 - UART communication - 8N1 format, mid-bit sampling, busy/started handshake flags
 - Ethernet communication - MII interface (4-bit nibbles), preamble/SFD stripping, MAC frame parsing with address filtering
-- Protocol parsing - Binary message framing (START_BYTE, LENGTH, DATA, CHECKSUM), Ethernet frame structure
+- **Real-time protocol parsing** - Position-based state machine triggering (byte_index), deterministic latency, eliminates race conditions vs event-driven approaches ⭐
+- Protocol parsing - Binary message framing (START_BYTE, LENGTH, DATA, CHECKSUM), Ethernet frame structure, IP/UDP header extraction
 - Pulse stretching - 100ms counters to make brief signals human-visible on LEDs
 
 ### Verification & Testing
@@ -114,15 +136,18 @@ Each project includes:
 
 - Data buffering - FIFO implementation essential for packet queuing
 - Flow control - Full/empty flag management for backpressure handling
-- Synchronization - CDC techniques critical for asynchronous market data
+- **Production CDC techniques** - Systematic clock domain crossing for multi-clock FPGAs (network PHY, processing, memory domains) ⭐
+- **Real-time deterministic parsing** - Fixed-latency protocol parsing critical for HFT (applies to ITCH/OUCH) ⭐
 - Latency awareness - Understanding of clock cycles and timing paths
 - Reliability patterns - Metastability protection mandatory for production systems
 - Binary protocols - START_BYTE framing, length-prefixed messages, XOR checksums (mirrors FIX/ITCH/OUCH)
 - Message parsing - State machine-based protocol decoder with checksum validation
 - Error detection - Checksum mismatches, framing errors, graceful error recovery
 - Multi-protocol support - Handling both binary (efficient) and ASCII (debug) interfaces
-- Network packet parsing - Ethernet frame reception, MAC address filtering, preamble/SFD detection
+- Network packet parsing - Ethernet frame reception, MAC address filtering, preamble/SFD detection, IP/UDP header extraction
 - Hardware acceleration - Direct PHY interfacing bypasses OS network stack for minimal latency
+- **Production debugging** - Systematic root cause analysis, strategic instrumentation, stress testing (1000+ packet validation) ⭐
+- **Architectural decision-making** - Knowing when to rewrite vs patch (event-driven → real-time rewrite resolved 99% failure rate) ⭐
 
 ---
 

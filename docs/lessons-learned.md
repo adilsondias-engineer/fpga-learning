@@ -912,4 +912,409 @@ mii_eth_top
 - MDIO interface for PHY register access
 
 ---
-This document grows with each project. Latest update includes Projects 1-6.
+
+## Project 06 Phase 1F: Bug #13 - Critical CDC Issues & Real-Time Architecture
+
+### ⭐ The Most Important Lesson: Clock Domain Crossing Can Break Working Designs
+
+**Context:** IP parser worked perfectly (ip=1, proto=11), but UDP parser consistently failed (udp=0). This was Bug #13 - a race condition caused by CDC violations that took significant debugging to identify and resolve.
+
+### Bug #13: UDP Parser Race Condition (99% Failure Rate)
+
+**Initial Symptoms:**
+```
+Terminal Output: MAC: frame fr=1 ip=1 udp=0 pend=-- ver=0 ihl=0 csum=0 b14=45 proto=11
+                      ^^^^^^^^^^^^ IP parsing works   ^^^^ UDP parsing fails
+```
+
+**Root Cause Analysis Timeline:**
+
+1. **First Discovery:** Event-driven UDP parser triggered on `ip_valid` pulse
+2. **Debug Investigation:** Added debug outputs (proto=, upok=, ulok=, frm=)
+3. **Race Condition Revealed:**
+   - UDP parser triggered at byte 37 (when `ip_valid` pulsed)
+   - UDP header bytes 34-41 already passed by that time
+   - State machine entered PARSE_HEADER too late to capture data
+   - Success rate: ~1% (only when timing accidentally aligned)
+
+**Timing Diagram of the Failure:**
+```
+Byte Index:  23    24-33       34   35   36   37        38-41
+             ↓     ↓           ↓    ↓    ↓    ↓         ↓
+IP Parse:    proto VALIDATE    ─────────────> ip_valid (pulse)
+UDP Parse:   idle  idle        idle idle idle START     Too late!
+                                ^^^^^^^^^^^^^^^^^^^
+                                UDP header bytes missed
+```
+
+**Failed Fix Attempts:**
+1. Trigger window `byte_index >= 24 and < 34` → 100% failure (too early)
+2. Trigger window `byte_index >= 23 and < 34` → Still mostly 0% (timing off)
+3. Trigger window `byte_index >= 23` (no upper bound) → ~1% success (race persists)
+
+**Successful Solution:** Complete architectural rewrite from event-driven to real-time.
+
+### Real-Time vs Event-Driven Parser Architecture
+
+**❌ Event-Driven (v3b - FAILED):**
+```vhdl
+-- Wait for signal, then try to capture bytes
+when IDLE =>
+    if ip_valid = '1' then  -- Signal arrives too late!
+        state <= PARSE_HEADER;
+    end if;
+
+when PARSE_HEADER =>
+    -- By now, UDP header bytes already passed
+    if byte_index = UDP_HEADER_START + header_byte_count then
+        case header_byte_count is
+            when 0 => src_port_reg(15 downto 8) <= data_in;  -- MISSED!
+```
+
+**✅ Real-Time (v5 - SUCCESS):**
+```vhdl
+-- Trigger at exact byte position
+when IDLE =>
+    if frame_valid = '1' and byte_index = UDP_HEADER_START then  -- Byte 34
+        state <= PARSE_HEADER;
+    end if;
+
+when PARSE_HEADER =>
+    -- Capture bytes in real-time as they arrive
+    if byte_index = (UDP_HEADER_START + header_byte_count) then
+        case header_byte_count is
+            when 0 => src_port_reg(15 downto 8) <= data_in;  -- ✓ Captured!
+            when 1 => src_port_reg(7 downto 0) <= data_in;
+            when 2 => dst_port_reg(15 downto 8) <= data_in;
+            when 3 => dst_port_reg(7 downto 0) <= data_in;
+            when 4 => length_reg(15 downto 8) <= data_in;
+            when 5 => length_reg(7 downto 0) <= data_in;
+            when 6 => checksum_reg(15 downto 8) <= data_in;
+            when 7 =>
+                checksum_reg(7 downto 0) <= data_in;
+                state <= VALIDATE;  -- All 8 bytes captured!
+```
+
+**Key Differences:**
+
+| Aspect | Event-Driven (v3b) | Real-Time (v5) |
+|--------|-------------------|----------------|
+| **Trigger** | Waits for `ip_valid` signal | Triggers at `byte_index = 34` |
+| **Timing** | Arrives too late (byte 37) | Exact position (byte 34) |
+| **Success Rate** | ~1% (race condition) | 100% (deterministic) |
+| **Code Size** | 280+ lines | 188 lines |
+| **States** | 5 states | 4 states (simplified) |
+| **Complexity** | Complex triggering logic | Simple byte-position logic |
+
+**Results:**
+- v3b: 1% success rate → v5: 100% success rate
+- Reduced code size: 280+ lines → 188 lines
+- Eliminated race condition entirely
+- Production-ready reliability
+
+### Clock Domain Crossing (CDC) - Production Patterns
+
+**Challenge:** Signals crossing from 25 MHz (eth_rx_clk) to 100 MHz (clk) domain can cause metastability.
+
+**Critical CDC Fixes Applied:**
+
+#### 1. Reset Synchronization (NEW in v5)
+```vhdl
+-- Reset synchronizer for 25 MHz domain
+signal mdio_rst_rxclk_sync1 : std_logic := '1';
+signal mdio_rst_rxclk_sync2 : std_logic := '1';
+signal mdio_rst_rxclk       : std_logic := '1';
+
+process(eth_rx_clk)
+begin
+    if rising_edge(eth_rx_clk) then
+        mdio_rst_rxclk_sync1 <= reset;
+        mdio_rst_rxclk_sync2 <= mdio_rst_rxclk_sync1;
+        mdio_rst_rxclk       <= mdio_rst_rxclk_sync2;
+    end if;
+end process;
+```
+
+**Lesson:** Reset must be synchronized to each clock domain. Using unsynchronized reset causes random initialization failures.
+
+#### 2. Single-Bit CDC Synchronizers
+```vhdl
+-- 2-FF synchronizer pattern
+signal ip_valid_sync1 : std_logic := '0';
+signal ip_valid_sync2 : std_logic := '0';
+
+process(clk)
+begin
+    if rising_edge(clk) then
+        if reset = '1' then
+            ip_valid_sync1 <= '0';
+            ip_valid_sync2 <= '0';
+        else
+            ip_valid_sync1 <= ip_valid;        -- First FF (may go metastable)
+            ip_valid_sync2 <= ip_valid_sync1;  -- Second FF (stable)
+        end if;
+    end if;
+end process;
+```
+
+**Applied to ALL single-bit signals:**
+- `ip_valid`, `udp_valid`, `frame_valid`
+- `ip_checksum_ok`, `ip_version_err`, `ip_ihl_err`, `ip_checksum_err`
+- `udp_length_err`
+
+**Lesson:** EVERY single-bit signal crossing clock domains needs 2-FF synchronizer. Missing even one can cause intermittent failures.
+
+#### 3. Multi-Bit CDC (Valid-Gated Capture)
+```vhdl
+-- Multi-bit signals captured on synchronized valid pulse
+signal ip_protocol_latch : std_logic_vector(7 downto 0) := (others => '0');
+
+process(clk)
+begin
+    if rising_edge(clk) then
+        if reset = '1' then
+            ip_protocol_latch <= (others => '0');
+        elsif ip_valid_sync2 = '1' then  -- Use synchronized valid
+            ip_protocol_latch <= ip_protocol;  -- Sample when stable
+        end if;
+    end if;
+end process;
+```
+
+**Applied to multi-bit buses:**
+- `ip_protocol` (8 bits)
+- `ip_total_length` (16 bits)
+- `byte_index` (integer)
+
+**Lesson:** Multi-bit signals CANNOT be synchronized directly (bus skew). Use synchronized valid pulse to gate sampling.
+
+#### 4. In-Frame Flag for Clean Boundaries
+```vhdl
+-- Track frame boundaries in 25 MHz domain
+signal in_frame : std_logic := '0';
+
+process(eth_rx_clk)
+begin
+    if rising_edge(eth_rx_clk) then
+        if mdio_rst_rxclk = '1' then
+            in_frame <= '0';
+        else
+            if rx_dv = '1' and sfd_detected = '1' then
+                in_frame <= '1';  -- Frame started
+            elsif rx_dv = '0' then
+                in_frame <= '0';  -- Frame ended
+            end if;
+        end if;
+    end if;
+end process;
+```
+
+**Lesson:** Track state in source clock domain before crossing. Clean boundaries prevent glitches.
+
+#### 5. XDC Timing Constraints (Critical!)
+```tcl
+## Mark asynchronous clock domains
+set_clock_groups -asynchronous \
+    -group [get_clocks sys_clk] \
+    -group [get_clocks eth_rx_clk] \
+    -group [get_clocks eth_tx_clk] \
+    -group [get_clocks eth_ref_clk]
+
+## CDC Synchronizer Constraints
+## Mark synchronizer flip-flops to prevent optimization and guide placement
+set_property ASYNC_REG TRUE [get_cells -hier *ip_valid_sync*]
+set_property ASYNC_REG TRUE [get_cells -hier *udp_valid_sync*]
+set_property ASYNC_REG TRUE [get_cells -hier *frame_valid_sync*]
+set_property ASYNC_REG TRUE [get_cells -hier *ip_checksum_ok_sync*]
+set_property ASYNC_REG TRUE [get_cells -hier *ip_version_err_sync*]
+set_property ASYNC_REG TRUE [get_cells -hier *ip_ihl_err_sync*]
+set_property ASYNC_REG TRUE [get_cells -hier *ip_checksum_err_sync*]
+set_property ASYNC_REG TRUE [get_cells -hier *udp_length_err_sync*]
+set_property ASYNC_REG TRUE [get_cells -hier *mdio_rst_rxclk_sync*]
+
+## False paths to first stage of synchronizers (metastability allowed here)
+set_false_path -to [get_cells -hier *ip_valid_sync1*]
+set_false_path -to [get_cells -hier *udp_valid_sync1*]
+set_false_path -to [get_cells -hier *frame_valid_sync1*]
+set_false_path -to [get_cells -hier *ip_checksum_ok_sync1*]
+set_false_path -to [get_cells -hier *ip_version_err_sync1*]
+set_false_path -to [get_cells -hier *ip_ihl_err_sync1*]
+set_false_path -to [get_cells -hier *ip_checksum_err_sync1*]
+set_false_path -to [get_cells -hier *udp_length_err_sync1*]
+set_false_path -to [get_cells -hier *mdio_rst_rxclk_sync1*]
+```
+
+**Lesson:**
+- `ASYNC_REG` property tells tools these are synchronizer FFs (don't optimize away, keep close together)
+- `set_false_path` to first stage allows metastability (first FF purpose)
+- Without these constraints, tools may violate CDC integrity during placement/routing
+
+### Debug Methodology That Worked
+
+**Problem:** Hard to diagnose why UDP parsing fails when IP parsing works.
+
+**Solution:** Comprehensive debug outputs added to UART formatter:
+
+```vhdl
+-- Debug fields added to MAC message
+proto=11    -- IP protocol (should be 0x11 for UDP)
+upok=0      -- UDP protocol check passed (udp_protocol_ok)
+ulok=0      -- UDP length check passed (udp_length_ok)
+frm=1       -- In-frame flag at ip_valid time
+b14=45      -- Byte 14 content (IP version/IHL verification)
+```
+
+**Terminal Output Progression:**
+
+1. **Initial:** `udp=0` (failure, no details)
+2. **With debug:** `udp=0 upok=0 ulok=0 frm=1` (UDP checks failing)
+3. **After debug analysis:** Discovered upok=1 only when IP checksum failed (wrong packets!)
+4. **Root cause identified:** Race condition - UDP parser starting too late
+
+**Lesson:** Strategic debug outputs reveal timing relationships. Seeing `frm=1` but `upok=0` showed timing issue, not logic bug.
+
+### Production-Ready CDC Checklist
+
+Based on Bug #13 resolution, use this checklist for ALL multi-clock designs:
+
+✅ **1. Identify ALL CDC signals**
+   - Single-bit control/status signals
+   - Multi-bit data buses
+   - Reset signals
+
+✅ **2. Synchronize reset to EACH clock domain**
+   - Use 2-FF synchronizer for reset
+   - Apply synchronized reset to all registers in that domain
+
+✅ **3. Apply 2-FF synchronizer to ALL single-bit CDC signals**
+   - Don't skip error flags or status signals
+   - Even "don't care" signals need synchronization
+
+✅ **4. Use valid-gated capture for multi-bit buses**
+   - Never synchronize multi-bit buses directly
+   - Synchronize the valid signal (2-FF)
+   - Sample bus on synchronized valid pulse
+
+✅ **5. Track state in source clock domain**
+   - Clean boundaries (like in_frame flag)
+   - Reduces glitches during CDC
+
+✅ **6. Add comprehensive XDC constraints**
+   - Mark clock groups as asynchronous
+   - Set ASYNC_REG property on synchronizer FFs
+   - Set false path to first synchronizer stage
+
+✅ **7. Verify timing closure**
+   - Check for CDC violations in timing report
+   - Ensure no setup/hold violations on CDC paths
+
+✅ **8. Hardware stress test**
+   - Test with 1000+ packets
+   - Verify 100% success rate
+   - Look for intermittent failures
+
+### Key Architectural Lessons from Bug #13
+
+#### ⭐ Lesson 1: Real-Time Architecture for Streaming Data
+**Problem:** Event-driven parsers waiting for signals create race conditions.
+
+**Solution:** Trigger state machines directly on byte position, not on derived signals.
+
+**Pattern:**
+```vhdl
+-- ✅ GOOD: Position-based triggering
+if byte_index = HEADER_START then
+    state <= PARSE;
+end if;
+
+-- ❌ BAD: Signal-based triggering (creates race)
+if some_valid_signal = '1' then
+    state <= PARSE;
+end if;
+```
+
+**When to use:**
+- Streaming protocols (Ethernet, UART, SPI)
+- Fixed-position headers (MAC, IP, UDP, ITCH)
+- Deterministic timing requirements
+
+#### ⭐ Lesson 2: CDC Cannot Be Partial
+**Problem:** Missing even one CDC signal causes random failures.
+
+**Solution:** Systematic approach - synchronize EVERY signal crossing clock domains.
+
+**Checklist:**
+- Valid/enable signals ✓
+- Data buses ✓
+- Error flags ✓ ← Often forgotten!
+- Status signals ✓ ← Often forgotten!
+- Reset ✓ ← Critical!
+
+**One missed signal = production failure.**
+
+#### ⭐ Lesson 3: Debug Outputs Are Investments
+**Problem:** "It doesn't work" provides no actionable information.
+
+**Solution:** Add strategic debug outputs showing signal relationships.
+
+**Effective debug outputs:**
+- Show both input and output of logic
+- Display timing-critical flags (like `frm=` at ip_valid)
+- Use hex for multi-bit values (easier to spot patterns)
+- Keep format concise (fits on one line)
+
+**Example:** `proto=11 upok=0 ulok=0 frm=1` instantly showed timing mismatch.
+
+#### ⭐ Lesson 4: XDC Constraints Are Not Optional
+**Problem:** Design works in simulation, fails in hardware.
+
+**Solution:** CDC constraints guide tools to preserve synchronizer integrity.
+
+**Critical constraints:**
+- `set_clock_groups -asynchronous` - Declares independent clocks
+- `ASYNC_REG TRUE` - Protects synchronizer FFs from optimization
+- `set_false_path` - Allows metastability in first FF
+
+**Without these:** Tools may optimize away synchronizers or place FFs too far apart.
+
+### Comparison: v3b (Event-Driven) vs v5 (Real-Time)
+
+| Metric | v3b (Broken) | v5 (Fixed) | Improvement |
+|--------|--------------|------------|-------------|
+| **Success Rate** | ~1% | 100% | **99% improvement** |
+| **Code Size** | 280+ lines | 188 lines | 33% reduction |
+| **State Machine** | 5 states | 4 states | Simpler |
+| **Trigger Method** | ip_valid signal | byte_index position | Deterministic |
+| **CDC Sync** | Partial | Complete | Production-ready |
+| **XDC Constraints** | None | Comprehensive | Timing verified |
+| **Stress Test** | Failed | 1000+ packets pass | Reliable |
+| **Debug Time** | 4+ hours | N/A (working) | Huge time savings |
+
+### Trading System Relevance
+
+**Skills Demonstrated:**
+
+1. **Production Debugging** - Systematic root cause analysis of race conditions
+2. **CDC Mastery** - Essential for multi-clock trading FPGAs (network PHY, order entry, timestamping)
+3. **Real-Time Processing** - Fixed-latency parsing critical for deterministic HFT systems
+4. **Stress Testing** - 1000+ packet validation mirrors production QA requirements
+5. **Architectural Redesign** - Knowing when to rewrite vs patch shows engineering maturity
+6. **Debug Strategy** - Strategic instrumentation enables rapid issue diagnosis
+
+**Why This Matters for Trading:**
+- **ITCH/OUCH Parsing:** Same real-time architecture applies to NASDAQ protocols
+- **Multi-Clock FPGAs:** Trading systems have multiple clock domains (network, processing, memory)
+- **Zero Failures:** 100% success rate requirement mirrors trading production standards
+- **Deterministic Latency:** Real-time parsing guarantees fixed latency (critical for HFT)
+- **Production Patterns:** CDC checklist prevents costly bugs in live trading systems
+
+### Files Modified for Bug #13 Resolution
+
+1. **udp_parser.vhd** - Complete rewrite (280+ → 188 lines)
+2. **mii_eth_top.vhd** - CDC synchronizers, reset sync, in_frame flag, debug signals
+3. **uart_formatter.vhd** - Debug outputs (proto=, upok=, ulok=, frm=)
+4. **arty_a7_100t_mii.xdc** - Comprehensive CDC timing constraints
+5. **README.md** - Full documentation of Bug #13 journey (1,502 lines)
+
+---
+This document grows with each project. **Latest update: Project 6 Phase 1F v5 - Bug #13 Resolution Complete (November 7, 2025)**
