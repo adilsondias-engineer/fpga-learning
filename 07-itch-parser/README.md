@@ -473,14 +473,19 @@ Educational project for FPGA learning and career transition into high-frequency 
 
 ---
 
-**Project Status:** ✅ **Project 7 - ITCH 5.0 Protocol Parser Phase 1 Complete** 
+**Project Status:** ✅ **Project 7 - ITCH 5.0 Protocol Parser Phase 1 Complete**
 
-**Hardware Status:** ✅ Synthesized, Programmed, and **Stress-Tested** on Arty A7-100T
+**Hardware Status:** ✅ Synthesized, Programmed, and Verified on Arty A7-100T
 
-**Quality Metrics:** **13 Bugs Fixed** (including **Critical CDC Bug #13**), Clean Synthesis, **100% Test Pass Rate**
+**Quality Metrics:** **3 Critical Bugs Fixed**, Clean Synthesis, **100% Message Parsing Accuracy**
 
-**CDC Verification:** ✅ **0 Violations, 1000+ Packet Stress Test Passed**
+**Bugs Fixed:**
+1. **MII Timing/Byte Alignment Bug** - Critical discovery: MII 2-cycle byte timing requires odd byte_counter processing (1,3,5,7...)
+2. **Signal Name Mismatch** - Fixed captured_match_number → captured_match_num
+3. **MAC Filtering** - Re-enabled MAC address filtering (was left in debug mode accepting all packets)
 
-**Ready For:** **Project 7 - ITCH 5.0 Protocol Parser Phase 2**
+**Message Types Implemented:** Add Order ('A'), Order Executed ('E'), Order Cancel ('X')
+
+**Ready For:** **Phase 2 - Symbol Filtering and Additional Message Types**
 
 **Last Updated:** November 9, 2025
