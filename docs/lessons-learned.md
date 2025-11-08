@@ -50,9 +50,21 @@ with mode select led <= temp when MODE_UDP,
 - MAC parser must detect SFD and skip preamble
 - **Lesson:** PHY interface behavior varies (MII vs RGMII). Check IEEE 802.3 spec.
 
+**7. MII Byte Timing (Off-by-One Errors)**
+```vhdl
+-- MII outputs bytes every 2 clock cycles (12.5 MHz byte rate)
+-- Type byte remains visible for 1 extra cycle on state transition
+-- WRONG: Process on even counters (0,2,4,6)
+-- RIGHT: Process on ODD counters (1,3,5,7)
+if byte_counter >= 1 and (byte_counter mod 2) = 1 then
+    -- Process data bytes (skips repeated type byte)
+end if
+```
+**Lesson:** State transitions don't align with byte boundaries. Formula: Physical byte N → byte_counter = 2*N - 1
+
 ### Debug Strategies
 
-**7. Testbench Timing for Transient Signals**
+**8. Testbench Timing for Transient Signals**
 ```vhdl
 -- WRONG: Check at fixed time (pulse might be gone)
 wait for 390 ns;
@@ -70,32 +82,32 @@ assert valid_captured = '1';
 ```
 **Lesson:** Actively monitor for transient pulses, don't just check at fixed time
 
-**8. Waveform Analysis Essential**
+**9. Waveform Analysis Essential**
 - Transcript shows "what failed"
 - Waveforms show "why it failed" and **when**
 - **Lesson:** Always generate waveforms for failing tests
 
-**9. Synthesis Warnings Judgment**
+**10. Synthesis Warnings Judgment**
 - "Unused register removed" → Check if intentional vs broken
 - "Unconnected port" → Likely real issue if port should be used
 - **Lesson:** Review all warnings, verify functionality, check timing
 
 ### Design Patterns
 
-**10. State Machine for Protocols**
+**11. State Machine for Protocols**
 ```vhdl
 type state_type is (IDLE, PREAMBLE, HEADER, VALIDATE, PAYLOAD);
 ```
 Benefits: Clear structure, easy to extend, self-documenting
 
-**11. Clock Domain Crossing Checklist**
+**12. Clock Domain Crossing Checklist**
 1. Identify all signals crossing boundary
 2. Single-bit → 2FF synchronizer
 3. Multi-bit → Sample on valid pulse
 4. Add XDC timing constraints (ASYNC_REG, set_false_path)
 **Lesson:** Systematically synchronize EVERY signal (don't forget status/error signals!)
 
-**12. Error Detection with Pulse Stretcher**
+**13. Error Detection with Pulse Stretcher**
 1. Detect brief error pulse (1 cycle)
 2. Set timer (e.g., 50M clocks = 0.5 sec)
 3. Keep LED ON while timer > 0
@@ -104,20 +116,20 @@ Benefits: Clear structure, easy to extend, self-documenting
 
 ### Development Workflow
 
-**13. Documentation First**
+**14. Documentation First**
 - **Mistake:** Coded RGMII interface without reading docs (wasted 4 hours)
 - **Correct:** 30 min reading Arty A7 manual → found MII interface
 - **Savings:** 3.5 hours
 - **Lesson:** Read hardware docs before coding
 
-**14. Incremental Integration**
+**15. Incremental Integration**
 - Phase 1A: MII + MAC → Verify
 - Phase 1D: + IP → Verify
 - Phase 1F: + UDP → Verify
 - **Anti-pattern:** Build entire stack, debug all layers at once
 - **Lesson:** Verify each layer before adding next
 
-**15. Component Interface Management**
+**16. Component Interface Management**
 - **Solutions:**
   - Direct entity instantiation (recommended - single source of truth)
   - Auto-generate component from entity
@@ -1448,6 +1460,274 @@ end if;
 
 ---
 
-**Last Updated:** Project 7 ITCH Parser - CDC Fixes & False Trigger Bug Resolution (November 8, 2025)
+## Project 07: ITCH 5.0 Protocol Parser - MII Timing Discovery
+
+### ⭐ Critical Discovery: MII Byte Timing and Off-by-One Errors
+
+**Context:** ITCH parser implemented for Nasdaq market data feeds. Initial implementation used even byte_counter values (0,2,4,6...) for field extraction, resulting in all fields showing incorrect values (StockLoc=0000, Symbol garbled).
+
+### The MII Timing Problem
+
+**MII Interface Characteristics:**
+- Operates at 25 MHz receiving 4-bit nibbles
+- Assembles bytes every 2 clock cycles
+- Byte rate: 12.5 MHz (25 MHz / 2)
+- Each assembled byte remains **stable for 2 consecutive clock cycles**
+
+**Critical Discovery:**
+When state machine transitions from IDLE to COUNT_BYTES on `udp_payload_start='1'`, the **type byte (byte 0) remains visible for 1 additional clock cycle**.
+
+**Timing Diagram:**
+```
+Clock Cycle:     0        1        2        3        4        5
+                 ↓        ↓        ↓        ↓        ↓        ↓
+State:        IDLE  COUNT_BYTES  COUNT_B  COUNT_B  COUNT_B  COUNT_B
+Data Visible:  TYPE     TYPE      BYTE1    BYTE1    BYTE2    BYTE2
+byte_counter:   -        0         1        2        3        4
+                         ↑                  ↑                 ↑
+                    Type repeated!    First data byte   Second data byte
+```
+
+**Problem with Even Byte Counter (0,2,4,6...):**
+```vhdl
+-- WRONG: Processing on even counters
+if byte_counter = 0 then
+    stock_locate_reg(15 downto 8) <= udp_payload_data;  -- Gets TYPE byte!
+elsif byte_counter = 2 then
+    stock_locate_reg(7 downto 0) <= udp_payload_data;   -- Gets BYTE1 (wrong!)
+```
+
+**Result:** Off-by-one error for ALL fields. Type byte contaminated first field, all subsequent fields misaligned.
+
+### The Solution: Odd Byte Counter Pattern
+
+**Correct Implementation:**
+```vhdl
+-- RIGHT: Processing on ODD counters (1,3,5,7...)
+if byte_counter >= 1 and (byte_counter mod 2) = 1 then
+    if byte_counter = 1 then
+        stock_locate_reg(15 downto 8) <= udp_payload_data;  -- Gets BYTE1 ✓
+    elsif byte_counter = 3 then
+        stock_locate_reg(7 downto 0) <= udp_payload_data;   -- Gets BYTE2 ✓
+    elsif byte_counter = 5 then
+        tracking_number_reg(15 downto 8) <= udp_payload_data;  -- Gets BYTE3 ✓
+    -- ... and so on
+    end if
+end if
+```
+
+**Byte Counter Mapping Formula:**
+```
+Physical byte N → byte_counter = 2*N - 1
+
+Examples:
+  Byte 1  (Stock Locate MSB)    → byte_counter = 1
+  Byte 11 (Order Reference MSB) → byte_counter = 21
+  Byte 32 (Price MSB)           → byte_counter = 63
+```
+
+**Why This Works:**
+1. Type byte captured in IDLE state when `payload_start='1'` (separate logic)
+2. In COUNT_BYTES at byte_counter=0: Type byte still visible (IGNORED)
+3. At byte_counter=1: First data byte (byte 1) appears - NOW process
+4. At byte_counter=3: Second data byte (byte 2) appears - process
+5. Pattern continues: odd counters always align with valid data bytes
+
+### Debug Process and Discovery
+
+**Initial Symptom:**
+```
+UART Output: StockLoc=0000 Track=0000 Shares=00000041 Symbol=0000000000004142
+                                                ^^^^              ^^^^
+                                        Should be Type=41     Should be "AAPL"
+```
+
+**Investigation Steps:**
+1. Added extensive debug outputs (48 debug signals total!)
+2. Captured byte_counter values when each field byte processed
+3. Displayed payload_data for bytes 1-4
+4. Created cycle-by-cycle history (payload_history_0 through _3)
+5. Monitored state transitions and payload_valid history
+
+**Debug Output That Revealed the Issue:**
+```vhdl
+-- Critical debug: Capture exact byte_counter and data for first few bytes
+debug_byte1_counter <= 0  -- Processing at counter 0
+debug_byte1_data    <= 41 -- Seeing TYPE byte (0x41 = 'A')
+debug_byte2_counter <= 2  -- Processing at counter 2
+debug_byte2_data    <= 00 -- Seeing byte 1 (stock locate high)
+```
+
+**Realization:** Processing at even counters (0,2,4...) captured:
+- Counter 0 → Type byte (should skip)
+- Counter 2 → Byte 1 (should be at counter 1)
+- Counter 4 → Byte 2 (should be at counter 3)
+
+All fields off by one byte position!
+
+**Verification After Fix:**
+```
+Test Packet: Type=41 StockLoc=0001 Track=0F42 ... Symbol=AAPL Price=60.4856
+FPGA Output: Type=41 StockLoc=0001 Track=0F42 ... Symbol=AAPL Price=60.4856
+                                                                    ✓ Perfect match!
+```
+
+### ITCH Message Implementation
+
+**Message Types Implemented:**
+- **'A' (0x41):** Add Order - 36 bytes (Order ref, Buy/Sell, Shares, Symbol, Price)
+- **'E' (0x45):** Order Executed - 31 bytes (Order ref, Executed shares, Match number)
+- **'X' (0x58):** Order Cancel - 23 bytes (Order ref, Cancelled shares)
+
+**Example Field Extraction (Add Order):**
+```vhdl
+elsif current_msg_type = x"41" and byte_counter >= 1 and (byte_counter mod 2) = 1 then
+    -- Stock Locate: bytes 1-2 (counters 1, 3)
+    if byte_counter = 1 then
+        stock_locate_reg(15 downto 8) <= udp_payload_data;
+    elsif byte_counter = 3 then
+        stock_locate_reg(7 downto 0) <= udp_payload_data;
+
+    -- Order Reference: bytes 11-18 (counters 21,23,25,27,29,31,33,35)
+    elsif byte_counter = 21 then
+        order_ref_reg(63 downto 56) <= udp_payload_data;  -- Byte 11 (MSB)
+    elsif byte_counter = 23 then
+        order_ref_reg(55 downto 48) <= udp_payload_data;  -- Byte 12
+    -- ... through byte 18
+
+    -- Symbol: bytes 24-31 (counters 47,49,51,53,55,57,59,61)
+    elsif byte_counter = 47 then
+        symbol_reg(63 downto 56) <= udp_payload_data;  -- Byte 24 (first char)
+    -- ... through byte 31
+
+    -- Price: bytes 32-35 (counters 63,65,67,69)
+    elsif byte_counter = 63 then
+        price_reg(31 downto 24) <= udp_payload_data;  -- Byte 32 (MSB)
+    elsif byte_counter = 65 then
+        price_reg(23 downto 16) <= udp_payload_data;  -- Byte 33
+    elsif byte_counter = 67 then
+        price_reg(15 downto 8) <= udp_payload_data;   -- Byte 34
+    elsif byte_counter = 69 then
+        price_reg(7 downto 0) <= udp_payload_data;    -- Byte 35 (LSB)
+    end if;
+end if;
+```
+
+### Additional Bugs Fixed
+
+**Bug 2: Signal Name Mismatch**
+- **Symptom:** Compilation would have failed (caught early)
+- **Root Cause:** Signal declared as `captured_match_num` but referenced as `captured_match_number` in formatter
+- **Fix:** Changed all 16 references to match declaration name
+- **Lesson:** Consistent naming critical; VHDL catches this at compile time (unlike some languages)
+
+**Bug 3: MAC Filtering Left Disabled**
+- **Symptom:** Parser processing ALL network traffic (ARP, mDNS, broadcast packets)
+- **Root Cause:** MAC filtering left in debug mode during byte alignment troubleshooting
+- **Fix:** Re-enabled MAC address check for board MAC (0x00183E045DE7) + broadcast
+- **Impact:** Without filtering, parser triggers on irrelevant packets, wasting resources and causing spurious UART output
+- **Lesson:** Always re-enable production filters after debugging sessions
+
+### Enhanced UART Formatter
+
+**Problem:** Order Executed and Order Cancel messages only showed type - couldn't identify which order.
+
+**Solution:** Added order reference and key fields to UART output:
+
+```vhdl
+-- Order Executed Format:
+-- "[#XX] [ITCH] Type=E Ref=XXXXXXXXXXXXXXXX ExecShr=XXXXXXXX Match=XXXXXXXXXXXXXXXX\r\n"
+
+-- Order Cancel Format:
+-- "[#XX] [ITCH] Type=X Ref=XXXXXXXXXXXXXXXX CxlShr=XXXXXXXX\r\n"
+```
+
+**Benefit:** Can now trace order lifecycle:
+1. `Type=A Ref=000000000F4240` - Order added
+2. `Type=E Ref=000000000F4240 ExecShr=00000032` - 50 shares executed
+3. `Type=X Ref=000000000F4240 CxlShr=00000019` - 25 shares cancelled
+
+### Code Cleanup and Standards
+
+**Comment Style Violations Fixed (26 total):**
+- Removed personal pronouns: "we", "our", "I", "my" → third-person technical style
+- Removed arrow emoji (→) from technical comments
+- Examples:
+  - "we've seen" → "seen"
+  - "we're processing" → "processing"
+  - "our MAC" → "board MAC"
+  - "I've seen transmission start" → "Transmission start detected"
+
+**Unused Signal Removal:**
+- `first_cycle_in_count_bytes` - Declared but never used
+- `payload_data_reg` - Registered copy not needed (using combinational directly)
+
+**Code Documentation:**
+- Added note that 48 debug signals can be removed once system verified stable
+- Updated module header to reflect only implemented message types (A, E, X)
+- Documented MII timing requirement in module comments
+
+### Key Architectural Lessons
+
+**Lesson 1: MII Timing is Fundamental**
+- MII byte stability (2 cycles per byte) is not optional - it's how the interface works
+- State machine transitions don't magically align with byte boundaries
+- **Must account for transition timing in byte processing logic**
+- This applies to ALL MII-based parsing, not just ITCH
+
+**Lesson 2: Debug Infrastructure Investment**
+- 48 debug signals seems excessive, but enabled rapid root cause discovery
+- Cycle-by-cycle history critical for timing-related bugs
+- Debug outputs showing both counter AND data values revealed the pattern
+- Strategic instrumentation pays off when facing obscure timing issues
+
+**Lesson 3: Formula-Based Byte Mapping**
+- Discovered formula: `byte_counter = 2*N - 1` for physical byte N
+- Enables quick calculation for any byte position
+- Documents the relationship clearly in code comments
+- Makes pattern obvious to future maintainers
+
+**Lesson 4: Verification with Real Protocol Data**
+- Used actual ITCH packet format from Nasdaq specification
+- Tested with real field values (Order ref=1000000, Symbol=AAPL, Price=$60.4856)
+- Verified every field matches expected value exactly
+- Production protocols have no room for "close enough"
+
+**Lesson 5: MAC Filtering is Essential**
+- Without filtering: Parser sees ARP, mDNS, broadcast traffic
+- Causes false triggers, wasted processing, confusing debug output
+- **Always filter at lowest possible layer** (MAC, not application)
+- Whitelist approach: Board MAC + broadcast only
+
+### Trading System Relevance
+
+**Skills Demonstrated:**
+
+1. **Protocol Byte Alignment** - ITCH, FIX, OUCH all require exact byte-level parsing
+2. **MII Interface Timing** - Direct PHY interfacing for minimal latency
+3. **Big-Endian Field Extraction** - Network byte order standard for all trading protocols
+4. **Debug Methodology** - Systematic debugging with strategic instrumentation
+5. **Production Filtering** - MAC filtering mirrors production packet filtering
+
+**Why This Matters for Trading:**
+
+- **ITCH Protocol:** Direct experience with actual Nasdaq market data format
+- **Sub-Microsecond Latency:** Hardware parsing eliminates OS/software overhead
+- **Deterministic Timing:** Fixed byte-counter pattern ensures consistent latency
+- **Zero Tolerance:** 100% accuracy required - one misaligned field = bad trades
+- **Production Patterns:** MAC filtering, CDC synchronization, error handling
+
+### Files Modified
+
+1. **itch_parser.vhd** - Implemented A/E/X message parsing with odd byte_counter pattern
+2. **uart_itch_formatter.vhd** - Enhanced E/X output, fixed signal name mismatch
+3. **mac_parser.vhd** - Re-enabled MAC address filtering
+4. **README.md** - Comprehensive documentation of MII timing discovery
+5. **mii_eth_top.vhd** - Cleaned up comments, removed dead code
+
+
+---
+
+**Last Updated:** Project 7 ITCH Parser Phase 1 Complete - MII Timing Discovery (November 9, 2025)
 
 This document grows with each project and includes lessons from all phases.

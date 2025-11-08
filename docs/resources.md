@@ -134,6 +134,36 @@ FCS (4 bytes):       CRC32 checksum
 - Clock: 25 MHz (100 Mbps) or 2.5 MHz (10 Mbps)
 - Preamble: Passed to FPGA (must strip in logic)
 - Control signals: RX_DV, RX_ER, TX_EN, TX_ER
+- Byte timing: Each byte stable for 2 clock cycles (12.5 MHz byte rate)
+- **Critical:** State transitions cause type byte to repeat - use odd byte_counter (1,3,5,7...)
+
+### ITCH 5.0 - Nasdaq Market Data Protocol
+
+**Official Specification:**
+
+- [ITCH 5.0 Protocol Specification](https://www.nasdaqtrader.com/content/technicalsupport/specifications/dataproducts/NQTVITCHspecification.pdf)
+  - Binary message format
+  - Message types (Add Order, Order Executed, Order Cancel, etc.)
+  - Field layouts and data types
+  - Big-endian byte order
+
+**Message Types Implemented:**
+
+- Type 'A' (0x41): Add Order - 36 bytes
+  - Order reference (8 bytes), Buy/Sell (1 byte), Shares (4 bytes), Symbol (8 bytes), Price (4 bytes)
+- Type 'E' (0x45): Order Executed - 31 bytes
+  - Order reference (8 bytes), Executed shares (4 bytes), Match number (8 bytes)
+- Type 'X' (0x58): Order Cancel - 23 bytes
+  - Order reference (8 bytes), Cancelled shares (4 bytes)
+
+**Key Characteristics:**
+
+- Binary protocol (not ASCII)
+- Network byte order (big-endian)
+- Fixed-length messages per type
+- Type byte identifies message format
+- UDP transport (port 12345 in test environment)
+- Price representation: 4-byte integer in 1/10000 dollars
 
 ### UART Communication
 
@@ -379,14 +409,19 @@ fpga-learning/
 - Hardware timestamping
 - MDIO interface for PHY management
 
-**Phase 2 (Future):**
+**Phase 2 (Current):**
 
+- Symbol filtering for ITCH messages
+- Additional ITCH message types (Trade, Replace, Delete)
+- Message statistics and monitoring
+
+**Phase 3 (Future):**
+
+- Hardware order book implementation
 - AXI4 interfaces
 - DMA controllers
 - High-speed serial (GTX transceivers)
-- DDR3 memory controller
-- Order book implementation
-- Market data parser (ITCH protocol)
+- DDR3 memory controller integration
 
 ---
 
@@ -418,4 +453,4 @@ fpga-learning/
 
 ---
 
-_This resource list grows with each project. Last updated: Project 06 (MII Ethernet Receiver)_
+_This resource list grows with each project. Last updated: Project 07 (ITCH 5.0 Protocol Parser)_

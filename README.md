@@ -2,7 +2,7 @@
 ![Language](https://img.shields.io/badge/Language-VHDL-blue)
 ![Status](https://img.shields.io/badge/Status-Active%20Learning-green)
 ![Hardware Verified](https://img.shields.io/badge/Hardware-Verified-brightgreen)
-![Projects](https://img.shields.io/badge/Projects-6%20Complete-brightgreen)
+![Projects](https://img.shields.io/badge/Projects-7%20Complete-brightgreen)
 
 # FPGA Learning for Trading Systems
 
@@ -53,6 +53,14 @@ Projects are designed to build from fundamentals toward trading-relevant skills:
      - Comprehensive clock domain crossing synchronization
      - XDC timing constraints for production reliability
      - 1000+ packet stress test validation
+
+7. **Project 07** - ITCH 5.0 Protocol Parser ✅ **Phase 1 Complete**
+   - Nasdaq market data protocol parsing (Add Order, Order Executed, Order Cancel)
+   - **Critical MII Timing Discovery** - Odd byte_counter pattern (1,3,5,7...) required
+   - Big-endian field extraction for multi-byte values
+   - Enhanced UART formatter with order lifecycle tracking
+   - MAC address filtering re-enabled (board MAC + broadcast)
+   - 100% message parsing accuracy verified with real ITCH data
 
 Each project includes, where it might be relevant/required:
 
@@ -148,6 +156,8 @@ Each project includes, where it might be relevant/required:
 - Hardware acceleration - Direct PHY interfacing bypasses OS network stack for minimal latency
 - **Production debugging** - Systematic root cause analysis, strategic instrumentation, stress testing (1000+ packet validation) ⭐
 - **Architectural decision-making** - Knowing when to rewrite vs patch (event-driven → real-time rewrite resolved 99% failure rate) ⭐
+- **ITCH Protocol Parsing** - Nasdaq market data format (Add Order, Order Executed, Order Cancel), big-endian field extraction, order lifecycle tracking
+- **MII Byte Timing** - Discovered odd byte_counter requirement (1,3,5,7...) due to 2-cycle byte stability and state transition timing
 
 ---
 
