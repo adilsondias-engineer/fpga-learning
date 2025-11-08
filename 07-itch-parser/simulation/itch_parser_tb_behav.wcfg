@@ -13,13 +13,13 @@
    <zoom_setting>
       <ZoomStartTime time="0.000000 us"></ZoomStartTime>
       <ZoomEndTime time="10.000001 us"></ZoomEndTime>
-      <Cursor1Time time="3.100000 us"></Cursor1Time>
+      <Cursor1Time time="10.000000 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="298"></NameColumnWidth>
-      <ValueColumnWidth column_width="356"></ValueColumnWidth>
+      <ValueColumnWidth column_width="352"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="129" />
+   <WVObjectSize size="125" />
    <wvobject fp_name="/itch_parser_tb/clk" type="logic">
       <obj_property name="ElementShortName">clk</obj_property>
       <obj_property name="ObjectShortName">clk</obj_property>
@@ -376,18 +376,6 @@
       <obj_property name="ElementShortName">byte_counter</obj_property>
       <obj_property name="ObjectShortName">byte_counter</obj_property>
    </wvobject>
-   <wvobject fp_name="/itch_parser_tb/uut/valid_hold_counter" type="other">
-      <obj_property name="ElementShortName">valid_hold_counter</obj_property>
-      <obj_property name="ObjectShortName">valid_hold_counter</obj_property>
-   </wvobject>
-   <wvobject fp_name="/itch_parser_tb/uut/payload_start_latched" type="logic">
-      <obj_property name="ElementShortName">payload_start_latched</obj_property>
-      <obj_property name="ObjectShortName">payload_start_latched</obj_property>
-   </wvobject>
-   <wvobject fp_name="/itch_parser_tb/uut/payload_first_byte" type="array">
-      <obj_property name="ElementShortName">payload_first_byte[7:0]</obj_property>
-      <obj_property name="ObjectShortName">payload_first_byte[7:0]</obj_property>
-   </wvobject>
    <wvobject fp_name="/itch_parser_tb/uut/payload_bytes_seen" type="other">
       <obj_property name="ElementShortName">payload_bytes_seen</obj_property>
       <obj_property name="ObjectShortName">payload_bytes_seen</obj_property>
@@ -531,9 +519,5 @@
    <wvobject fp_name="/itch_parser_tb/uut/debug_tracking_last_byte_val_reg" type="array">
       <obj_property name="ElementShortName">debug_tracking_last_byte_val_reg[7:0]</obj_property>
       <obj_property name="ObjectShortName">debug_tracking_last_byte_val_reg[7:0]</obj_property>
-   </wvobject>
-   <wvobject fp_name="/itch_parser_tb/uut/VALID_HOLD_CYCLES" type="other">
-      <obj_property name="ElementShortName">VALID_HOLD_CYCLES</obj_property>
-      <obj_property name="ObjectShortName">VALID_HOLD_CYCLES</obj_property>
    </wvobject>
 </wave_config>
