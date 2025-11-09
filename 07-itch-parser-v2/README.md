@@ -54,7 +54,7 @@ ITCH 5.0 protocol parser implementation for Nasdaq market data feeds. Receives U
 **Layer 4: UDP Length Validation** ([udp_parser.vhd](src/udp_parser.vhd))
 - Validates header and payload length fields
 
-**Layer 5: UDP Port Filtering** ([mii_eth_top.vhd](src/mii_eth_top.vhd)) ⭐ **NEW**
+**Layer 5: UDP Port Filtering** ([mii_eth_top.vhd](src/mii_eth_top.vhd))  **NEW**
 - Target port: `12345` (configurable constant)
 - Combinational filtering (zero-delay, preserves alignment)
 - Blocks DNS, mDNS, SSDP, and other broadcast traffic
@@ -64,7 +64,7 @@ ITCH 5.0 protocol parser implementation for Nasdaq market data feeds. Receives U
 
 **Result:** Professional-grade filtering prevents spurious message detection from random network traffic.
 
-### Build Version Management ⭐ **NEW**
+### Build Version Management  **NEW**
 
 Auto-incrementing build version system for bitstream verification:
 - Build counter stored in `build_version.txt` (git-ignored)
@@ -112,12 +112,12 @@ mii_eth_top (top-level)
 │   ├── mac_parser (MAC frame parsing + filtering)
 │   ├── ip_parser (IPv4 header + checksum)
 │   ├── udp_parser (UDP header + validation)
-│   ├── UDP port filter (combinational) ⭐ NEW
-│   └── itch_parser (ITCH protocol - 5 message types) ⭐ UPDATED
+│   ├── UDP port filter (combinational)  NEW
+│   └── itch_parser (ITCH protocol - 5 message types)  UPDATED
 ├── Statistics and Display
 │   └── itch_stats_counter
 ├── UART Debug Output
-│   ├── uart_itch_formatter ⭐ UPDATED
+│   ├── uart_itch_formatter  UPDATED
 │   └── uart_tx
 └── Clock Domain Crossing (2FF synchronizers)
 ```
@@ -135,9 +135,9 @@ IP Parser (IPv4 header) + Protocol Filter (UDP only)
     ↓ (25 MHz, IP payload)
 UDP Parser (UDP header) + Length Validation
     ↓ (25 MHz, UDP payload stream)
-UDP Port Filter (port 12345 only) ⭐ NEW
+UDP Port Filter (port 12345 only)  NEW
     ↓ (25 MHz, filtered payload)
-ITCH Parser (5 message types: A,E,X,S,R) ⭐ UPDATED
+ITCH Parser (5 message types: A,E,X,S,R)  UPDATED
     ↓ (25 MHz, parsed fields)
 ├─→ Clock Domain Crossing (25 MHz → 100 MHz)
 ├─→ itch_stats_counter → LEDs
@@ -218,16 +218,23 @@ BUILD VERSION: 6
 
 ### Hardware Setup
 
-1. Connect Arty A7 to PC via USB (JTAG + UART)
-2. Connect Ethernet cable from PC to Arty A7
-3. Configure PC Ethernet adapter:
-   - IP: 192.168.1.100
+1. Connect Arty A7 to a PC via USB (JTAG + UART) or network switch
+2. Connect Ethernet cable from PC/Network switch to Arty A7
+3. Configure the new Ethernet port(Arty A7) IP to 192.168.1.100
+3. If not using network switch, configure PC Ethernet adapter:
+   - IP: 192.168.1.10
    - Subnet: 255.255.255.0
    - No gateway needed
+4. If using network switch, all that is required is the Arty MAC address from mii_eth_top
+    ```-- MAC address --> check label on top of the ethernet port
+    constant MY_MAC_ADDR : STD_LOGIC_VECTOR(47 downto 0) := x"00183E045DE7"; 
+    ```
+    Add a static IP from your network to the test script target and update Arty MAC address
+
 
 ### Test Procedure
 
-#### 1. System Event Test ⭐ **NEW**
+#### 1. System Event Test  **NEW**
 
 ```batch
 REM Open serial terminal (115200 baud, 8N1)
@@ -235,7 +242,7 @@ python -m serial.tools.miniterm COM3 115200
 
 REM In another terminal, send system event
 cd 07-itch-parser-v2\test
-python send_itch_packets.py --target 192.168.1.10 --port 12345 --test system_event
+python send_itch_packets.py --target 192.168.1.100 --port 12345 --test system_event
 ```
 
 **Expected UART output:**
@@ -252,10 +259,10 @@ Shows: System Event, Code 0x4F = 'O' (Start of Messages)
 - `45` = 'E' (End of System Hours)
 - `43` = 'C' (End of Messages)
 
-#### 2. Stock Directory Test ⭐ **NEW**
+#### 2. Stock Directory Test  **NEW**
 
 ```batch
-python send_itch_packets.py --target 192.168.1.10 --port 12345 --test stock_directory
+python send_itch_packets.py --target 192.168.1.100 --port 12345 --test stock_directory
 ```
 
 **Expected UART output:**
@@ -267,7 +274,7 @@ Shows: Stock Directory, Market='Q', Financial Status='N' (Normal), 100 shares ro
 #### 3. Add Order Test
 
 ```batch
-python send_itch_packets.py --target 192.168.1.10 --port 12345 --test add_order
+python send_itch_packets.py --target 192.168.1.100 --port 12345 --test add_order
 ```
 
 **Expected UART output:**
@@ -279,7 +286,7 @@ Shows: Add Order, Reference 1000001, Buy, 100 shares, AAPL, Price $60.00
 #### 4. Complete Market Simulation
 
 ```batch
-python send_itch_packets.py --target 192.168.1.10 --port 12345 --test complete
+python send_itch_packets.py --target 192.168.1.100 --port 12345 --test complete
 ```
 
 Sends full market day sequence:
@@ -294,7 +301,7 @@ Sends full market day sequence:
 - LED counter increments
 - No parse errors
 
-#### 5. Port Filtering Verification ⭐ **NEW**
+#### 5. Port Filtering Verification  **NEW**
 
 To verify port filtering is working:
 
@@ -306,7 +313,7 @@ REM Enable network discovery to generate mDNS/SSDP
 
 2. Send ITCH messages on port 12345:
 ```batch
-python send_itch_packets.py --target 192.168.1.10 --port 12345 --test add_order
+python send_itch_packets.py --target 192.168.1.100 --port 12345 --test add_order
 ```
 
 **Expected:** Only ITCH messages appear, no spurious Type='E' or garbage from DNS/mDNS
@@ -397,13 +404,13 @@ end if
 **Why This Works:**
 - Type byte captured in IDLE state on `payload_start='1'`
 - In COUNT_BYTES, byte_counter=0: Type byte still visible (ignored)
-- byte_counter=1: First data byte (byte 1) - NOW we start processing
+- byte_counter=1: First data byte (byte 1) - NOW it will start processing
 - byte_counter=3: Second data byte (byte 2)
 - Pattern continues: odd counters = valid data
 
 This timing issue is fundamental to the MII interface and must be respected in all byte-by-byte parsing logic.
 
-### Clock Domain Crossing (CDC) - Critical Fix ⭐
+### Clock Domain Crossing (CDC) - Critical Fix 
 
 **The Problem:** ITCH parser runs at 25 MHz (eth_rx_clk), UART formatter at 100 MHz (sys_clk). Field data and valid signals must cross clock domains safely.
 
@@ -463,7 +470,7 @@ end process;
 - Edge detection on sync2 (after data has been captured)
 - Data remains stable for 3-4 cycles minimum (not cleared in IDLE)
 
-### UDP Port Filtering - Combinational Implementation ⭐
+### UDP Port Filtering - Combinational Implementation 
 
 **The Challenge:** Filter UDP payload signals based on destination port, but avoid introducing registered delays that would misalign `payload_start` with `payload_data`.
 
@@ -515,7 +522,7 @@ payload_start_filtered <= payload_start when (port_match = '1' or
 - Subsequent cycles: latched `port_match='1'` passes data through
 - **Zero registered delay** = perfect alignment preserved
 
-### System Event Message ('S') - 12 bytes ⭐
+### System Event Message ('S') - 12 bytes 
 
 **ITCH Specification (Page 4):**
 ```
@@ -548,7 +555,7 @@ elsif current_msg_type = MSG_SYSTEM_EVENT and byte_counter >= 1 and (byte_counte
 end if;
 ```
 
-### Stock Directory Message ('R') - 39 bytes ⭐
+### Stock Directory Message ('R') - 39 bytes 
 
 **ITCH Specification (Page 4-6):**
 ```
@@ -664,35 +671,35 @@ None currently reported. All critical bugs fixed in Phase 2.
 
 **Impact:** This is fundamental to MII-based parsing. All byte-offset logic must account for this timing behavior. Debugging required extensive cycle-by-cycle analysis to discover the root cause.
 
-### 2. Clock Domain Crossing Requires Stable Data (Critical - Phase 2) ⭐
+### 2. Clock Domain Crossing Requires Stable Data (Critical - Phase 2) 
 **The Problem:** Field registers were cleared in IDLE state immediately after pulsing valid signal. At 25 MHz, data only stable for 1 cycle (~40ns). CDC synchronizer at 100 MHz needs 2-3 cycles to sample valid and data, but data was already zeros by then.
 
 **The Solution:** Do NOT clear field registers in IDLE. Hold values until overwritten by next message. This gives CDC 3-4 cycles (~120-160ns) to sample correctly.
 
 **Impact:** All CDC interfaces require data stability analysis. Register clearing must consider downstream sampling requirements. This bug caused ALL fields to appear as zeros despite correct parsing.
 
-### 3. Orphaned elsif Chain Bug (Critical - Phase 2) ⭐
+### 3. Orphaned elsif Chain Bug (Critical - Phase 2) 
 **The Problem:** Extra `end if;` at line 435 of itch_parser.vhd closed the message type if/elsif chain BEFORE System Event and Stock Directory elsif conditions, leaving them orphaned outside any if block.
 
 **Why It Compiled:** The orphaned elsif was inside an outer `if udp_payload_valid = '1'` block, so VHDL compiler accepted it as unreachable "dead code" rather than syntax error.
 
 **Impact:** System Event and Stock Directory field extraction code NEVER executed, all fields remained at reset values (zeros). Demonstrates importance of careful code structure review beyond compiler checks.
 
-### 4. UDP Port Filtering Timing Race (Phase 2) ⭐
+### 4. UDP Port Filtering Timing Race (Phase 2) 
 **The Problem:** When `udp_valid='1'` sets `port_match='1'`, the new value isn't visible until next clock cycle. If `payload_start` occurs on same cycle as `udp_valid`, it gets blocked because `port_match` still reads '0'.
 
 **The Solution:** Use combinational filtering that checks BOTH latched `port_match` flag AND current `udp_valid` signal. First cycle caught by udp_valid check, subsequent cycles use latched flag.
 
 **Impact:** Demonstrates need for combinational logic in time-critical filtering paths. Registered filtering introduces delays that misalign related signals.
 
-### 5. Registered Filtering Breaks Alignment (Phase 2) ⭐
+### 5. Registered Filtering Breaks Alignment (Phase 2) 
 **The Problem:** Initial port filtering used registered assignments (`<=` inside clocked process). This introduced 1-cycle delay, causing `payload_start_filtered` to pulse one cycle after `payload_data` had already advanced to next byte. Parser sampled wrong byte as message type.
 
 **The Solution:** Use combinational filtering (`when/else` concurrent assignment) for payload signals. Only latch the port match decision, not the filtered signals themselves.
 
 **Impact:** When filtering multi-signal interfaces (valid/start/data), alignment is critical. Registered delays can break protocol timing. Always use combinational logic for signal gating.
 
-### 6. Defense in Depth is Professional Engineering (Phase 2) ⭐
+### 6. Defense in Depth is Professional Engineering (Phase 2) 
 **The Principle:** Implement filtering at every protocol layer, not just one. Each layer catches different error classes and attack vectors.
 
 **Implementation:**
@@ -705,7 +712,7 @@ None currently reported. All critical bugs fixed in Phase 2.
 
 **Impact:** Professional-grade code doesn't rely on single point of validation. Even though MAC+IP+UDP filtering caught most garbage, UDP port filtering adds crucial defense against application-layer noise (DNS, mDNS, SSDP).
 
-### 7. Build Version Management is Essential (Phase 2) ⭐
+### 7. Build Version Management is Essential (Phase 2) 
 **The Problem:** User programmed wrong bitstream (07-itch-parser instead of 07-itch-parser-v2), causing confusion about whether new features were implemented.
 
 **The Solution:** Auto-incrementing build version in TCL script, displayed in build log, passed to VHDL as generic. Provides verification that correct bitstream is programmed.
@@ -784,26 +791,26 @@ Educational project for FPGA learning and career transition into high-frequency 
 
 3. **MAC Filtering** (Phase 1) - Re-enabled MAC address filtering (was left in debug mode accepting all packets)
 
-4. **CDC Timing Violation** (Phase 2) ⭐ - Field registers cleared in IDLE too early, preventing CDC synchronizers from sampling data. Fixed by NOT clearing registers in IDLE state.
+4. **CDC Timing Violation** (Phase 2)  - Field registers cleared in IDLE too early, preventing CDC synchronizers from sampling data. Fixed by NOT clearing registers in IDLE state.
 
-5. **Orphaned elsif Chain** (Phase 2) ⭐ - Extra `end if;` at line 435 closed if/elsif chain before System Event and Stock Directory, making their field extraction unreachable. Fixed by removing orphaned end if.
+5. **Orphaned elsif Chain** (Phase 2)  - Extra `end if;` at line 435 closed if/elsif chain before System Event and Stock Directory, making their field extraction unreachable. Fixed by removing orphaned end if.
 
-6. **Missing financial_status Port Connection** (Phase 2) ⭐ - Stock Directory financial_status output not connected in port map. Fixed by adding connection at mii_eth_top.vhd:932.
+6. **Missing financial_status Port Connection** (Phase 2)  - Stock Directory financial_status output not connected in port map. Fixed by adding connection at mii_eth_top.vhd:932.
 
-7. **UDP Port Filter Timing Race** (Phase 2) ⭐ - Port match flag set on udp_valid but payload_start occurred same cycle, getting blocked. Fixed with combinational filtering checking both latched flag and current udp_valid signal.
+7. **UDP Port Filter Timing Race** (Phase 2)  - Port match flag set on udp_valid but payload_start occurred same cycle, getting blocked. Fixed with combinational filtering checking both latched flag and current udp_valid signal.
 
 **Message Types Implemented:**
 - Add Order ('A')
 - Order Executed ('E')
 - Order Cancel ('X')
-- System Event ('S') ⭐ **NEW**
-- Stock Directory ('R') ⭐ **NEW**
+- System Event ('S')  **NEW**
+- Stock Directory ('R')  **NEW**
 
 **New Features (Phase 2):**
-- ⭐ UDP Port Filtering (defense in depth)
-- ⭐ Build Version Auto-Increment System
-- ⭐ Enhanced CDC synchronization patterns
-- ⭐ Combinational filtering for zero-delay signal gating
+-  UDP Port Filtering (defense in depth)
+-  Build Version Auto-Increment System
+-  Enhanced CDC synchronization patterns
+-  Combinational filtering for zero-delay signal gating
 
 **Ready For:** **Phase 3 - Symbol Filtering and Additional Message Types**
 

@@ -338,7 +338,7 @@ end if
 **Why This Works:**
 - Type byte captured in IDLE state on `payload_start='1'`
 - In COUNT_BYTES, byte_counter=0: Type byte still visible (ignored)
-- byte_counter=1: First data byte (byte 1) - NOW we start processing
+- byte_counter=1: First data byte (byte 1) - NOW it will start processing
 - byte_counter=3: Second data byte (byte 2)
 - Pattern continues: odd counters = valid data
 
