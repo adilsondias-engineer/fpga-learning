@@ -79,6 +79,9 @@ architecture structural of mii_eth_top is
     constant PHY_ADDR    : std_logic_vector(4 downto 0) := "00001";  -- DP83848J address
     constant CLK_FREQ_HZ : integer := 100_000_000;  -- 100 MHz system clock
 
+    -- ITCH UDP port filtering (defense in depth)
+    constant ITCH_UDP_PORT : unsigned(15 downto 0) := to_unsigned(12345, 16);
+
 
     -- Reset signals
     signal mdio_rst    : std_logic;
@@ -242,6 +245,12 @@ architecture structural of mii_eth_top is
 
     -- Frame tracking signal
     signal in_frame : std_logic := '0';
+
+    -- UDP port filtering signals
+    signal port_match : std_logic := '0';  -- Latched flag: does packet match ITCH port?
+    signal payload_valid_filtered : std_logic;
+    signal payload_start_filtered : std_logic;
+    signal payload_end_filtered : std_logic;
 
     -- Payload capture for debug (capture first 16 bytes)
     type payload_capture_type is array (0 to 15) of std_logic_vector(7 downto 0);
@@ -890,16 +899,56 @@ begin
             udp_length_ok => udp_length_ok
         );
 
+    ------------------------------------------------------------------------
+    -- UDP Port Filtering (Defense in Depth)
+    -- Latch port match flag when UDP header validated, use for entire packet
+    -- Prevents spurious ITCH message detection from other UDP traffic
+    ------------------------------------------------------------------------
+    process(eth_rx_clk)
+    begin
+        if rising_edge(eth_rx_clk) then
+            if mdio_rst_rxclk = '1' then
+                port_match <= '0';
+            else
+                -- Latch port match when UDP header is validated
+                if udp_valid = '1' then
+                    if unsigned(udp_dst_port) = ITCH_UDP_PORT then
+                        port_match <= '1';
+                    else
+                        port_match <= '0';
+                    end if;
+                end if;
+
+                -- Clear flag at end of packet
+                if payload_end = '1' then
+                    port_match <= '0';
+                end if;
+            end if;
+        end if;
+    end process;
+
+    -- Combinational filtering (no registered delay - preserves alignment)
+    -- Pass through if: (1) latched flag set OR (2) current cycle matches (for first cycle)
+    payload_valid_filtered <= payload_valid when (port_match = '1' or
+                                                   (udp_valid = '1' and unsigned(udp_dst_port) = ITCH_UDP_PORT))
+                              else '0';
+    payload_start_filtered <= payload_start when (port_match = '1' or
+                                                   (udp_valid = '1' and unsigned(udp_dst_port) = ITCH_UDP_PORT))
+                              else '0';
+    payload_end_filtered   <= payload_end when (port_match = '1' or
+                                                 (udp_valid = '1' and unsigned(udp_dst_port) = ITCH_UDP_PORT))
+                              else '0';
+
     -- Instantiate ITCH Parser
     itch_parser_inst: entity work.itch_parser
         port map (
             clk => eth_rx_clk,  -- Run in same domain as UDP parser
             rst => mdio_rst_rxclk,  -- Use synchronized reset
-            -- UDP payload interface
-            udp_payload_valid => payload_valid,
+            -- UDP payload interface (port-filtered)
+            udp_payload_valid => payload_valid_filtered,
             udp_payload_data => payload_data,
-            udp_payload_start => payload_start,
-            udp_payload_end => payload_end,
+            udp_payload_start => payload_start_filtered,
+            udp_payload_end => payload_end_filtered,
             -- Parsed message outputs
             msg_valid => itch_msg_valid,
             msg_type => itch_msg_type,
