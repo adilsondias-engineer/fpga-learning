@@ -185,12 +185,19 @@ Build time: ~10-15 minutes on typical desktop
 
 ### Hardware Setup
 
-1. Connect Arty A7 to PC via USB (JTAG + UART)
-2. Connect Ethernet cable from PC to Arty A7
-3. Configure PC Ethernet adapter:
-   - IP: 192.168.1.100
+1. Connect Arty A7 to a PC via USB (JTAG + UART) or network switch
+2. Connect Ethernet cable from PC/Network switch to Arty A7
+3. Configure the new Ethernet port(Arty A7) IP to 192.168.1.100
+3. If not using network switch, configure PC Ethernet adapter:
+   - IP: 192.168.1.10
    - Subnet: 255.255.255.0
    - No gateway needed
+4. If using network switch, all that is required is the Arty MAC address from mii_eth_top
+    ```
+    -- MAC address --> check label on top of the ethernet port
+    constant MY_MAC_ADDR : STD_LOGIC_VECTOR(47 downto 0) := x"00183E045DE7"; 
+    ```
+    Add a static IP from your network to the test script target and update Arty MAC address
 
 ### Test Procedure
 

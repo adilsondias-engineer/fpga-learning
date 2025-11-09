@@ -226,7 +226,8 @@ BUILD VERSION: 6
    - Subnet: 255.255.255.0
    - No gateway needed
 4. If using network switch, all that is required is the Arty MAC address from mii_eth_top
-    ```-- MAC address --> check label on top of the ethernet port
+    ```
+    -- MAC address --> check label on top of the ethernet port
     constant MY_MAC_ADDR : STD_LOGIC_VECTOR(47 downto 0) := x"00183E045DE7"; 
     ```
     Add a static IP from your network to the test script target and update Arty MAC address
