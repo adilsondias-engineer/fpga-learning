@@ -47,7 +47,7 @@ Projects are designed to build from fundamentals toward trading-relevant skills:
    - Phase 1C: MAC Frame Parsing
    - Phase 1D: IP Header Parsing
    - Phase 1E: UDP Parser (v3b - deprecated due to CDC issues)
-   - **Phase 1F (v5): Production-Ready UDP Parser** 🎯
+   - **Phase 1F (v5): Production-Ready UDP Parser** 
      - **Bug #13 RESOLVED** - Critical CDC race condition fixed
      - Real-time byte-by-byte architecture (1% → 100% success rate)
      - Comprehensive clock domain crossing synchronization
@@ -101,14 +101,14 @@ Each project includes, where it might be relevant/required:
 ### Digital Design Fundamentals
 
 - Clock management - Clock division from 100MHz to 1Hz, baud rate generation (115200 bps), PLL/MMCM clock generation (25 MHz reference for Ethernet PHY)
-- **Clock Domain Crossing (CDC) mastery** - 2-FF synchronizers for single-bit signals, valid-gated capture for multi-bit buses, reset synchronization across domains, comprehensive XDC constraints (ASYNC_REG, set_false_path), production-ready patterns ⭐
+- **Clock Domain Crossing (CDC) mastery** - 2-FF synchronizers for single-bit signals, valid-gated capture for multi-bit buses, reset synchronization across domains, comprehensive XDC constraints (ASYNC_REG, set_false_path), production-ready patterns 
 - Metastability protection - Three-stage synchronizer chains for asynchronous inputs, 2FF synchronizers for clock domain crossing
 - Debouncing implementation - 20ms stable period filtering for mechanical switches
 - Edge detection - Rising/falling edge detection with proper sequential logic ordering
 - FIFO buffer architecture - 16-depth x 8-bit circular buffer with full/empty flags
 - UART communication - 8N1 format, mid-bit sampling, busy/started handshake flags
 - Ethernet communication - MII interface (4-bit nibbles), preamble/SFD stripping, MAC frame parsing with address filtering
-- **Real-time protocol parsing** - Position-based state machine triggering (byte_index), deterministic latency, eliminates race conditions vs event-driven approaches ⭐
+- **Real-time protocol parsing** - Position-based state machine triggering (byte_index), deterministic latency, eliminates race conditions vs event-driven approaches 
 - Protocol parsing - Binary message framing (START_BYTE, LENGTH, DATA, CHECKSUM), Ethernet frame structure, IP/UDP header extraction
 - Pulse stretching - 100ms counters to make brief signals human-visible on LEDs
 
@@ -144,8 +144,8 @@ Each project includes, where it might be relevant/required:
 
 - Data buffering - FIFO implementation essential for packet queuing
 - Flow control - Full/empty flag management for backpressure handling
-- **Production CDC techniques** - Systematic clock domain crossing for multi-clock FPGAs (network PHY, processing, memory domains) ⭐
-- **Real-time deterministic parsing** - Fixed-latency protocol parsing critical for HFT (applies to ITCH/OUCH) ⭐
+- **Production CDC techniques** - Systematic clock domain crossing for multi-clock FPGAs (network PHY, processing, memory domains) 
+- **Real-time deterministic parsing** - Fixed-latency protocol parsing critical for HFT (applies to ITCH/OUCH) 
 - Latency awareness - Understanding of clock cycles and timing paths
 - Reliability patterns - Metastability protection mandatory for production systems
 - Binary protocols - START_BYTE framing, length-prefixed messages, XOR checksums (mirrors FIX/ITCH/OUCH)
@@ -154,8 +154,8 @@ Each project includes, where it might be relevant/required:
 - Multi-protocol support - Handling both binary (efficient) and ASCII (debug) interfaces
 - Network packet parsing - Ethernet frame reception, MAC address filtering, preamble/SFD detection, IP/UDP header extraction
 - Hardware acceleration - Direct PHY interfacing bypasses OS network stack for minimal latency
-- **Production debugging** - Systematic root cause analysis, strategic instrumentation, stress testing (1000+ packet validation) ⭐
-- **Architectural decision-making** - Knowing when to rewrite vs patch (event-driven → real-time rewrite resolved 99% failure rate) ⭐
+- **Production debugging** - Systematic root cause analysis, strategic instrumentation, stress testing (1000+ packet validation) 
+- **Architectural decision-making** - Knowing when to rewrite vs patch (event-driven → real-time rewrite resolved 99% failure rate) 
 - **ITCH Protocol Parsing** - Nasdaq market data format (Add Order, Order Executed, Order Cancel), big-endian field extraction, order lifecycle tracking
 - **MII Byte Timing** - Discovered odd byte_counter requirement (1,3,5,7...) due to 2-cycle byte stability and state transition timing
 
