@@ -54,15 +54,16 @@ Projects are designed to build from fundamentals toward trading-relevant skills:
      - XDC timing constraints for production reliability
      - 1000+ packet stress test validation
 
-7. **Project 07** - ITCH 5.0 Protocol Parser ✅ **v4 COMPLETE - 9 Message Types**
+7. **Project 07** - ITCH 5.0 Protocol Parser ✅ **v5 COMPLETE - Symbol Filtering**
    - **v3 Architecture:** Async FIFO with gray code CDC eliminates race conditions
    - **v4 Extension:** Added 4 new message types (D, U, P, Q) + startup banner
-   - **9 Message Types Supported:** S (System Event), R (Stock Directory), A (Add Order), E (Order Executed), X (Order Cancel), D (Order Delete), U (Order Replace), P (Trade), Q (Cross Trade)
-   - **MII Timing Discovery:** Odd byte_counter pattern (1,3,5,7...) for proper byte alignment
-   - **Overflow Protection:** Two-stage message capture with diagnostic LED indicators
-   - **Professional UX:** Startup banner displays version, capabilities, and ready state
-   - 100% parsing accuracy, zero message loss/duplication across all 9 types
-   - **Build Iterations:** 48+ tracked builds documenting complete development journey
+   - **v5 Feature:** Configurable symbol filtering (8 symbols: AAPL, TSLA, SPY, QQQ, GOOGL, MSFT, AMZN, NVDA)
+   - **9 Message Types:** S (System Event), R (Stock Directory), A (Add Order), E (Order Executed), X (Order Cancel), D (Order Delete), U (Order Replace), P (Trade), Q (Cross Trade)
+   - **Symbol Filtering:** Reduces downstream processing load by filtering to portfolio-specific symbols
+   - **Statistics Tracking:** Total messages vs filtered messages counters
+   - **Professional UX:** Startup banner shows version, capabilities, and filter status
+   - **Ready for Project 8:** Order book implementation with pre-filtered symbol data
+   - **Build Iterations:** 50+ tracked builds documenting complete development journey
 
 Each project includes, where it might be relevant/required:
 
