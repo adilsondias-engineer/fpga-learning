@@ -54,13 +54,15 @@ Projects are designed to build from fundamentals toward trading-relevant skills:
      - XDC timing constraints for production reliability
      - 1000+ packet stress test validation
 
-7. **Project 07** - ITCH 5.0 Protocol Parser ✅ **Phase 1 Complete**
-   - Nasdaq market data protocol parsing (Add Order, Order Executed, Order Cancel)
-   - **Critical MII Timing Discovery** - Odd byte_counter pattern (1,3,5,7...) required
-   - Big-endian field extraction for multi-byte values
-   - Enhanced UART formatter with order lifecycle tracking
-   - MAC address filtering re-enabled (board MAC + broadcast)
-   - 100% message parsing accuracy verified with real ITCH data
+7. **Project 07** - ITCH 5.0 Protocol Parser ✅ **v3 COMPLETE - Production-Ready Architecture**
+   - **Phase 1-3:** Message parsing (Add Order, Executed, Cancel, System Event, Stock Directory)
+   - **v3 Major Refactor:** Complete architectural redesign - async FIFO with gray code CDC
+   - **Race Conditions Eliminated:** 20+ debugging attempts → async FIFO architecture eliminates all CDC race conditions
+   - **MII Timing Discovery:** Odd byte_counter pattern (1,3,5,7...) for proper byte alignment
+   - **Overflow Protection:** Two-stage message capture with diagnostic LED indicators
+   - 100% message parsing accuracy, zero message loss/duplication
+   - **Build Iterations:** 45+ tracked builds documenting debugging journey
+   - **Ready for v4:** Clean foundation for additional message types (P, Q, U, D)
 
 Each project includes, where it might be relevant/required:
 

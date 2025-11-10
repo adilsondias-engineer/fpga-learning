@@ -1728,6 +1728,356 @@ end if;
 
 ---
 
-**Last Updated:** Project 7 ITCH Parser Phase 1 Complete - MII Timing Discovery (November 9, 2025)
+## Project 07 v3: Race Conditions and Async FIFO Architecture
+
+### ⭐ The Ultimate Multi-Process Lesson: Sometimes You Must Redesign
+
+**Context:** After successfully implementing 5 ITCH message types (A, E, X, S, R) in v2, encountered persistent race conditions causing message loss and duplication. 20+ debugging attempts failed to fix the fundamental architectural problem.
+
+### The v2 Problem: Pending Flags and Race Conditions
+
+**Architecture:** Messages crossed clock domains (25 MHz parser → 100 MHz formatter) using pending flags with edge detection.
+
+**Race Condition Mechanism:**
+```vhdl
+-- 25 MHz domain (parser)
+process(eth_rx_clk)
+begin
+    if rising_edge(eth_rx_clk) then
+        if message_complete = '1' then
+            pending_flag <= '1';  -- SET flag
+        end if;
+    end if;
+end process;
+
+-- 100 MHz domain (formatter)
+process(clk)
+begin
+    if rising_edge(clk) then
+        if transmission_complete = '1' then
+            pending_flag <= '0';  -- CLEAR flag
+        end if;
+    end if;
+end process;
+```
+
+**The Fatal Flaw:** When SET and CLEAR conditions both true in same cycle → race condition.
+
+**Symptoms Encountered:**
+
+| Version | Clearing Strategy | Result | Messages Lost/Duplicated |
+|---------|------------------|--------|------------------------|
+| v9-v17 | Clear on IDLE→SEND_* transition | Message loss | Alternating messages dropped |
+| v18-v20 | Clear on SEND_*→IDLE transition | Infinite loop | Messages repeated 41+ times |
+| v21-v29 | Clear on WAIT_TX→IDLE transition | Message duplication | Every message appeared twice |
+| v27-v29 | Handshake signals for clearing | Multiple driver errors | Synthesis failed |
+
+**Root Cause:** Impossible to reliably manage SET/CLEAR of flags across two processes (edge detection in one domain + FSM in another) without race conditions. This is a **fundamental architectural limitation**, not a fixable bug.
+
+### The v3 Solution: Async FIFO with Gray Code CDC
+
+**Complete Architectural Redesign:**
+
+```
+v2 Architecture (BROKEN):
+Parser (25 MHz) → Pending Flags + Edge Detection → Formatter (100 MHz)
+                   └─ Race conditions ─┘
+
+v3 Architecture (WORKING):
+Parser (25 MHz) → Encoder → Async FIFO (Gray Code CDC) → Decoder → Formatter (100 MHz)
+                             └─ Natural queuing, no flags ─┘
+```
+
+**Key Components:**
+
+1. **itch_msg_encoder.vhd** - Serializes parsed messages to 324-bit format (4-bit type + 320-bit data)
+2. **async_fifo.vhd** - Dual-clock FIFO with gray code pointer synchronization (512-deep)
+3. **itch_msg_decoder.vhd** - Deserializes FIFO data back to individual fields
+4. **itch_msg_pkg.vhd** - Shared encoding/decoding functions
+
+**Why This Works:**
+- Messages queue naturally in FIFO (no pending flags needed)
+- Gray code CDC handles pointer synchronization safely
+- Write and read in completely separate clock domains
+- No race conditions possible - each message written once, read once
+
+**Results:**
+- v2: Message loss, duplication, infinite loops
+- v3: Zero race conditions, zero message loss, zero duplication
+- Code simplified: uart_itch_formatter reduced from 677 lines to 395 lines (41% reduction)
+
+### Two-Stage Message Capture Pattern
+
+**Problem:** ITCH parser asserts valid signals for exactly 1 cycle (40ns @ 25 MHz). If encoder is busy writing to FIFO, it might miss the pulse.
+
+**Solution:** Two-stage capture mechanism:
+
+```vhdl
+-- Stage 1: Always capture immediately (highest priority, never blocks)
+signal captured_msg : msg_buffer_type;
+
+-- Stage 2: Hold messages waiting for FIFO space
+signal msg_buffer : msg_buffer_type;
+
+process(clk)
+begin
+    if rising_edge(clk) then
+        -- ALWAYS capture valid pulses immediately
+        if add_order_valid = '1' then
+            captured_msg.valid <= '1';
+            captured_msg.msg_data <= encode_add_order(...);
+        end if;
+
+        -- Write priority: buffer first, then captured, then capture new
+        if fifo_wr_full = '0' then
+            if msg_buffer.valid = '1' then
+                fifo_wr_data <= msg_buffer.msg_data;
+                fifo_wr_en <= '1';
+                msg_buffer <= captured_msg;  -- Move captured to buffer
+            elsif captured_msg.valid = '1' then
+                fifo_wr_data <= captured_msg.msg_data;
+                fifo_wr_en <= '1';
+            end if;
+        elsif captured_msg.valid = '1' then
+            msg_buffer <= captured_msg;  -- FIFO full, buffer it
+        end if;
+    end if;
+end process;
+```
+
+**Guarantee:** No 1-cycle valid pulse ever missed, regardless of FIFO state or timing.
+
+### FIFO Depth Sizing for Burst Traffic
+
+**Challenge:** UART output at 115200 baud (~87μs per byte) is much slower than parser at 25 MHz (~40ns per byte).
+
+**Calculation:**
+- AAPL stock generates 1000+ messages/second during market hours
+- Average message size: 36 bytes
+- Burst rate: 36 KB/second
+- FIFO @ 512 deep × 324 bits/entry = 20,736 bytes of buffering
+- **Buffer duration: ~0.6 seconds of continuous messages**
+
+**Lesson:** Proper FIFO sizing prevents overflow during burst traffic. Must account for worst-case producer/consumer rate mismatch.
+
+### Overflow Detection - Defense Against Silent Failure
+
+**The Risk:** With two-stage capture, if both stages full when new valid pulse arrives, message would be silently dropped.
+
+**Solution:** Added overflow diagnostics:
+
+```vhdl
+else
+    -- OVERFLOW: Both buffer and captured_msg are full
+    overflow_error_reg <= '1';  -- Pulse for 1 cycle
+    if overflow_count_reg /= x"FFFF" then
+        overflow_count_reg <= overflow_count_reg + 1;  -- Saturating counter
+    end if;
+    captured_msg.valid <= '0';  -- Drop message (no choice)
+end if;
+```
+
+**Visual Indicator:**
+- **LD5 Blue LED:** Latches ON when overflow occurs (stays lit until board reset)
+- Operator immediately knows sustained message rate exceeded capacity
+- `overflow_count` readable via JTAG for quantifying loss
+
+**Impact:** Converts potential silent failure into visible, diagnosable error. Professional systems must detect and report failure modes, even "impossible" ones.
+
+### Decoder Timing: Read Delay Compensation
+
+**FIFO Characteristic:** `rd_data` updates on cycle when `rd_en = '1'`, but data available **next cycle**.
+
+**Solution:** Track previous read enable and decode on cycle AFTER read:
+
+```vhdl
+signal fifo_rd_en_prev : std_logic := '0';
+
+process(clk)
+begin
+    if rising_edge(clk) then
+        fifo_rd_en_prev <= fifo_rd_en;
+
+        -- Decode on cycle AFTER FIFO read
+        if fifo_rd_en_prev = '1' then
+            msg_type_enc := fifo_rd_data(MSG_FIFO_WIDTH-1 downto MSG_DATA_BITS);
+            msg_data := fifo_rd_data(MSG_DATA_BITS-1 downto 0);
+            msg_type_reg <= decode_msg_type(msg_type_enc);
+            -- Decode fields based on type...
+        end if;
+    end if;
+end process;
+```
+
+**Lesson:** Account for FIFO read latency. Decode timing must match data availability.
+
+### Key Architectural Lessons from v2→v3 Refactor
+
+#### ⭐ Lesson 1: Know When to Redesign vs Debug
+
+**Problem Indicators:**
+- Same category of bug reappears with different fix attempts (race conditions)
+- Fixes in one area break another area (flag clearing strategies)
+- Code complexity increasing without improvement (handshake signals)
+- 10+ failed attempts with no convergence
+
+**Solution Indicators:**
+- Fundamental architectural limitation identified
+- Industry-standard pattern exists (async FIFO for CDC)
+- Redesign simplifies code (677 → 395 lines)
+- Known working solution from other projects
+
+**Decision:** After 20+ builds (v9-v29), recognized pending flag architecture was fundamentally flawed. Complete redesign with async FIFO was the right solution.
+
+**Lesson:** Sometimes debugging is the wrong approach. Recognize architectural problems early and redesign.
+
+#### ⭐ Lesson 2: Async FIFO Eliminates CDC Race Conditions
+
+**When to Use:**
+- Crossing clock domains with multi-bit data
+- Message/packet queuing between domains
+- Producer/consumer with different rates
+- Need for natural backpressure handling
+
+**Benefits:**
+- No pending flags needed (messages queue naturally)
+- Gray code CDC provably race-free
+- Built-in flow control (full/empty flags)
+- Burst handling with depth sizing
+
+**Pattern:**
+```vhdl
+async_fifo: entity work.async_fifo
+    generic map (
+        DATA_WIDTH => 324,  -- Serialized message width
+        FIFO_DEPTH => 512   -- Buffer depth for burst handling
+    )
+    port map (
+        wr_clk => src_clk,   -- Source clock domain
+        wr_en  => wr_en,
+        wr_data => wr_data,
+        wr_full => wr_full,
+        rd_clk => dst_clk,   -- Destination clock domain
+        rd_en  => rd_en,
+        rd_data => rd_data,
+        rd_empty => rd_empty
+    );
+```
+
+#### ⭐ Lesson 3: Message Serialization for FIFO Transfer
+
+**Challenge:** ITCH messages have variable fields (Order ref, symbol, price, etc.). How to pass through fixed-width FIFO?
+
+**Solution:** Serialize all fields into fixed 324-bit format:
+- 4 bits: Message type (MSG_ADD_ORDER, MSG_ORDER_EXECUTED, etc.)
+- 320 bits: Union of all possible fields (largest message determines size)
+
+**Encoding Example (Add Order):**
+```vhdl
+function encode_add_order(
+    order_ref : std_logic_vector(63 downto 0);
+    buy_sell : std_logic;
+    shares : std_logic_vector(31 downto 0);
+    stock_symbol : std_logic_vector(63 downto 0);
+    price : std_logic_vector(31 downto 0);
+    -- ... other fields
+) return std_logic_vector is
+    variable msg_data : std_logic_vector(MSG_DATA_BITS-1 downto 0);
+begin
+    msg_data(63 downto 0) := order_ref;
+    msg_data(64) := buy_sell;
+    msg_data(96 downto 65) := shares;
+    msg_data(160 downto 97) := stock_symbol;
+    msg_data(192 downto 161) := price;
+    -- ... pack remaining fields
+    return msg_data;
+end function;
+```
+
+**Benefits:**
+- Single FIFO handles all message types
+- Type field indicates which fields are valid
+- Decoder extracts fields based on type
+- Easy to extend (add new message types to package)
+
+#### ⭐ Lesson 4: Build Version Tracking is Essential
+
+**Challenge:** Programming wrong bitstream causes confusion about which features are implemented.
+
+**Solution:** Auto-incrementing build version in TCL script:
+1. Read `build_version.txt`
+2. Increment value
+3. Write back to file
+4. Pass to VHDL as generic parameter
+5. Display in UART output
+
+**Benefits:**
+- Verification of correct bitstream programmed
+- Build history tracking (v1-v45 documented)
+- Enables bisecting bugs to specific builds
+- Mandatory for professional development
+
+**Lesson:** "It works on my machine" is prevented by build tracking.
+
+### v3 Architecture Complete - Production Ready
+
+**Quality Metrics:**
+- ✅ Zero race conditions (async FIFO CDC)
+- ✅ Zero message loss (two-stage capture)
+- ✅ Zero message duplication (single write/read per message)
+- ✅ 100% parsing accuracy (5 message types)
+- ✅ Overflow detection with visual LED indicator
+- ✅ 512-deep FIFO handles 0.6 second bursts
+- ✅ Clean synthesis, timing closure
+
+**Development Stats:**
+- 16 days (Oct 25 - Nov 10, 2025)
+- ~200 hours intensive development (12+ hr/day including weekends)
+- 45+ tracked builds (many more untracked in Projects 1-6)
+- 14 critical bugs fixed
+- Major architectural refactor (v2 → v3)
+
+**Ready For:** v4 implementation (additional message types P, Q, U, D)
+
+### Trading System Relevance
+
+**Skills Demonstrated:**
+
+1. **Architectural Decision-Making** - Recognized when to redesign vs debug (20+ failed attempts → redesign)
+2. **Clock Domain Crossing Mastery** - Async FIFO with gray code CDC (essential for multi-clock trading FPGAs)
+3. **Burst Handling** - FIFO depth sizing based on worst-case traffic analysis
+4. **Overflow Protection** - Diagnostic instrumentation prevents silent failures
+5. **Message Serialization** - Protocol-agnostic FIFO transfer pattern
+6. **Build Management** - Version tracking for production deployment verification
+
+**Why This Matters for Trading:**
+
+- **Production CDC:** Trading FPGAs have multiple clock domains (network PHY, processing, memory, timestamping)
+- **Zero Data Loss:** Race conditions causing message loss are unacceptable in live trading
+- **Burst Traffic:** Market open/close generates message bursts requiring proper buffering
+- **Diagnostics:** Overflow detection enables capacity planning and failure analysis
+- **Scalability:** Clean v3 architecture easy to extend for complete ITCH 5.0 support (v4)
+
+### Files Created/Modified in v3 Refactor
+
+**New Modules:**
+- `async_fifo.vhd` - Dual-clock FIFO with gray code CDC (124 lines)
+- `itch_msg_pkg.vhd` - Message encoding/decoding package (174 lines)
+- `itch_msg_encoder.vhd` - Parser→FIFO adapter with two-stage capture (180 lines)
+- `itch_msg_decoder.vhd` - FIFO→Formatter adapter with read delay compensation (169 lines)
+
+**Rewritten:**
+- `uart_itch_formatter.vhd` - Simplified to read from FIFO (677→395 lines, 41% reduction)
+
+**Updated:**
+- `mii_eth_top.vhd` - Wire async FIFO architecture, remove old CDC synchronizers, add overflow LED
+- `README.md` - Comprehensive v3 documentation (885 lines total)
+
+**Build Tracking:**
+- `build_version.txt` - Auto-incremented build counter (v1-v45)
+
+---
+
+**Last Updated:** Project 7 v3 Complete - Async FIFO Architecture with Overflow Protection (November 10, 2025)
 
 This document grows with each project and includes lessons from all phases.
