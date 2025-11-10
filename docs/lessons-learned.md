@@ -2078,6 +2078,222 @@ end function;
 
 ---
 
-**Last Updated:** Project 7 v3 Complete - Async FIFO Architecture with Overflow Protection (November 10, 2025)
+## Project 07 v4: Protocol Extension and Professional UX
+
+### Extending Production Architecture with New Message Types
+
+**Context:** v3 architecture proved rock-solid with 5 message types (S, R, A, E, X). v4 extends to 9 message types by adding D (Delete), U (Replace), P (Trade), Q (Cross Trade), plus startup banner for professional UX.
+
+### The v4 Goal: Scalability Validation
+
+**Challenge:** Does the v3 async FIFO architecture scale cleanly to additional message types?
+
+**Test:** Add 4 new message types spanning:
+- Simple (Order Delete - 19 bytes)
+- Complex (Order Replace - 35 bytes, Trade - 44 bytes, Cross Trade - 40 bytes)
+- New field types (64-bit cross shares, cross type character)
+
+### Clean Extension Pattern - Zero Architecture Changes
+
+**What Changed:**
+1. **itch_msg_pkg.vhd** - Added 4 encode/decode functions
+2. **itch_parser.vhd** - Added parsing states for D, U, P, Q
+3. **itch_msg_encoder.vhd** - Added capture for 4 new valid signals
+4. **itch_msg_decoder.vhd** - Added decode cases for 4 new types
+5. **uart_itch_formatter.vhd** - Added formatting for 4 types + startup banner
+6. **mii_eth_top.vhd** - Wired 12 new signals through component hierarchy
+
+**What Didn't Change:**
+- ✅ Async FIFO - No modifications needed
+- ✅ Two-stage capture - Handles all message types identically
+- ✅ Clock domain crossing - No CDC changes required
+- ✅ Message serialization format - Accommodated new fields in existing 324-bit width
+- ✅ FSM structure - Clean state additions, no refactoring
+
+**Lesson:** Good architecture scales. v3's design absorbed 80% more message types with zero architectural changes.
+
+### Startup Banner - Professional System Feedback
+
+**Problem:** No visual feedback when FPGA powers up. Operator doesn't know:
+- If bitstream loaded successfully
+- Which version is running
+- If UART is working
+- What capabilities are available
+
+**Solution:** Startup banner displayed before processing messages:
+
+```
+========================================
+  ITCH 5.0 Parser v4 - Arty A7-100T
+  Build: v048
+  Message Types: S R A E X D U P Q
+========================================
+Ready for ITCH messages...
+```
+
+**Implementation:**
+- Added `SEND_BANNER` state to formatter FSM
+- Banner formatted once on reset/power-up
+- Transitions to normal `IDLE` state after banner sent
+- `banner_sent` flag prevents re-sending
+
+**Benefits:**
+1. **Immediate visual confirmation** - System is alive, UART working
+2. **Version identification** - Confirms correct bitstream programmed
+3. **Capability advertisement** - Lists all 9 supported message types
+4. **Professional appearance** - Makes system feel production-ready
+5. **Debugging aid** - Helps identify communication issues vs bitstream issues
+
+**Lesson:** Professional systems communicate their state. A simple boot banner dramatically improves operator experience.
+
+### Hardware Validation Results
+
+**Test Methodology:**
+- Python test script with 9 message generators
+- Test sequences: individual messages, lifecycle, all types, multi-symbol
+- Hardware: Arty A7-100T @ 100 MHz system clock, 25 MHz PHY clock
+- UART: 115200 baud
+
+**Results (from putty.log):**
+```
+Build v047: 34 messages tested - all 9 types parsed correctly
+Build v048: 17 messages tested - banner + all types working
+```
+
+**Message Type Coverage:**
+- ✅ **S (System Event):** 6 different event codes (O, S, Q, M, E, C) all decoded
+- ✅ **R (Stock Directory):** 6 different symbols, market categories parsed
+- ✅ **A (Add Order):** Multiple orders, symbols, prices decoded correctly
+- ✅ **E (Order Executed):** Exec shares, match numbers correct
+- ✅ **X (Order Cancel):** Cancel shares parsed
+- ✅ **D (Order Delete):** Order refs extracted correctly ⭐ NEW
+- ✅ **U (Order Replace):** Old/new refs, shares, prices all decoded ⭐ NEW
+- ✅ **P (Trade):** All fields including 64-bit match number correct ⭐ NEW
+- ✅ **Q (Cross Trade):** 64-bit shares, prices, cross types perfect ⭐ NEW
+
+**Data Integrity Verification:**
+- Prices: `0x0016ED24` = $150.25 ✅
+- Prices: `0x001E8480` = $200.00 ✅
+- Prices: `0x017D7840` = $2500.00 ✅
+- Shares: `0x00000064` = 100 ✅
+- 64-bit shares: `0x00000000000003E8` = 1000 (cross trade) ✅
+
+**Architecture Validation:**
+- Zero message loss across 51 total test messages
+- Zero message duplication
+- Zero race conditions
+- Message counter incrementing correctly (0x00 → 0x21, then 0x00 → 0x10)
+- Startup banner displays correctly on every power-up/reprogram
+
+### v4 Development Efficiency
+
+**Time to Implement:**
+- 1 session (~2 hours with Claude Code assistance)
+- Zero debugging required - worked first time on hardware
+
+**Why So Fast:**
+1. **v3 Architecture is Solid** - No CDC issues, no race conditions
+2. **Clean Abstractions** - Encoding/decoding in package, clear separation
+3. **Consistent Patterns** - Each new message type follows same template
+4. **Comprehensive Testing** - Python script made validation easy
+
+**Contrast with v2→v3:**
+- v2→v3: 20+ builds, major architectural refactor, weeks of debugging
+- v3→v4: 2 builds (v047, v048), zero issues, immediate success
+
+**Lesson:** Time invested in good architecture pays massive dividends. v3's solid foundation made v4 trivial.
+
+### Key Lessons from v4 Extension
+
+#### ⭐ Lesson 1: Scalability Validation Through Extension
+
+**How to Test Architecture:**
+- If adding features requires architectural changes → architecture is brittle
+- If adding features is straightforward extension → architecture is sound
+
+**v4 Evidence:**
+- 9 message types vs 5 (80% increase)
+- 12 new signals wired through hierarchy
+- 4 new encode/decode functions
+- Zero changes to core CDC, FIFO, or synchronization logic
+
+**Lesson:** v3 architecture validated through successful v4 extension.
+
+#### ⭐ Lesson 2: User Experience in Hardware Systems
+
+**Common Mistake:** Assume operator knows system state through telepathy.
+
+**Professional Approach:**
+- Boot banner on power-up
+- Version display in output
+- Clear "ready" indication
+- Capability advertisement
+
+**Impact:**
+- Reduces debugging time (is UART working? is bitstream loaded?)
+- Prevents confusion (which version is running?)
+- Improves confidence (system announces it's ready)
+
+**Lesson:** Hardware systems need UX too. Communicate with your operator.
+
+#### ⭐ Lesson 3: Incremental Validation Strategy
+
+**v4 Test Progression:**
+1. Individual message types (D, U, P, Q separately)
+2. Complete lifecycle (A → U → E → P → Q → D)
+3. All message types together (S, R, A, E, X, D, U, P, Q)
+4. Multi-symbol testing (AAPL, GOOGL, MSFT, TSLA, AMZN, SPY, QQQ)
+
+**Benefits:**
+- Isolates issues quickly (if lifecycle fails but individual succeeds → integration problem)
+- Builds confidence progressively
+- Provides comprehensive coverage
+
+**Lesson:** Test individual components, then integration, then stress testing.
+
+### v4 Complete - Production Ready for Trading Simulation
+
+**Quality Metrics:**
+- ✅ 9 message types (complete ITCH subset for order book simulation)
+- ✅ Zero race conditions (v3 architecture proven)
+- ✅ Zero message loss (two-stage capture + 512-deep FIFO)
+- ✅ 100% parsing accuracy (hardware validated)
+- ✅ Professional UX (startup banner)
+- ✅ Build tracking (v048+)
+- ✅ Comprehensive test infrastructure (Python generators)
+
+**Files Created/Modified in v4:**
+- `itch_msg_pkg.vhd` - Added 4 encode/decode functions
+- `itch_parser.vhd` - Added D, U, P, Q parsing states
+- `itch_msg_encoder.vhd` - Added 4 new message captures
+- `itch_msg_decoder.vhd` - Added 4 new decode cases
+- `uart_itch_formatter.vhd` - Added 4 message formats + startup banner
+- `mii_eth_top.vhd` - Wired 12 new signals
+- `send_itch_packets.py` - Added 3 new generators + comprehensive test functions
+
+**Ready For:**
+- Phase 3: Symbol filtering (reduce downstream processing load)
+- Phase 4: Order book integration (track order lifecycle in hardware)
+- Real-world testing with captured ITCH feed data
+
+### Trading System Skills Demonstrated
+
+1. **Protocol Extension** - Added 4 message types without breaking existing functionality
+2. **Data Integrity** - Correct parsing of 64-bit fields, big-endian encoding, price conversion
+3. **System UX** - Professional startup feedback, version tracking, capability advertisement
+4. **Validation Methodology** - Comprehensive test suite validates all message types
+5. **Architectural Maturity** - Clean extension proves v3 design is production-grade
+
+**Why v4 Matters for Trading:**
+- **Order Replace (U):** Critical for tracking price improvements, cancels+replaces in single operation
+- **Trade Messages (P, Q):** Required for execution price confirmation, match number tracking
+- **Order Delete (D):** Completes order lifecycle (Add → Execute/Cancel → Delete)
+- **Cross Trades (Q):** Opening/closing auction prices, large block trades
+
+v4 provides complete ITCH message coverage for simulating a simple order book with execution tracking.
+
+---
+
+**Last Updated:** Project 7 v4 Complete - 9 Message Types with Startup Banner (November 10, 2025)
 
 This document grows with each project and includes lessons from all phases.
