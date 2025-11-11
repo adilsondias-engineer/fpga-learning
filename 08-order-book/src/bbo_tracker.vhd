@@ -42,7 +42,7 @@ end bbo_tracker;
 architecture Behavioral of bbo_tracker is
 
     -- FSM states
-    type state_t is (IDLE, SCAN_BIDS, SCAN_ASKS, COMPUTE_SPREAD, DONE);
+    type state_t is (IDLE, SCAN_BIDS, SCAN_BIDS_WAIT1, SCAN_BIDS_WAIT2, SCAN_ASKS, SCAN_ASKS_WAIT1, SCAN_ASKS_WAIT2, COMPUTE_SPREAD, DONE);
     signal state : state_t := IDLE;
 
     -- BBO registers
@@ -132,28 +132,11 @@ begin
                         end if;
 
                     when SCAN_BIDS =>
-                        -- Scan bid levels from highest to lowest
-                        if scan_counter < BBO_SCAN_DEPTH then
-                            -- Request level data
+                        -- TEMPORARY DEBUG: Only scan address 0 for bids (where $150 should map)
+                        if scan_counter = 0 then
                             level_req <= '1';
-                            level_addr <= std_logic_vector(scan_addr);
-
-                            -- Check if we received valid data (2-cycle latency)
-                            if level_valid = '1' and level_data.valid = '1' and level_data.side = '0' then
-                                -- Found valid bid level
-                                if best_bid_found = '0' then
-                                    -- This is the best bid (highest price)
-                                    best_bid_price_reg <= level_data.price;
-                                    best_bid_shares_reg <= level_data.total_shares;
-                                    best_bid_found <= '1';
-                                end if;
-                            end if;
-
-                            -- Move to next level
-                            if scan_addr > 0 then
-                                scan_addr <= scan_addr - 1;
-                            end if;
-                            scan_counter <= scan_counter + 1;
+                            level_addr <= std_logic_vector(to_unsigned(0, PRICE_ADDR_WIDTH));  -- Force address 0
+                            state <= SCAN_BIDS_WAIT1;
                         else
                             -- Done scanning bids
                             if best_bid_found = '0' then
@@ -168,27 +151,50 @@ begin
                             scan_addr <= to_unsigned(MAX_BID_LEVELS, PRICE_ADDR_WIDTH);  -- Start from lowest ask
                         end if;
 
+                    when SCAN_BIDS_WAIT1 =>
+                        -- Wait cycle 1 (2-cycle read latency)
+                        level_req <= '0';
+                        state <= SCAN_BIDS_WAIT2;
+
+                    when SCAN_BIDS_WAIT2 =>
+                        -- Wait cycle 2 - data should be valid now
+                        level_req <= '0';
+
+                        -- TEMPORARY DEBUG: Always capture data regardless of valid flags
+                        if best_bid_found = '0' then
+                            best_bid_price_reg <= level_data.price;
+                            best_bid_shares_reg <= level_data.total_shares;
+                            best_bid_found <= '1';
+                        end if;
+
+                        ---- Check if we received valid data (2-cycle latency)
+                        --if level_valid = '1' and level_data.valid = '1' and level_data.side = '0' then
+                        --    -- Found valid bid level
+                        --    if best_bid_found = '0' then
+                        --        -- This is the best bid (highest price)
+                        --        best_bid_price_reg <= level_data.price;
+                        --        best_bid_shares_reg <= level_data.total_shares;
+                        --        best_bid_found <= '1';
+                        --    end if;
+                        --end if;
+
+                        -- Move to next level (just one iteration for address 0)
+                        if scan_addr > 0 then
+                            scan_addr <= scan_addr - 1;
+                        end if;
+                        scan_counter <= scan_counter + 1;
+                        state <= SCAN_BIDS;
+
                     when SCAN_ASKS =>
-                        -- Scan ask levels from lowest to highest
-                        if scan_counter < BBO_SCAN_DEPTH then
+                        -- TEMPORARY DEBUG: Only scan address 128 for asks
+                        if scan_counter = 0 then
                             level_req <= '1';
-                            level_addr <= std_logic_vector(scan_addr);
-
-                            if level_valid = '1' and level_data.valid = '1' and level_data.side = '1' then
-                                -- Found valid ask level
-                                if best_ask_found = '0' then
-                                    -- This is the best ask (lowest price)
-                                    best_ask_price_reg <= level_data.price;
-                                    best_ask_shares_reg <= level_data.total_shares;
-                                    best_ask_found <= '1';
-                                end if;
-                            end if;
-
-                            -- Move to next level
-                            if scan_addr < MAX_PRICE_LEVELS - 1 then
-                                scan_addr <= scan_addr + 1;
-                            end if;
-                            scan_counter <= scan_counter + 1;
+                            level_addr <= std_logic_vector(to_unsigned(128, PRICE_ADDR_WIDTH));  -- Force address 128
+                            state <= SCAN_ASKS_WAIT1;
+                        --if scan_counter < BBO_SCAN_DEPTH then
+                        --    level_req <= '1';
+                        --    level_addr <= std_logic_vector(scan_addr);
+                        --    state <= SCAN_ASKS_WAIT1;
                         else
                             -- Done scanning asks
                             if best_ask_found = '0' then
@@ -200,21 +206,55 @@ begin
                             state <= COMPUTE_SPREAD;
                         end if;
 
-                    when COMPUTE_SPREAD =>
-                        -- Check if BBO is valid (both bid and ask exist)
-                        if best_bid_found = '1' or best_ask_found = '1' then
-                            bbo_valid_reg <= '1';
-                        else
-                            bbo_valid_reg <= '0';
+                    when SCAN_ASKS_WAIT1 =>
+                        -- Wait cycle 1 (2-cycle read latency)
+                        level_req <= '0';
+                        state <= SCAN_ASKS_WAIT2;
+
+                    when SCAN_ASKS_WAIT2 =>
+                        -- Wait cycle 2 - data should be valid now
+                        level_req <= '0';
+
+                        -- TEMPORARY DEBUG: Always capture data regardless of valid flags
+                        if best_ask_found = '0' then
+                            best_ask_price_reg <= level_data.price;
+                            best_ask_shares_reg <= level_data.total_shares;
+                            best_ask_found <= '1';
                         end if;
+
+                        --if level_valid = '1' and level_data.valid = '1' and level_data.side = '1' then
+                        --    -- Found valid ask level
+                        --    if best_ask_found = '0' then
+                        --        -- This is the best ask (lowest price)
+                        --        best_ask_price_reg <= level_data.price;
+                        --        best_ask_shares_reg <= level_data.total_shares;
+                        --        best_ask_found <= '1';
+                        --    end if;
+                        --end if;
+
+                        -- Move to next level
+                        if scan_addr < MAX_PRICE_LEVELS - 1 then
+                            scan_addr <= scan_addr + 1;
+                        end if;
+                        scan_counter <= scan_counter + 1;
+                        state <= SCAN_ASKS;
+
+                    when COMPUTE_SPREAD =>
+                        -- TEMPORARY DEBUG: Always set BBO as valid to test
+                        --if best_bid_found = '1' and best_ask_found = '1' then
+                        --    bbo_valid_reg <= '1';
+                        --else
+                        --    bbo_valid_reg <= '0';
+                        --end if;
+                        bbo_valid_reg <= '1';  -- Force valid to see if prices are captured
 
                         state <= DONE;
 
                     when DONE =>
-                        -- Check if BBO changed
-                        if (best_bid_price_reg /= prev_bid_price) or (best_ask_price_reg /= prev_ask_price) then
+                        -- TEMPORARY DEBUG: Always pulse bbo_update to test if DONE state is reached
+                        --if (best_bid_price_reg /= prev_bid_price) or (best_ask_price_reg /= prev_ask_price) then
                             bbo_update <= '1';  -- BBO changed!
-                        end if;
+                        --end if;
 
                         state <= IDLE;
                         bbo_ready <= '1';

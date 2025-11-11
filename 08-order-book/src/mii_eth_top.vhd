@@ -9,6 +9,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use work.itch_msg_pkg.all;
+use work.order_book_pkg.all;
 
 library UNISIM;
 use UNISIM.VComponents.all;
@@ -273,6 +274,7 @@ architecture structural of mii_eth_top is
     signal itch_timestamp           : std_logic_vector(47 downto 0);
     signal itch_order_ref           : std_logic_vector(63 downto 0);
     signal itch_buy_sell            : std_logic;
+    signal itch_side                : std_logic;  -- Converted buy_sell to side (0=Buy, 1=Sell)
     signal itch_shares              : std_logic_vector(31 downto 0);
     signal itch_stock_symbol        : std_logic_vector(63 downto 0);
     signal itch_price               : std_logic_vector(31 downto 0);
@@ -310,15 +312,34 @@ architecture structural of mii_eth_top is
     -- Dummy signal for legacy stats counter (v5: parse_errors removed)
     signal itch_parse_errors        : std_logic_vector(15 downto 0) := (others => '0');
 
+    -- Order Book signals (Project 8)
+    signal ob_bbo               : bbo_t;
+    signal ob_bbo_update        : std_logic;
+    signal ob_stats             : order_book_stats_t;
+    signal ob_ready             : std_logic;
+
     -- ITCH formatter signals
     signal itch_uart_tx_data  : std_logic_vector(7 downto 0);
     signal itch_uart_tx_valid : std_logic;
     signal itch_uart_tx_ready : std_logic;  -- Inverse of tx_busy
     signal itch_send_stats    : std_logic := '0';
     
-    -- UART multiplexer signals (select between ITCH and debug formatters)
+    -- UART multiplexer signals (select between ITCH, debug, and BBO formatters)
     signal uart_tx_data_sel  : std_logic_vector(7 downto 0);
     signal uart_tx_valid_sel : std_logic;
+
+    -- BBO formatter signals
+    signal bbo_uart_tx_data  : std_logic_vector(7 downto 0);
+    signal bbo_uart_tx_valid : std_logic;
+    signal bbo_uart_tx_ready : std_logic;
+
+    -- BBO CDC synchronizers (25 MHz -> 100 MHz)
+    signal ob_bbo_update_sync1 : std_logic := '0';
+    signal ob_bbo_update_sync2 : std_logic := '0';
+    signal ob_bbo_valid_sync1  : std_logic := '0';
+    signal ob_bbo_valid_sync2  : std_logic := '0';
+    signal ob_bbo_sync         : bbo_t;
+    signal ob_stats_sync       : order_book_stats_t;
 
     -- ITCH stats counter signals
     signal itch_add_count     : unsigned(31 downto 0) := (others => '0');
@@ -402,11 +423,12 @@ begin
         );
     
     -- =========================================================================
-    -- UART Multiplexer: Switch between ITCH and Debug formatters
+    -- UART Multiplexer: Switch between ITCH, Debug, and BBO formatters
     -- =========================================================================
-    -- debug_mode = "00" or "11": ITCH formatter (default for ITCH parsing)
+    -- debug_mode = "00": ITCH formatter (default for ITCH parsing)
     -- debug_mode = "01": Debug formatter (MAC/IP/UDP frame info)
     -- debug_mode = "10": ITCH formatter (IP protocol display mode)
+    -- debug_mode = "11": BBO formatter (Order Book BBO display) **NEW**
     -- =========================================================================
     process(clk)
     begin
@@ -417,14 +439,20 @@ begin
             else
                 -- Select formatter based on debug_mode
                 if debug_mode = "01" then
-                    -- Debug mode: Use debug formatter (MAC/IP/UDP info)
+                    -- Debug mode 1: Use debug formatter (MAC/IP/UDP info)
                     uart_tx_data_sel <= uart_fmt_tx_data;
                     uart_tx_valid_sel <= uart_fmt_tx_start;
+                -- TEMPORARY: BBO formatter commented out, so route mode "11" to ITCH for testing
+                 elsif debug_mode = "11" then
+                     -- Debug mode 3: Use BBO formatter (Order Book BBO)
+                     uart_tx_data_sel <= bbo_uart_tx_data;
+                     uart_tx_valid_sel <= bbo_uart_tx_valid;
                 else
                     -- ITCH mode (modes "00", "10", "11"): Use ITCH formatter
                     uart_tx_data_sel <= itch_uart_tx_data;
                     uart_tx_valid_sel <= itch_uart_tx_valid;
                 end if;
+
             end if;
         end if;
     end process;
@@ -520,12 +548,13 @@ begin
         );
 
     -- Debug mode control: Toggle on BTN3 press
+    -- Cycles: 00 -> 01 -> 10 -> 11 -> 00 (4 modes)
     process(clk)
     begin
         if rising_edge(clk) then
            if debug_btn_rise = '1' then
-                if debug_mode = "10" then
-                    debug_mode <= "00";  -- Wrap around after mode 2
+                if debug_mode = "11" then
+                    debug_mode <= "00";  -- Wrap around after mode 3 (BBO mode)
                 else
                     debug_mode <= debug_mode + 1;
                 end if;
@@ -1040,6 +1069,112 @@ begin
             symbol_match => itch_symbol_match
         );
 
+    -- Instantiate Order Book Manager (25 MHz domain - Project 8)
+    order_book_manager_inst: entity work.order_book_manager
+        port map (
+            clk => eth_rx_clk,
+            rst => mdio_rst_rxclk,
+            -- ITCH parser interface
+            itch_valid          => itch_msg_valid,
+            itch_msg_type       => itch_msg_type,
+            itch_order_ref      => itch_order_ref,
+            itch_symbol         => itch_stock_symbol,
+            itch_side           => itch_side,  -- Converted: ITCH parser uses '1'=Buy, order_book uses 0=Buy
+            itch_price          => itch_price,
+            itch_shares         => itch_shares,
+            itch_exec_shares    => itch_exec_shares,
+            itch_cancel_shares  => itch_cancel_shares,
+            itch_new_order_ref  => itch_new_order_ref,
+            itch_new_price      => itch_new_price,
+            itch_new_shares     => itch_new_shares,
+            -- BBO output
+            bbo                 => ob_bbo,
+            bbo_update          => ob_bbo_update,
+            -- Statistics
+            stats               => ob_stats,
+            -- Ready signal
+            ready               => ob_ready
+        );
+
+    -- CDC: Synchronize BBO signals from 25 MHz to 100 MHz domain
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if reset = '1' then
+                ob_bbo_update_sync1 <= '0';
+                ob_bbo_update_sync2 <= '0';
+                ob_bbo_valid_sync1 <= '0';
+                ob_bbo_valid_sync2 <= '0';
+                -- Initialize BBO to invalid state
+                ob_bbo_sync <= (
+                    bid_price => (others => '0'),
+                    bid_shares => (others => '0'),
+                    ask_price => (others => '1'),
+                    ask_shares => (others => '0'),
+                    spread => (others => '1'),
+                    valid => '0'
+                );
+                ob_stats_sync <= (
+                    total_orders => (others => '0'),
+                    bid_order_count => (others => '0'),
+                    ask_order_count => (others => '0'),
+                    bid_level_count => (others => '0'),
+                    ask_level_count => (others => '0'),
+                    add_count => (others => '0'),
+                    execute_count => (others => '0'),
+                    cancel_count => (others => '0'),
+                    delete_count => (others => '0'),
+                    replace_count => (others => '0')
+                );
+            else
+                -- Two-stage synchronizer for bbo_update strobe (for edge detection)
+                ob_bbo_update_sync1 <= ob_bbo_update;
+                ob_bbo_update_sync2 <= ob_bbo_update_sync1;
+
+                -- Two-stage synchronizer for bbo.valid bit (single-bit CDC)
+                ob_bbo_valid_sync1 <= ob_bbo.valid;
+                ob_bbo_valid_sync2 <= ob_bbo_valid_sync1;
+
+                -- Continuously sample BBO data (quasi-static, changes slowly)
+                -- BBO data is safe to sample continuously across clock domains
+                -- because it only changes when bbo_update pulses, and we have
+                -- sufficient setup/hold time due to slow update rate
+                ob_bbo_sync.bid_price <= ob_bbo.bid_price;
+                ob_bbo_sync.bid_shares <= ob_bbo.bid_shares;
+                ob_bbo_sync.ask_price <= ob_bbo.ask_price;
+                ob_bbo_sync.ask_shares <= ob_bbo.ask_shares;
+                ob_bbo_sync.spread <= ob_bbo.spread;
+                -- Use synchronized valid bit (proper CDC for single bit)
+                ob_bbo_sync.valid <= ob_bbo_valid_sync2;
+                ob_stats_sync <= ob_stats;
+            end if;
+        end if;
+    end process;
+
+    -- Instantiate BBO UART Formatter (100 MHz domain - Project 8)
+    uart_bbo_formatter_inst: entity work.uart_bbo_formatter
+        port map (
+            clk => clk,
+            rst => reset,
+            -- BBO input (synchronized)
+            bbo             => ob_bbo_sync,
+            bbo_update      => ob_bbo_update_sync2,
+            stats           => ob_stats_sync,
+            -- UART TX interface
+            uart_tx_data    => bbo_uart_tx_data,
+            uart_tx_valid   => bbo_uart_tx_valid,
+            uart_tx_ready   => bbo_uart_tx_ready
+        );
+
+    -- BBO UART ready signal (inverse of UART busy)
+     bbo_uart_tx_ready <= not uart_fmt_tx_busy;
+
+    -- Convert ITCH buy_sell to order_book side signal
+    -- ITCH parser: 'B' (0x42) -> buy_sell='1' (Buy), 'S' (0x53) -> buy_sell='0' (Sell)
+    -- Order book: 0=Buy (bid), 1=Sell (ask)
+    -- Inversion needed: itch_side = NOT itch_buy_sell
+    itch_side <= not itch_buy_sell;
+
     -- Instantiate ITCH Message Encoder (25 MHz domain)
     itch_msg_encoder_inst: entity work.itch_msg_encoder
         port map (
@@ -1409,7 +1544,7 @@ begin
     -- debug_mode = "00": Show frame count from stats_counter
     -- debug_mode = "01": Show MDIO register values cycling every 2 seconds
     -- debug_mode = "10": Show IP protocol info
-    -- debug_mode = "11": Show ITCH message stats
+    -- debug_mode = "11": Show Order Book stats (BBO mode)
     led <= itch_led_out when debug_mode = "11" else
         ip_protocol_sync2(3 downto 0) when debug_mode = "10" else
         current_reg(3 downto 0) when debug_mode = "01" else

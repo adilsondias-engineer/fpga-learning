@@ -50,15 +50,16 @@ architecture Behavioral of price_level_table is
     constant CMD_LOOKUP : std_logic_vector(1 downto 0) := "10";
     constant CMD_CLEAR  : std_logic_vector(1 downto 0) := "11";
 
-    -- BRAM storage
-    type bram_t is array (0 to MAX_PRICE_LEVELS-1) of std_logic_vector(65 downto 0);
+    -- BRAM storage (expanded to 82 bits for full 32-bit price)
+    type bram_t is array (0 to MAX_PRICE_LEVELS-1) of std_logic_vector(81 downto 0);
     signal bram : bram_t := (others => (others => '0'));
 
     -- Read pipeline
-    signal rd_data_stage1 : std_logic_vector(65 downto 0) := (others => '0');
-    signal rd_data_stage2 : std_logic_vector(65 downto 0) := (others => '0');
+    signal rd_data_stage1 : std_logic_vector(81 downto 0) := (others => '0');
+    signal rd_data_stage2 : std_logic_vector(81 downto 0) := (others => '0');
     signal rd_valid_stage1 : std_logic := '0';
     signal rd_valid_stage2 : std_logic := '0';
+    signal rd_valid_counter : integer range 0 to 3 := 0;  -- Track valid duration
 
     -- Level count tracking
     signal bid_count : unsigned(7 downto 0) := (others => '0');
@@ -81,7 +82,7 @@ begin
     ------------------------------------------------------------------------
     process(clk)
         variable addr : integer;
-        variable level_slv : std_logic_vector(65 downto 0);
+        variable level_slv : std_logic_vector(81 downto 0);  -- Updated to 82 bits
         variable level : price_level_t;
         variable new_level : price_level_t;
         variable new_shares : unsigned(31 downto 0);
@@ -90,10 +91,10 @@ begin
     begin
         if rising_edge(clk) then
             if rst = '1' then
-                -- Clear all levels on reset
-                for i in 0 to MAX_PRICE_LEVELS-1 loop
-                    bram(i) <= (others => '0');
-                end loop;
+                -- Reset level counts only
+                -- BRAM is initialized to all zeros via signal initialization
+                bid_count <= (others => '0');
+                ask_count <= (others => '0');
             elsif cmd_valid = '1' then
                 addr := to_integer(unsigned(cmd_addr));
 
@@ -112,16 +113,64 @@ begin
                             new_level.order_count := x"0001";
                             new_level.side := cmd_side;
                             new_level.valid := '1';
+                            
+                            -- Update level count (new level created)
+                            if cmd_side = '0' then
+                                bid_count <= bid_count + 1;
+                            else
+                                ask_count <= ask_count + 1;
+                            end if;
                         else
                             -- Add to existing level
-                            new_shares := unsigned(level.total_shares) + unsigned(cmd_shares);
-                            new_count := unsigned(level.order_count) + 1;
+                            -- Check if side matches (if not, treat as new level - stale data cleanup)
+                            if level.side /= cmd_side then
+                                -- Side mismatch - stale data at this address, overwrite it
+                                -- This should never happen in normal operation (addresses are side-specific)
+                                -- But handle gracefully for stale data cleanup
+                                new_level.price := cmd_price;
+                                new_level.total_shares := cmd_shares;
+                                new_level.order_count := x"0001";
+                                new_level.side := cmd_side;
+                                new_level.valid := '1';
+                                
+                                -- Only increment new side count if it's currently 0
+                                -- Don't decrement old side - we can't trust stale data's count state
+                                if cmd_side = '0' and bid_count = 0 then
+                                    bid_count <= bid_count + 1;
+                                elsif cmd_side = '1' and ask_count = 0 then
+                                    ask_count <= ask_count + 1;
+                                end if;
+                            else
+                                -- Side matches - add to existing level
+                                -- Check if this level is actually counted (safety check for stale data)
+                                -- If count is 0 but level exists, it's stale data - create new level
+                                if (cmd_side = '0' and bid_count = 0) or (cmd_side = '1' and ask_count = 0) then
+                                    -- Stale data: level exists but not counted, treat as new level
+                                    new_level.price := cmd_price;
+                                    new_level.total_shares := cmd_shares;
+                                    new_level.order_count := x"0001";
+                                    new_level.side := cmd_side;
+                                    new_level.valid := '1';
+                                    
+                                    -- Increment count (this is actually a new level)
+                                    if cmd_side = '0' then
+                                        bid_count <= bid_count + 1;
+                                    else
+                                        ask_count <= ask_count + 1;
+                                    end if;
+                                else
+                                    -- Normal case: add to existing counted level
+                                    new_level.side := level.side;
+                                    new_shares := unsigned(level.total_shares) + unsigned(cmd_shares);
+                                    new_count := unsigned(level.order_count) + 1;
 
-                            new_level.price := level.price;
-                            new_level.total_shares := std_logic_vector(new_shares);
-                            new_level.order_count := std_logic_vector(new_count);
-                            new_level.side := level.side;
-                            new_level.valid := '1';
+                                    new_level.price := level.price;
+                                    new_level.total_shares := std_logic_vector(new_shares);
+                                    new_level.order_count := std_logic_vector(new_count);
+                                    new_level.valid := '1';
+                                    -- No count update - level already exists and is counted
+                                end if;
+                            end if;
                         end if;
 
                         -- Write back
@@ -172,28 +221,37 @@ begin
                         null;
                 end case;
 
-                -- Update level counts
-                if cmd_type = CMD_ADD or cmd_type = CMD_REMOVE or cmd_type = CMD_CLEAR then
-                    level_slv := bram(addr);
-                    level := slv_to_price_level(level_slv);
-
-                    -- Determine if level changed from invalid to valid or vice versa
-                    if prev_valid = '0' and level.valid = '1' then
-                        -- New level created
-                        if cmd_side = '0' then
-                            bid_count <= bid_count + 1;
-                        else
-                            ask_count <= ask_count + 1;
-                        end if;
-                    elsif prev_valid = '1' and level.valid = '0' then
-                        -- Level removed
-                        if cmd_side = '0' then
-                            if bid_count > 0 then
-                                bid_count <= bid_count - 1;
+                -- Update level counts based on the NEW level state (after command processing)
+                -- Note: CMD_ADD level count update is now handled inside the CMD_ADD case
+                if cmd_type = CMD_REMOVE or cmd_type = CMD_CLEAR then
+                    -- Use prev_valid (old state) and new_level.valid (new state) to detect changes
+                    -- Don't re-read from BRAM - use the level we just modified
+                    if cmd_type = CMD_REMOVE then
+                        -- CMD_REMOVE may invalidate a level
+                        if prev_valid = '1' and new_level.valid = '0' then
+                            -- Level removed
+                            if cmd_side = '0' then
+                                if bid_count > 0 then
+                                    bid_count <= bid_count - 1;
+                                end if;
+                            else
+                                if ask_count > 0 then
+                                    ask_count <= ask_count - 1;
+                                end if;
                             end if;
-                        else
-                            if ask_count > 0 then
-                                ask_count <= ask_count - 1;
+                        end if;
+                    elsif cmd_type = CMD_CLEAR then
+                        -- CMD_CLEAR always removes a level if it existed
+                        if prev_valid = '1' then
+                            -- Level removed
+                            if cmd_side = '0' then
+                                if bid_count > 0 then
+                                    bid_count <= bid_count - 1;
+                                end if;
+                            else
+                                if ask_count > 0 then
+                                    ask_count <= ask_count - 1;
+                                end if;
                             end if;
                         end if;
                     end if;
@@ -213,18 +271,26 @@ begin
                 rd_data_stage2 <= (others => '0');
                 rd_valid_stage1 <= '0';
                 rd_valid_stage2 <= '0';
+                rd_valid_counter <= 0;
             else
-                -- Stage 1: BRAM read
-                if cmd_valid = '1' then
+                -- BRAM read on LOOKUP command
+                if cmd_valid = '1' and cmd_type = CMD_LOOKUP then
                     rd_data_stage1 <= bram(to_integer(unsigned(cmd_addr)));
-                    rd_valid_stage1 <= '1';
-                else
-                    rd_valid_stage1 <= '0';
+                    rd_valid_counter <= 2;  -- Hold valid for 2 cycles
                 end if;
 
-                -- Stage 2: Pipeline
+                -- Pipeline stage 2
                 rd_data_stage2 <= rd_data_stage1;
-                rd_valid_stage2 <= rd_valid_stage1;
+
+                -- Manage rd_valid with counter for precise 2-cycle pulse
+                if rd_valid_counter > 0 then
+                    rd_valid_stage1 <= '1';
+                    rd_valid_stage2 <= '1';
+                    rd_valid_counter <= rd_valid_counter - 1;
+                else
+                    rd_valid_stage1 <= '0';
+                    rd_valid_stage2 <= '0';
+                end if;
             end if;
         end if;
     end process;

@@ -107,6 +107,7 @@ architecture Behavioral of order_book_manager is
         IDLE,
         LOOKUP_ORDER,       -- Read existing order (for E/X/D/U)
         ADD_ORDER,          -- Add new order to storage
+        WAIT_PRICE_CMD,     -- Wait for price level command to be processed
         UPDATE_ORDER,       -- Modify existing order
         DELETE_ORDER,       -- Mark order as deleted
         UPDATE_PRICE_ADD,   -- Add shares to price level
@@ -247,16 +248,30 @@ begin
                 stats_reg.cancel_count <= (others => '0');
                 stats_reg.delete_count <= (others => '0');
                 stats_reg.replace_count <= (others => '0');
+                stats_reg.bid_order_count <= (others => '0');
+                stats_reg.ask_order_count <= (others => '0');
             else
                 -- Default: deassert control signals
                 stor_wr_en <= '0';
                 stor_rd_en <= '0';
-                price_cmd_valid <= '0';
-                bbo_trigger <= '0';
+                price_cmd_valid <= '0';  -- Default: no price command (individual states override)
+                bbo_trigger <= '0';  -- Default: no trigger
 
                 case state is
                     when IDLE =>
-                        if itch_valid = '1' and itch_symbol = TARGET_SYMBOL then
+                        -- Allow BBO tracker to read from price level table when idle
+                        if bbo_level_req = '1' then
+                            price_cmd_valid <= '1';
+                            price_cmd_type <= "10";  -- CMD_LOOKUP
+                            price_cmd_addr <= bbo_level_addr;
+                            price_cmd_price <= (others => '0');
+                            price_cmd_shares <= (others => '0');
+                            price_cmd_side <= '0';
+                        end if;
+                        
+                        -- TEMPORARY DEBUG: Remove symbol check to test if order book works
+                        -- if itch_valid = '1' and itch_symbol = TARGET_SYMBOL then
+                        if itch_valid = '1' then  -- Accept ALL symbols for debugging
                             -- Capture message fields
                             msg_order_ref <= itch_order_ref;
                             msg_price <= itch_price;
@@ -265,29 +280,29 @@ begin
                             msg_type_reg <= itch_msg_type;
 
                             case itch_msg_type is
-                                when MSG_ADD_ORDER =>
+                                when x"41" =>  -- 'A' - Add Order
                                     -- Add new order
                                     state <= ADD_ORDER;
                                     stats_reg.add_count <= stats_reg.add_count + 1;
 
-                                when MSG_ORDER_EXECUTED =>
+                                when x"45" =>  -- 'E' - Order Executed
                                     -- Reduce shares
                                     msg_shares <= itch_exec_shares;
                                     state <= LOOKUP_ORDER;
                                     stats_reg.execute_count <= stats_reg.execute_count + 1;
 
-                                when MSG_ORDER_CANCEL =>
+                                when x"58" =>  -- 'X' - Order Cancel
                                     -- Reduce shares
                                     msg_shares <= itch_cancel_shares;
                                     state <= LOOKUP_ORDER;
                                     stats_reg.cancel_count <= stats_reg.cancel_count + 1;
 
-                                when MSG_ORDER_DELETE =>
+                                when x"44" =>  -- 'D' - Order Delete
                                     -- Delete order
                                     state <= LOOKUP_ORDER;
                                     stats_reg.delete_count <= stats_reg.delete_count + 1;
 
-                                when MSG_ORDER_REPLACE =>
+                                when x"55" =>  -- 'U' - Order Replace
                                     -- Replace order
                                     state <= LOOKUP_ORDER;
                                     stats_reg.replace_count <= stats_reg.replace_count + 1;
@@ -319,6 +334,15 @@ begin
                         stor_wr_en <= '1';
                         stor_wr_addr <= order_addr;
 
+                        -- Track order count by side
+                        if msg_side = '0' then
+                            -- Buy order (bid)
+                            stats_reg.bid_order_count <= stats_reg.bid_order_count + 1;
+                        else
+                            -- Sell order (ask)
+                            stats_reg.ask_order_count <= stats_reg.ask_order_count + 1;
+                        end if;
+
                         -- Add shares to price level
                         price_addr := price_to_addr(msg_price, msg_side);
                         price_cmd_valid <= '1';
@@ -328,7 +352,20 @@ begin
                         price_cmd_shares <= msg_shares;
                         price_cmd_side <= msg_side;
 
-                        state <= UPDATE_BBO;
+                        -- Wait one cycle for price level command to be processed
+                        state <= WAIT_PRICE_CMD;
+                        wait_counter <= 1;
+
+                    when WAIT_PRICE_CMD =>
+                        -- Price command was valid for one cycle in ADD_ORDER state
+                        -- Clear it now (price level table processes synchronously)
+                        price_cmd_valid <= '0';
+                        -- Wait one cycle for command to be processed by price level table
+                        if wait_counter > 0 then
+                            wait_counter <= wait_counter - 1;
+                        else
+                            state <= UPDATE_BBO;
+                        end if;
 
                     when UPDATE_ORDER =>
                         if wait_counter > 0 then
@@ -338,7 +375,7 @@ begin
                             temp_order <= stor_rd_order;
 
                             case msg_type_reg is
-                                when MSG_ORDER_EXECUTED | MSG_ORDER_CANCEL =>
+                                when x"45" | x"58" =>  -- 'E' (Execute) or 'X' (Cancel)
                                     -- Reduce shares
                                     new_shares := shares_subtract(stor_rd_order.shares, msg_shares);
                                     temp_order.shares <= new_shares;
@@ -346,6 +383,18 @@ begin
                                     if unsigned(new_shares) = 0 then
                                         -- Order fully executed/canceled
                                         temp_order.valid <= '0';
+                                        -- Decrement order count by side
+                                        if stor_rd_order.side = '0' then
+                                            -- Buy order (bid)
+                                            if stats_reg.bid_order_count > 0 then
+                                                stats_reg.bid_order_count <= stats_reg.bid_order_count - 1;
+                                            end if;
+                                        else
+                                            -- Sell order (ask)
+                                            if stats_reg.ask_order_count > 0 then
+                                                stats_reg.ask_order_count <= stats_reg.ask_order_count - 1;
+                                            end if;
+                                        end if;
                                     end if;
 
                                     -- Write back to storage
@@ -365,9 +414,22 @@ begin
 
                                     state <= UPDATE_BBO;
 
-                                when MSG_ORDER_DELETE =>
+                                when x"44" =>  -- 'D' - Order Delete
                                     -- Mark order as deleted
                                     temp_order.valid <= '0';
+
+                                    -- Decrement order count by side
+                                    if stor_rd_order.side = '0' then
+                                        -- Buy order (bid)
+                                        if stats_reg.bid_order_count > 0 then
+                                            stats_reg.bid_order_count <= stats_reg.bid_order_count - 1;
+                                        end if;
+                                    else
+                                        -- Sell order (ask)
+                                        if stats_reg.ask_order_count > 0 then
+                                            stats_reg.ask_order_count <= stats_reg.ask_order_count - 1;
+                                        end if;
+                                    end if;
 
                                     order_addr := hash_order_ref(msg_order_ref);
                                     stor_wr_en <= '1';
@@ -395,15 +457,39 @@ begin
 
                     when UPDATE_BBO =>
                         -- Trigger BBO recalculation
+                        -- BBO tracker is edge-sensitive, so ensure trigger was low first
                         if bbo_ready_sig = '1' then
+                            -- BBO tracker is ready, trigger it
                             bbo_trigger <= '1';
                             state <= WAIT_BBO;
+                        else
+                            -- BBO tracker is still busy, keep waiting
+                            bbo_trigger <= '0';  -- Clear trigger to allow edge detection on next cycle
+                            state <= UPDATE_BBO;  -- Stay in this state
                         end if;
 
                     when WAIT_BBO =>
                         -- Wait for BBO to complete
-                        if bbo_ready_sig = '1' then
+                        -- Keep trigger high while BBO tracker is scanning
+                        if bbo_ready_sig = '0' then
+                            -- BBO tracker is still scanning, keep trigger high
+                            bbo_trigger <= '1';
+                        else
+                            -- BBO tracker is done, clear trigger
+                            bbo_trigger <= '0';
                             state <= DONE;
+                        end if;
+                        
+                        -- Convert BBO tracker read requests to price level table commands
+                        -- BBO tracker uses level_req/level_addr, but price level table needs cmd_valid/cmd_type
+                        -- This must happen in both IDLE and WAIT_BBO states to catch all requests
+                        if bbo_level_req = '1' then
+                            price_cmd_valid <= '1';
+                            price_cmd_type <= "10";  -- CMD_LOOKUP
+                            price_cmd_addr <= bbo_level_addr;
+                            price_cmd_price <= (others => '0');  -- Not used for lookup
+                            price_cmd_shares <= (others => '0');  -- Not used for lookup
+                            price_cmd_side <= '0';  -- Not used for lookup
                         end if;
 
                     when DONE =>

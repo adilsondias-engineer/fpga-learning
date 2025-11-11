@@ -322,8 +322,9 @@ begin
                         uart_tx_valid_int <= '0';
                         byte_index <= 0;
 
-                        -- Read from FIFO when available
-                        if fifo_rd_empty = '0' then
+                        -- Read from FIFO when available AND UART is ready
+                        -- This prevents formatting messages when UART is busy (e.g., BBO formatter using it)
+                        if fifo_rd_empty = '0' and uart_tx_ready = '1' then
                             fifo_rd_en <= '1';
                             state <= WAIT_FIFO;
                         end if;

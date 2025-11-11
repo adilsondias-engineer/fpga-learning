@@ -31,7 +31,7 @@ package order_book_pkg is
     constant MAX_ASK_LEVELS     : integer := 128;
 
     -- BBO tracking configuration
-    constant BBO_SCAN_DEPTH     : integer := 10;    -- Scan top 10 levels for BBO
+    constant BBO_SCAN_DEPTH     : integer := 128;   -- Scan all bid/ask levels for BBO
 
     ------------------------------------------------------------------------
     -- Data Structure Types
@@ -62,8 +62,9 @@ package order_book_pkg is
     end record;
 
     -- Convert price_level_t to std_logic_vector for BRAM storage
+    -- Updated to 82 bits to store full 32-bit price
     function price_level_to_slv(level : price_level_t) return std_logic_vector;
-    function slv_to_price_level(slv : std_logic_vector(65 downto 0)) return price_level_t;
+    function slv_to_price_level(slv : std_logic_vector(81 downto 0)) return price_level_t;
 
     -- BBO (Best Bid/Offer) Output
     type bbo_t is record
@@ -164,24 +165,24 @@ package body order_book_pkg is
     ------------------------------------------------------------------------
 
     function price_level_to_slv(level : price_level_t) return std_logic_vector is
-        variable slv : std_logic_vector(65 downto 0);
+        variable slv : std_logic_vector(81 downto 0);
     begin
-        slv(65)          := level.valid;
-        slv(64)          := level.side;
-        slv(63 downto 48) := level.order_count;
-        slv(47 downto 16) := level.total_shares;
-        slv(15 downto 0)  := level.price(31 downto 16);  -- Store upper 16 bits for now
+        slv(81)          := level.valid;
+        slv(80)          := level.side;
+        slv(79 downto 64) := level.order_count;
+        slv(63 downto 32) := level.total_shares;
+        slv(31 downto 0)  := level.price;  -- Store FULL 32-bit price
         return slv;
     end function;
 
-    function slv_to_price_level(slv : std_logic_vector(65 downto 0)) return price_level_t is
+    function slv_to_price_level(slv : std_logic_vector(81 downto 0)) return price_level_t is
         variable level : price_level_t;
     begin
-        level.valid        := slv(65);
-        level.side         := slv(64);
-        level.order_count  := slv(63 downto 48);
-        level.total_shares := slv(47 downto 16);
-        level.price        := slv(15 downto 0) & x"0000";  -- Reconstruct price
+        level.valid        := slv(81);
+        level.side         := slv(80);
+        level.order_count  := slv(79 downto 64);
+        level.total_shares := slv(63 downto 32);
+        level.price        := slv(31 downto 0);  -- Read FULL 32-bit price
         return level;
     end function;
 
