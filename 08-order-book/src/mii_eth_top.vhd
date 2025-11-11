@@ -1124,7 +1124,12 @@ begin
                     execute_count => (others => '0'),
                     cancel_count => (others => '0'),
                     delete_count => (others => '0'),
-                    replace_count => (others => '0')
+                    replace_count => (others => '0'),
+                    bid_writes => (others => '0'),
+                    ask_writes => (others => '0'),
+                    addr0_writes => (others => '0'),
+                    addr0_last_price => (others => '0'),
+                    addr0_last_shares => (others => '0')
                 );
             else
                 -- Two-stage synchronizer for bbo_update strobe (for edge detection)

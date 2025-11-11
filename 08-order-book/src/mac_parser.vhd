@@ -119,7 +119,7 @@ begin
                             dest_mac_buf <= dest_mac_buf(39 downto 0) & rx_data;
                             byte_count   <= byte_count + 1;
                             
-                            -- Always pass destination MAC bytes (0-5) so we can read them
+                            -- Always pass destination MAC bytes (0-5) for filtering
                             -- BUG FIX #13: Register both data and counter synchronously
                             data_out <= rx_data;
                             byte_counter <= global_byte_count;

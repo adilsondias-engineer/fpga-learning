@@ -167,7 +167,7 @@ begin
                             best_bid_found <= '1';
                         end if;
 
-                        ---- Check if we received valid data (2-cycle latency)
+                        ---- Check if valid data received (2-cycle latency)
                         --if level_valid = '1' and level_data.valid = '1' and level_data.side = '0' then
                         --    -- Found valid bid level
                         --    if best_bid_found = '0' then

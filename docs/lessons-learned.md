@@ -2294,6 +2294,260 @@ v4 provides complete ITCH message coverage for simulating a simple order book wi
 
 ---
 
-**Last Updated:** Project 7 v4 Complete - 9 Message Types with Startup Banner (November 10, 2025)
+## Project 08: Hardware Order Book - BRAM Inference Mastery
+
+### ⭐ Critical Discovery: BRAM Inference Requires Exact Template Patterns
+
+**Context:** Order book implementation required BRAM-based storage for orders and price levels. Initial implementation inferred LUTRAM (Distributed RAM) instead of Block RAM, causing resource waste and incorrect bid price values.
+
+**The Problem:**
+- `order_storage.vhd`: Inferred `RAM128X1D x 1040` (LUTRAM) instead of BRAM
+- `price_level_table.vhd`: Inferred LUTRAM instead of BRAM
+- Symptom: Bid prices consistently `0x00000000` despite orders existing
+- Synthesis warning: `"Infeasible attribute ram_style = "block""` - Vivado couldn't infer BRAM
+
+**Root Causes Identified:**
+
+#### 1. Read-Modify-Write Pattern Prevents BRAM Inference
+
+**Problem:** Reading from BRAM signal in write process creates read-modify-write pattern.
+
+**Example (WRONG):**
+```vhdl
+process(clk)
+begin
+    if rising_edge(clk) then
+        if wr_en = '1' then
+            -- Reading from bram in write process = read-modify-write
+            prev_valid := bram(to_integer(unsigned(wr_addr)))(129);
+            bram(to_integer(unsigned(wr_addr))) <= wr_data;  -- Write
+        end if;
+    end if;
+end process;
+```
+
+**Solution:** Separate read and write operations, or use separate storage for tracking.
+
+**Example (CORRECT - Simple Dual-Port):**
+```vhdl
+-- Write Process (Port A) - Write-only
+process(clk)
+begin
+    if rising_edge(clk) then
+        if wr_en = '1' then
+            bram(to_integer(unsigned(wr_addr))) <= wr_data;  -- Write only
+            valid_bits(to_integer(unsigned(wr_addr))) <= wr_order.valid;  -- Separate array
+        end if;
+    end if;
+end process;
+
+-- Read Process (Port B) - Read-only
+process(clk)
+begin
+    if rising_edge(clk) then
+        if rd_en = '1' then
+            rd_data <= bram(to_integer(unsigned(rd_addr)));  -- Read only
+        end if;
+    end if;
+end process;
+```
+
+**Lesson:** BRAM templates assume simple read/write patterns. Reading in write process breaks the pattern.
+
+#### 2. Read-First Single-Port Requires 2-Stage Pipeline
+
+**Problem:** Single-port BRAM can't read and write simultaneously. Read-modify-write needs pipeline.
+
+**Solution:** 2-stage pipeline following Xilinx Read-First template:
+
+```vhdl
+-- Stage 1: Capture command and read from BRAM
+process(clk)
+begin
+    if rising_edge(clk) then
+        if cmd_valid = '1' then
+            pipe_cmd_type <= cmd_type;
+            pipe_cmd_addr <= cmd_addr;
+            pipe_cmd_price <= cmd_price;
+            pipe_cmd_shares <= cmd_shares;
+            bram_addr <= cmd_addr;  -- Set address for read
+        end if;
+        -- BRAM outputs data on next cycle
+        pipe_old_level <= slv_to_price_level(bram_do);
+    end if;
+end process;
+
+-- Stage 2: Modify and write back
+process(clk)
+begin
+    if rising_edge(clk) then
+        if pipe_cmd_type = CMD_ADD then
+            new_level := pipe_old_level;
+            new_level.total_shares := pipe_old_level.total_shares + pipe_cmd_shares;
+            new_level.order_count := pipe_old_level.order_count + 1;
+            new_level.valid := '1';
+            bram_we <= '1';
+            bram_addr <= pipe_cmd_addr;
+            bram_di <= price_level_to_slv(new_level);
+        end if;
+    end if;
+end process;
+```
+
+**Lesson:** Read-modify-write operations need explicit pipeline stages. Can't read and write in same cycle.
+
+#### 3. `ram_style` Attribute Only Works When Pattern Matches
+
+**Problem:** Adding `attribute ram_style : string; attribute ram_style of bram : signal is "block";` didn't help.
+
+**Why:** Synthesis tools ignore `ram_style` attribute if code pattern doesn't match BRAM template.
+
+**Solution:** Refactor code to match Xilinx template exactly, THEN add `ram_style` attribute.
+
+**Lesson:** `ram_style` attribute is a hint, not a command. Code must match template first.
+
+### Debug Journey: Systematic Root Cause Analysis
+
+**Symptom:** Bid prices always `0x00000000`, ask prices working correctly.
+
+**Debug Process:**
+
+1. **Added scan address debug (`SA`):** Discovered BBO tracker stuck in IDLE, `scan_addr` not initialized
+2. **Fixed scan address initialization:** Still no bid prices
+3. **Added trigger/ready debug (`Tr`, `Rd`):** Discovered `bbo_trigger` never set
+4. **Fixed trigger timing:** Still no bid prices
+5. **Added level valid debug (`Lv`, `LdP`, `LdA`):** Discovered `LdP=0x00000000` even when `Lv=1`
+6. **Fixed read pipeline timing:** Still no bid prices
+7. **Added write debug (`WrA`, `WrP`, `WrS`):** Verified writes happening correctly
+8. **Checked synthesis report:** Discovered LUTRAM inference instead of BRAM
+9. **Refactored to BRAM templates:** Bid prices now working!
+
+**Key Insight:** Each debug addition revealed the next layer of the problem. Systematic instrumentation enabled rapid diagnosis.
+
+### BRAM Template Patterns
+
+**Simple Dual-Port (order_storage):**
+- Two separate processes (write port A, read port B)
+- Write process: Write-only, no reads
+- Read process: Read-only, no writes
+- Use `shared variable` OR `signal` (both work, `signal` preferred for Simple Dual-Port)
+
+**Read-First Single-Port (price_level_table):**
+- Single process with 2-stage pipeline
+- Stage 1: Read from BRAM
+- Stage 2: Modify and write back
+- Explicit BRAM control signals (`bram_do`, `bram_we`, `bram_addr`, `bram_di`)
+
+**Key Differences:**
+- Simple Dual-Port: Two independent ports (can read and write simultaneously to different addresses)
+- Single-Port: One port (read-modify-write requires pipeline)
+
+### Order Count Tracking Without Read-Modify-Write
+
+**Problem:** Need to track order count (increment on add, decrement on delete), but reading old valid bit in write process prevents BRAM inference.
+
+**Solution:** Separate `valid_bits` array for tracking:
+
+```vhdl
+-- Separate storage for valid bits (small, can be LUTRAM)
+type valid_bits_t is array (0 to MAX_ORDERS-1) of std_logic;
+signal valid_bits : valid_bits_t := (others => '0');
+
+-- Order count tracking reads from valid_bits, not BRAM
+process(clk)
+begin
+    if rising_edge(clk) then
+        if wr_en = '1' then
+            prev_valid := valid_bits(to_integer(unsigned(wr_addr)));  -- Read from separate array
+            -- Update count based on prev_valid vs wr_order.valid
+            valid_bits(to_integer(unsigned(wr_addr))) <= wr_order.valid;  -- Update tracking
+        end if;
+    end if;
+end process;
+```
+
+**Lesson:** Separate small tracking arrays are acceptable (LUTRAM is fine for 1024 bits). Main BRAM must follow template exactly.
+
+### Pipeline Latency Handling
+
+**Problem:** BRAM has 1-2 cycle read latency. FSM assuming immediate data availability fails.
+
+**Solution:** Add wait states and counters:
+
+```vhdl
+-- Wait for 2-cycle BRAM read latency
+when WAIT_PRICE_CMD =>
+    if wait_counter > 0 then
+        wait_counter <= wait_counter - 1;
+    else
+        state <= NEXT_STATE;
+    end if;
+
+-- Initialize wait counter
+when UPDATE_PRICE_ADD =>
+    price_cmd_valid <= '1';
+    wait_counter <= 2;  -- 2-cycle latency
+    state <= WAIT_PRICE_CMD;
+```
+
+**Lesson:** Always account for memory latency in state machines. BRAM is not combinational - data arrives 1-2 cycles after address is set.
+
+### Key Architectural Lessons
+
+#### ⭐ Lesson 1: BRAM Templates Are Not Suggestions
+
+**Problem:** "Close enough" code doesn't infer BRAM. Synthesis tools are pattern-matching, not intelligent.
+
+**Solution:** Copy Xilinx template exactly:
+- Same process structure
+- Same signal assignments
+- Same timing patterns
+- THEN add `ram_style` attribute
+
+**Lesson:** Don't try to be clever. Follow the template exactly.
+
+#### ⭐ Lesson 2: Read-Modify-Write Needs Architecture Changes
+
+**Problem:** Can't read and write BRAM in same cycle (single-port) or same process (breaks template).
+
+**Solution:**
+- Single-Port: Use 2-stage pipeline
+- Dual-Port: Use separate ports for read and write
+- Tracking: Use separate small arrays
+
+**Lesson:** Complex operations require architectural changes, not just code fixes.
+
+#### ⭐ Lesson 3: Debug Infrastructure Enables Rapid Diagnosis
+
+**Problem:** "Bid prices are zero" provides no actionable information.
+
+**Solution:** Comprehensive debug outputs:
+- Scan addresses (`LdA`)
+- Read data (`LdP`)
+- Write operations (`WrA`, `WrP`, `WrS`)
+- State machine status (`St`, `Tr`, `Rd`)
+
+**Lesson:** Strategic instrumentation enables rapid root cause diagnosis. Each debug addition revealed the next layer.
+
+### Trading System Relevance
+
+**Skills Demonstrated:**
+
+1. **BRAM Architecture** - Efficient on-chip memory for order storage and price levels
+2. **Memory Inference** - Production-grade BRAM inference (not LUTRAM)
+3. **FSM Design** - Complex state machines for order processing and BBO tracking
+4. **Pipeline Design** - 2-cycle read-modify-write pipelines
+5. **Debug Methodology** - Systematic debugging with strategic instrumentation
+
+**Why This Matters for Trading:**
+
+- **Order Book Core:** Essential data structure for all electronic trading systems
+- **Deterministic Latency:** Hardware implementation guarantees fixed processing time
+- **Resource Efficiency:** BRAM vs LUTRAM affects available logic resources
+- **Production Patterns:** BRAM inference, FSM design, debug infrastructure mirror production systems
+
+---
+
+**Last Updated:** Project 8 Complete - Order Book with BRAM Inference (December 2025)
 
 This document grows with each project and includes lessons from all phases.

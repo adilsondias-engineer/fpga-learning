@@ -2,7 +2,7 @@
 ![Language](https://img.shields.io/badge/Language-VHDL-blue)
 ![Status](https://img.shields.io/badge/Status-Active%20Learning-green)
 ![Hardware Verified](https://img.shields.io/badge/Hardware-Verified-brightgreen)
-![Projects](https://img.shields.io/badge/Projects-7%20Complete-brightgreen)
+![Projects](https://img.shields.io/badge/Projects-8%20Complete-brightgreen)
 
 # FPGA Learning for Trading Systems
 
@@ -64,6 +64,15 @@ Projects are designed to build from fundamentals toward trading-relevant skills:
    - **Professional UX:** Startup banner shows version, capabilities, and filter status
    - **Ready for Project 8:** Order book implementation with pre-filtered symbol data
    - **Build Iterations:** 50+ tracked builds documenting complete development journey
+
+8. **Project 08** - Hardware Order Book ✅ **COMPLETE**
+   - **BRAM-Based Architecture:** Order storage (1024 orders) and price level table (256 levels) using Block RAM
+   - **BBO Tracking:** Real-time Best Bid/Offer calculation with FSM scanner
+   - **ITCH Integration:** Processes A, E, X, D, U message types from Project 7
+   - **BRAM Inference:** Production-grade BRAM inference (not LUTRAM) using Xilinx templates
+   - **Latency:** ~12-17 clock cycles per message (~120-170 ns @ 100 MHz)
+   - **Debug Infrastructure:** Comprehensive UART debug outputs for troubleshooting
+   - **Key Achievement:** Fixed BRAM inference issues through template refactoring and architectural changes
 
 Each project includes, where it might be relevant/required:
 

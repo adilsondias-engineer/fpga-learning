@@ -10,7 +10,7 @@
 --   U - Replace        : Update order, update price levels, update BBO
 --   P/Q - Trade        : Informational only (no order book impact)
 --
--- Latency: ~10-15 clock cycles per message
+-- Latency: ~12-17 clock cycles per message (includes 2-cycle price level table pipeline)
 --------------------------------------------------------------------------------
 
 library IEEE;
@@ -83,7 +83,10 @@ architecture Behavioral of order_book_manager is
             rd_level        : out price_level_t;
             rd_valid        : out std_logic;
             bid_level_count : out unsigned(7 downto 0);
-            ask_level_count : out unsigned(7 downto 0)
+            ask_level_count : out unsigned(7 downto 0);
+            debug_addr0_writes : out unsigned(7 downto 0);
+            debug_addr0_last_price : out std_logic_vector(31 downto 0);
+            debug_addr0_last_shares : out std_logic_vector(31 downto 0)
         );
     end component;
 
@@ -139,6 +142,10 @@ architecture Behavioral of order_book_manager is
     signal price_rd_valid   : std_logic;
     signal price_bid_count  : unsigned(7 downto 0);
     signal price_ask_count  : unsigned(7 downto 0);
+    -- DEBUG: Address 0 write tracking
+    signal debug_addr0_writes : unsigned(7 downto 0);
+    signal debug_addr0_last_price : std_logic_vector(31 downto 0);
+    signal debug_addr0_last_shares : std_logic_vector(31 downto 0);
 
     -- BBO signals
     signal bbo_trigger      : std_logic := '0';
@@ -208,7 +215,10 @@ begin
             rd_level        => price_rd_level,
             rd_valid        => price_rd_valid,
             bid_level_count => price_bid_count,
-            ask_level_count => price_ask_count
+            ask_level_count => price_ask_count,
+            debug_addr0_writes => debug_addr0_writes,
+            debug_addr0_last_price => debug_addr0_last_price,
+            debug_addr0_last_shares => debug_addr0_last_shares
         );
 
     bbo_tracker_inst : bbo_tracker
@@ -352,15 +362,25 @@ begin
                         price_cmd_shares <= msg_shares;
                         price_cmd_side <= msg_side;
 
-                        -- Wait one cycle for price level command to be processed
+                        -- DEBUG: Count price table writes by side (for debugging)
+                        -- Note: These are not included in stats output
+                        -- if msg_side = '0' then
+                        --     -- Bid write
+                        -- else
+                        --     -- Ask write
+                        -- end if;
+
+                        -- Wait for price level command to complete (2-cycle pipeline latency)
                         state <= WAIT_PRICE_CMD;
-                        wait_counter <= 1;
+                        wait_counter <= 2;  -- 2 cycles: read (cycle 1) + modify/write (cycle 2)
 
                     when WAIT_PRICE_CMD =>
-                        -- Price command was valid for one cycle in ADD_ORDER state
-                        -- Clear it now (price level table processes synchronously)
+                        -- Price command was valid for one cycle in ADD_ORDER/UPDATE_ORDER state
+                        -- Clear it now (price level table processes with 2-cycle pipeline)
                         price_cmd_valid <= '0';
-                        -- Wait one cycle for command to be processed by price level table
+                        -- Wait for 2-cycle pipeline to complete:
+                        --   Cycle 1: BRAM read initiated, command captured
+                        --   Cycle 2: Old data captured, new data computed and written
                         if wait_counter > 0 then
                             wait_counter <= wait_counter - 1;
                         else
@@ -412,7 +432,9 @@ begin
                                     price_cmd_shares <= msg_shares;
                                     price_cmd_side <= stor_rd_order.side;
 
-                                    state <= UPDATE_BBO;
+                                    -- Wait for price level command to complete (2-cycle pipeline latency)
+                                    state <= WAIT_PRICE_CMD;
+                                    wait_counter <= 2;  -- 2 cycles: read (cycle 1) + modify/write (cycle 2)
 
                                 when x"44" =>  -- 'D' - Order Delete
                                     -- Mark order as deleted
@@ -445,7 +467,9 @@ begin
                                     price_cmd_shares <= stor_rd_order.shares;
                                     price_cmd_side <= stor_rd_order.side;
 
-                                    state <= UPDATE_BBO;
+                                    -- Wait for price level command to complete (2-cycle pipeline latency)
+                                    state <= WAIT_PRICE_CMD;
+                                    wait_counter <= 2;  -- 2 cycles: read (cycle 1) + modify/write (cycle 2)
 
                                 when others =>
                                     state <= DONE;

@@ -3,7 +3,7 @@
 -- Description: BRAM-based storage for active orders
 --
 -- Storage: 1024 entries × 130 bits = ~16 KB (4 BRAM36 blocks)
--- Access: Dual-port (simultaneous read + write)
+-- Access: Simple Dual-Port (one write port, one read port, same clock)
 -- Addressing: Hash of order_ref (lower 10 bits)
 --
 -- Operations:
@@ -11,6 +11,9 @@
 --   LOOKUP  : Read order by order_ref
 --   UPDATE  : Modify existing order (shares, price)
 --   DELETE  : Mark order as invalid
+--
+-- BRAM Template: Simple Dual-Port with One Clock (Xilinx template)
+--   Following simple_dual_one_clock.vhd pattern
 --------------------------------------------------------------------------------
 
 library IEEE;
@@ -43,11 +46,16 @@ end order_storage;
 
 architecture Behavioral of order_storage is
 
-    -- BRAM storage array
+    -- BRAM storage array (using signal for Simple Dual-Port inference)
+    -- Following rams_sdp_record.vhd pattern
     type bram_t is array (0 to MAX_ORDERS-1) of std_logic_vector(129 downto 0);
     signal bram : bram_t := (others => (others => '0'));
+    
+    -- Force BRAM inference (not LUTRAM)
+    attribute ram_style : string;
+    attribute ram_style of bram : signal is "block";
 
-    -- Read pipeline registers (BRAM has 2-cycle read latency)
+    -- Read pipeline registers (2-cycle latency)
     signal rd_data_stage1 : std_logic_vector(129 downto 0) := (others => '0');
     signal rd_data_stage2 : std_logic_vector(129 downto 0) := (others => '0');
     signal rd_valid_stage1 : std_logic := '0';
@@ -56,9 +64,10 @@ architecture Behavioral of order_storage is
     -- Order count tracking
     signal order_count_reg : unsigned(15 downto 0) := (others => '0');
 
-    -- Xilinx BRAM inference attributes
-    attribute ram_style : string;
-    attribute ram_style of bram : signal is "block";
+    -- Separate storage for valid bits (to avoid read-modify-write on main BRAM)
+    -- This is a small array (1024 bits) that can be LUTRAM without issue
+    type valid_bits_t is array (0 to MAX_ORDERS-1) of std_logic;
+    signal valid_bits : valid_bits_t := (others => '0');
 
 begin
 
@@ -68,43 +77,67 @@ begin
     order_count <= order_count_reg;
 
     ------------------------------------------------------------------------
-    -- BRAM Write Process
+    -- BRAM Write Process (Port A)
+    -- Following Xilinx rams_sdp_record.vhd template
+    -- IMPORTANT: Write-only process - no reads to allow BRAM inference
     ------------------------------------------------------------------------
     process(clk)
         variable wr_data : std_logic_vector(129 downto 0);
     begin
         if rising_edge(clk) then
-            if wr_en = '1' then
-                -- Convert order record to std_logic_vector
-                wr_data := order_to_slv(wr_order);
-
-                -- Write to BRAM
-                bram(to_integer(unsigned(wr_addr))) <= wr_data;
+            if rst = '1' then
+                -- Reset handled in order count process
+            else
+                if wr_en = '1' then
+                    -- Convert order record to std_logic_vector
+                    wr_data := order_to_slv(wr_order);
+                    
+                    -- Write to BRAM (signal-based, following rams_sdp_record.vhd pattern)
+                    -- This is a pure write operation - no read-modify-write pattern
+                    bram(to_integer(unsigned(wr_addr))) <= wr_data;
+                    
+                    -- Update separate valid bits storage (read from this, not BRAM)
+                    valid_bits(to_integer(unsigned(wr_addr))) <= wr_order.valid;
+                end if;
             end if;
         end if;
     end process;
 
     ------------------------------------------------------------------------
-    -- BRAM Read Process (2-cycle latency pipeline)
+    -- BRAM Read Process (Port B)
+    -- Following Xilinx rams_sdp_record.vhd template exactly
     ------------------------------------------------------------------------
     process(clk)
     begin
         if rising_edge(clk) then
             if rst = '1' then
                 rd_data_stage1 <= (others => '0');
-                rd_data_stage2 <= (others => '0');
                 rd_valid_stage1 <= '0';
-                rd_valid_stage2 <= '0';
             else
-                -- Stage 1: BRAM read
                 if rd_en = '1' then
+                    -- Direct read from BRAM signal (registered output)
                     rd_data_stage1 <= bram(to_integer(unsigned(rd_addr)));
                     rd_valid_stage1 <= '1';
                 else
                     rd_valid_stage1 <= '0';
                 end if;
+            end if;
+        end if;
+    end process;
 
-                -- Stage 2: Pipeline register
+    ------------------------------------------------------------------------
+    -- Read Output Pipeline (2-cycle latency)
+    -- Stage 1: Already done in BRAM Read Process
+    -- Stage 2: Register stage1 data
+    ------------------------------------------------------------------------
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if rst = '1' then
+                rd_data_stage2 <= (others => '0');
+                rd_valid_stage2 <= '0';
+            else
+                -- Pipeline stage 2: Register stage1 data
                 rd_data_stage2 <= rd_data_stage1;
                 rd_valid_stage2 <= rd_valid_stage1;
             end if;
@@ -114,25 +147,23 @@ begin
     ------------------------------------------------------------------------
     -- Order Count Tracking
     -- Count valid orders by monitoring writes
+    -- Uses separate valid_bits array to avoid read-modify-write on main BRAM
     ------------------------------------------------------------------------
     process(clk)
         variable prev_valid : std_logic;
-        variable curr_valid : std_logic;
     begin
         if rising_edge(clk) then
             if rst = '1' then
                 order_count_reg <= (others => '0');
             elsif wr_en = '1' then
-                -- Check if we're adding or removing an order
-                curr_valid := wr_order.valid;
-
-                -- Read previous valid bit from BRAM
-                prev_valid := bram(to_integer(unsigned(wr_addr)))(129);
-
-                if curr_valid = '1' and prev_valid = '0' then
+                -- Read previous valid bit from separate storage (not BRAM)
+                prev_valid := valid_bits(to_integer(unsigned(wr_addr)));
+                
+                -- Check if adding or removing an order
+                if wr_order.valid = '1' and prev_valid = '0' then
                     -- Adding new order
                     order_count_reg <= order_count_reg + 1;
-                elsif curr_valid = '0' and prev_valid = '1' then
+                elsif wr_order.valid = '0' and prev_valid = '1' then
                     -- Deleting order
                     if order_count_reg > 0 then
                         order_count_reg <= order_count_reg - 1;

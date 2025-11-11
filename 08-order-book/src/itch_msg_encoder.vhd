@@ -113,7 +113,7 @@ begin
                 msg_data_var := (others => '0');
 
                 -- ALWAYS capture valid messages immediately (highest priority)
-                -- This ensures we never miss a 1-cycle valid pulse
+                -- Ensures no 1-cycle valid pulse is missed
                 if add_order_valid = '1' then
                     msg_type_enc_var := encode_msg_type(MSG_ADD_ORDER);
                     msg_data_var := encode_add_order(order_ref, buy_sell, shares, stock_symbol, price,
