@@ -121,9 +121,6 @@ begin
         variable update_count_slv : std_logic_vector(15 downto 0);
         variable bid_order_slv : std_logic_vector(15 downto 0);
         variable ask_order_slv : std_logic_vector(15 downto 0);
-        variable bid_writes_slv : std_logic_vector(7 downto 0);
-        variable ask_writes_slv : std_logic_vector(7 downto 0);
-        variable addr0_writes_slv : std_logic_vector(7 downto 0);
     begin
         if rising_edge(clk) then
             if rst = '1' then
@@ -165,9 +162,6 @@ begin
                         update_count_slv := std_logic_vector(bbo_update_count);
                         bid_order_slv := std_logic_vector(captured_stats.bid_order_count);
                         ask_order_slv := std_logic_vector(captured_stats.ask_order_count);
-                        bid_writes_slv := std_logic_vector(captured_stats.bid_writes);
-                        ask_writes_slv := std_logic_vector(captured_stats.ask_writes);
-                        addr0_writes_slv := std_logic_vector(captured_stats.addr0_writes);
 
                         -- Build message (all assignments happen in this cycle)
                         idx := 0;
@@ -231,52 +225,6 @@ begin
                                 idx := idx + 1;
                             end loop;
 
-                            -- " (BW=XX AW=XX)" - Debug: show bid/ask write counts
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            msg_buffer(idx) <= x"28"; idx := idx + 1;  -- '('
-                            msg_buffer(idx) <= x"42"; idx := idx + 1;  -- 'B'
-                            msg_buffer(idx) <= x"57"; idx := idx + 1;  -- 'W'
-                            msg_buffer(idx) <= x"3D"; idx := idx + 1;  -- '='
-                            msg_buffer(idx) <= nibble_to_hex(bid_writes_slv(7 downto 4));
-                            idx := idx + 1;
-                            msg_buffer(idx) <= nibble_to_hex(bid_writes_slv(3 downto 0));
-                            idx := idx + 1;
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            msg_buffer(idx) <= x"41"; idx := idx + 1;  -- 'A'
-                            msg_buffer(idx) <= x"57"; idx := idx + 1;  -- 'W'
-                            msg_buffer(idx) <= x"3D"; idx := idx + 1;  -- '='
-                            msg_buffer(idx) <= nibble_to_hex(ask_writes_slv(7 downto 4));
-                            idx := idx + 1;
-                            msg_buffer(idx) <= nibble_to_hex(ask_writes_slv(3 downto 0));
-                            idx := idx + 1;
-                            msg_buffer(idx) <= x"29"; idx := idx + 1;  -- ')'
-
-                            -- " A0W=XX P=XXXXXXXX S=XXXXXXXX" - Debug: show what was written to address 0
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            msg_buffer(idx) <= x"41"; idx := idx + 1;  -- 'A'
-                            msg_buffer(idx) <= x"30"; idx := idx + 1;  -- '0'
-                            msg_buffer(idx) <= x"57"; idx := idx + 1;  -- 'W'
-                            msg_buffer(idx) <= x"3D"; idx := idx + 1;  -- '='
-                            msg_buffer(idx) <= nibble_to_hex(addr0_writes_slv(7 downto 4));
-                            idx := idx + 1;
-                            msg_buffer(idx) <= nibble_to_hex(addr0_writes_slv(3 downto 0));
-                            idx := idx + 1;
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            msg_buffer(idx) <= x"50"; idx := idx + 1;  -- 'P'
-                            msg_buffer(idx) <= x"3D"; idx := idx + 1;  -- '='
-                            -- Show last price written to address 0 (8 hex digits)
-                            for i in 7 downto 0 loop
-                                msg_buffer(idx) <= nibble_to_hex(captured_stats.addr0_last_price(i*4+3 downto i*4));
-                                idx := idx + 1;
-                            end loop;
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            msg_buffer(idx) <= x"53"; idx := idx + 1;  -- 'S'
-                            msg_buffer(idx) <= x"3D"; idx := idx + 1;  -- '='
-                            -- Show last shares written to address 0 (8 hex digits)
-                            for i in 7 downto 0 loop
-                                msg_buffer(idx) <= nibble_to_hex(captured_stats.addr0_last_shares(i*4+3 downto i*4));
-                                idx := idx + 1;
-                            end loop;
                         else
                             -- "NO DATA" - show debug information
                             msg_buffer(idx) <= x"4E"; idx := idx + 1;  -- 'N'

@@ -83,10 +83,7 @@ architecture Behavioral of order_book_manager is
             rd_level        : out price_level_t;
             rd_valid        : out std_logic;
             bid_level_count : out unsigned(7 downto 0);
-            ask_level_count : out unsigned(7 downto 0);
-            debug_addr0_writes : out unsigned(7 downto 0);
-            debug_addr0_last_price : out std_logic_vector(31 downto 0);
-            debug_addr0_last_shares : out std_logic_vector(31 downto 0)
+            ask_level_count : out unsigned(7 downto 0)
         );
     end component;
 
@@ -142,10 +139,6 @@ architecture Behavioral of order_book_manager is
     signal price_rd_valid   : std_logic;
     signal price_bid_count  : unsigned(7 downto 0);
     signal price_ask_count  : unsigned(7 downto 0);
-    -- DEBUG: Address 0 write tracking
-    signal debug_addr0_writes : unsigned(7 downto 0);
-    signal debug_addr0_last_price : std_logic_vector(31 downto 0);
-    signal debug_addr0_last_shares : std_logic_vector(31 downto 0);
 
     -- BBO signals
     signal bbo_trigger      : std_logic := '0';
@@ -215,10 +208,7 @@ begin
             rd_level        => price_rd_level,
             rd_valid        => price_rd_valid,
             bid_level_count => price_bid_count,
-            ask_level_count => price_ask_count,
-            debug_addr0_writes => debug_addr0_writes,
-            debug_addr0_last_price => debug_addr0_last_price,
-            debug_addr0_last_shares => debug_addr0_last_shares
+            ask_level_count => price_ask_count
         );
 
     bbo_tracker_inst : bbo_tracker

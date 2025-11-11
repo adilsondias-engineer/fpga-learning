@@ -99,12 +99,7 @@ package order_book_pkg is
         execute_count       : unsigned(31 downto 0);  -- Lifetime executions
         cancel_count        : unsigned(31 downto 0);  -- Lifetime cancels
         delete_count        : unsigned(31 downto 0);  -- Lifetime deletes
-        replace_count       : unsigned(31 downto 0);  -- Lifetime replaces
-        bid_writes          : unsigned(7 downto 0);   -- DEBUG: Bid writes to price table
-        ask_writes          : unsigned(7 downto 0);   -- DEBUG: Ask writes to price table
-        addr0_writes        : unsigned(7 downto 0);   -- DEBUG: Address 0 writes
-        addr0_last_price    : std_logic_vector(31 downto 0);  -- DEBUG: Last price written to addr 0
-        addr0_last_shares   : std_logic_vector(31 downto 0);  -- DEBUG: Last shares written to addr 0
+        replace_count       : unsigned(31 downto 0);   -- Lifetime replaces
     end record;
 
     ------------------------------------------------------------------------

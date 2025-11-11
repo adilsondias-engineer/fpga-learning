@@ -42,12 +42,7 @@ entity price_level_table is
 
         -- Statistics
         bid_level_count : out unsigned(7 downto 0);  -- Active bid levels
-        ask_level_count : out unsigned(7 downto 0);  -- Active ask levels
-
-        -- DEBUG: Address 0 write tracking
-        debug_addr0_writes : out unsigned(7 downto 0);
-        debug_addr0_last_price : out std_logic_vector(31 downto 0);
-        debug_addr0_last_shares : out std_logic_vector(31 downto 0)
+        ask_level_count : out unsigned(7 downto 0)   -- Active ask levels
     );
 end price_level_table;
 
@@ -92,11 +87,6 @@ architecture Behavioral of price_level_table is
     signal bid_count : unsigned(7 downto 0) := (others => '0');
     signal ask_count : unsigned(7 downto 0) := (others => '0');
 
-    -- DEBUG: Capture writes to address 0
-    signal debug_addr0_writes_reg : unsigned(7 downto 0) := (others => '0');
-    signal debug_addr0_last_price_reg : std_logic_vector(31 downto 0) := (others => '0');
-    signal debug_addr0_last_shares_reg : std_logic_vector(31 downto 0) := (others => '0');
-
     -- Xilinx BRAM inference
     attribute ram_style : string;
     attribute ram_style of bram : signal is "block";
@@ -108,11 +98,6 @@ begin
     rd_valid <= rd_valid_stage2;
     bid_level_count <= bid_count;
     ask_level_count <= ask_count;
-
-    -- DEBUG outputs
-    debug_addr0_writes <= debug_addr0_writes_reg;
-    debug_addr0_last_price <= debug_addr0_last_price_reg;
-    debug_addr0_last_shares <= debug_addr0_last_shares_reg;
 
     ------------------------------------------------------------------------
     -- BRAM Access Process (Read-First Template)
@@ -198,9 +183,6 @@ begin
             if rst = '1' then
                 bid_count <= (others => '0');
                 ask_count <= (others => '0');
-                debug_addr0_writes_reg <= (others => '0');
-                debug_addr0_last_price_reg <= (others => '0');
-                debug_addr0_last_shares_reg <= (others => '0');
                 bram_we <= '0';
                 bram_addr <= (others => '0');
                 bram_di <= (others => '0');
@@ -294,13 +276,6 @@ begin
                             bram_we <= '1';
                             bram_addr <= pipe_cmd_addr;
                             bram_di <= price_level_to_slv(new_level);
-                            
-                            -- DEBUG: Capture writes to address 0
-                            if addr_int = 0 then
-                                debug_addr0_writes_reg <= debug_addr0_writes_reg + 1;
-                                debug_addr0_last_price_reg <= new_level.price;
-                                debug_addr0_last_shares_reg <= new_level.total_shares;
-                            end if;
 
                         when CMD_REMOVE =>
                             -- Remove shares from level

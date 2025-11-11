@@ -114,12 +114,12 @@ architecture structural of mii_eth_top is
 
     -- Debug/display control
     signal debug_state_sig : std_logic_vector(3 downto 0);
-    signal debug_mode : unsigned(1 downto 0) := "00";  
+    signal debug_mode : unsigned(1 downto 0) := "00";
     -- Debug mode controls both LED display and UART output:
-    -- "00" = Frame stats on LEDs, ITCH formatter on UART (default)
+    -- "00" = Frame stats on LEDs, BBO formatter on UART (default for Project 9 gateway)
     -- "01" = MDIO debug on LEDs, Debug formatter (MAC/IP/UDP) on UART
     -- "10" = IP protocol on LEDs, ITCH formatter on UART
-    -- "11" = ITCH stats on LEDs, ITCH formatter on UART
+    -- "11" = ITCH stats on LEDs, Reserved for future use
 
     -- Intermediate signals to avoid multiple drivers
     signal frame_count_leds : std_logic_vector(3 downto 0);
@@ -423,12 +423,12 @@ begin
         );
     
     -- =========================================================================
-    -- UART Multiplexer: Switch between ITCH, Debug, and BBO formatters
+    -- UART Multiplexer: Switch between BBO, Debug, and ITCH formatters
     -- =========================================================================
-    -- debug_mode = "00": ITCH formatter (default for ITCH parsing)
+    -- debug_mode = "00": BBO formatter (default for Project 9 gateway)
     -- debug_mode = "01": Debug formatter (MAC/IP/UDP frame info)
-    -- debug_mode = "10": ITCH formatter (IP protocol display mode)
-    -- debug_mode = "11": BBO formatter (Order Book BBO display) **NEW**
+    -- debug_mode = "10": ITCH formatter (for ITCH message debugging)
+    -- debug_mode = "11": Reserved for future use
     -- =========================================================================
     process(clk)
     begin
@@ -442,15 +442,14 @@ begin
                     -- Debug mode 1: Use debug formatter (MAC/IP/UDP info)
                     uart_tx_data_sel <= uart_fmt_tx_data;
                     uart_tx_valid_sel <= uart_fmt_tx_start;
-                -- TEMPORARY: BBO formatter commented out, so route mode "11" to ITCH for testing
-                 elsif debug_mode = "11" then
-                     -- Debug mode 3: Use BBO formatter (Order Book BBO)
-                     uart_tx_data_sel <= bbo_uart_tx_data;
-                     uart_tx_valid_sel <= bbo_uart_tx_valid;
-                else
-                    -- ITCH mode (modes "00", "10", "11"): Use ITCH formatter
+                elsif debug_mode = "10" then
+                    -- Debug mode 2: Use ITCH formatter (ITCH message debugging)
                     uart_tx_data_sel <= itch_uart_tx_data;
                     uart_tx_valid_sel <= itch_uart_tx_valid;
+                else
+                    -- Default mode "00" and "11": Use BBO formatter
+                    uart_tx_data_sel <= bbo_uart_tx_data;
+                    uart_tx_valid_sel <= bbo_uart_tx_valid;
                 end if;
 
             end if;
@@ -553,8 +552,8 @@ begin
     begin
         if rising_edge(clk) then
            if debug_btn_rise = '1' then
-                if debug_mode = "11" then
-                    debug_mode <= "00";  -- Wrap around after mode 3 (BBO mode)
+                if debug_mode = "10" then
+                    debug_mode <= "00";  -- Wrap around after mode 2 (ITCH mode)
                 else
                     debug_mode <= debug_mode + 1;
                 end if;
@@ -1124,12 +1123,7 @@ begin
                     execute_count => (others => '0'),
                     cancel_count => (others => '0'),
                     delete_count => (others => '0'),
-                    replace_count => (others => '0'),
-                    bid_writes => (others => '0'),
-                    ask_writes => (others => '0'),
-                    addr0_writes => (others => '0'),
-                    addr0_last_price => (others => '0'),
-                    addr0_last_shares => (others => '0')
+                    replace_count => (others => '0')
                 );
             else
                 -- Two-stage synchronizer for bbo_update strobe (for edge detection)
@@ -1545,13 +1539,12 @@ begin
                       reg_values(63 downto 48) when "11",  -- Register 0x03
                       (others => '0') when others;
 
-    -- LED Multiplexer: Select between MDIO debug and Frame stats
-    -- debug_mode = "00": Show frame count from stats_counter
+    -- LED Multiplexer: Select between different debug displays
+    -- debug_mode = "00": Show frame count from stats_counter (BBO mode on UART)
     -- debug_mode = "01": Show MDIO register values cycling every 2 seconds
-    -- debug_mode = "10": Show IP protocol info
-    -- debug_mode = "11": Show Order Book stats (BBO mode)
-    led <= itch_led_out when debug_mode = "11" else
-        ip_protocol_sync2(3 downto 0) when debug_mode = "10" else
+    -- debug_mode = "10": Show IP protocol info (ITCH mode on UART)
+    -- debug_mode = "11": Reserved (unused)
+    led <= ip_protocol_sync2(3 downto 0) when debug_mode = "10" else
         current_reg(3 downto 0) when debug_mode = "01" else
         frame_count_leds;
 
