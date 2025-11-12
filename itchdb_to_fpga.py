@@ -7,20 +7,67 @@ Usage: python itch_replay.py database.db --fpga-ip 192.168.0.201 --symbol AAPL
 """
 
 import sqlite3
-import socket
 import time
 import argparse
+import sys
 from datetime import datetime
+
+# Import Scapy for raw Ethernet packet sending (required for FPGA)
+try:
+    from scapy.all import Ether, IP, UDP, Raw, sendp
+    from scapy.arch import get_if_hwaddr
+except ImportError:
+    print("\n❌ ERROR: Scapy not installed")
+    print("\nInstall with: pip install scapy")
+    sys.exit(1)
+
+# Configuration - match working send_itch_packets.py
+PC_INTERFACE_MAC = "E8-9C-25-7A-5E-0A"  # Your USB Ethernet MAC
+FPGA_MAC = "ff:ff:ff:ff:ff:ff"          # Broadcast (same as working scripts)
+# FPGA_MAC = "00:18:3E:04:5D:E7"        # FPGA unicast MAC (doesn't work for some reason)
+
+def find_interface_by_mac(target_mac):
+    """Find network interface by MAC address"""
+    from scapy.all import get_if_list
+    target_mac_normalized = target_mac.lower().replace('-', ':')
+
+    for iface in get_if_list():
+        try:
+            mac = get_if_hwaddr(iface)
+            if mac and mac.lower() == target_mac_normalized:
+                return iface
+        except:
+            continue
+    return None
 
 class ITCHReplayer:
     # FPGA-implemented message types
     FPGA_MESSAGE_TYPES = ['A', 'E', 'X', 'S', 'R', 'D', 'U', 'P', 'Q']
-    
-    def __init__(self, db_path, fpga_ip, fpga_port=1234):
+
+    def __init__(self, db_path, fpga_ip, fpga_port=12345, interface=None):
         self.db = sqlite3.connect(db_path)
         self.db.row_factory = sqlite3.Row
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.fpga_addr = (fpga_ip, fpga_port)
+        self.fpga_ip = fpga_ip
+        self.fpga_port = fpga_port
+
+        # Find network interface
+        if interface is None:
+            self.iface = find_interface_by_mac(PC_INTERFACE_MAC)
+            if not self.iface:
+                print(f"\n❌ ERROR: Could not find interface with MAC {PC_INTERFACE_MAC}")
+                print("\nAvailable interfaces:")
+                from scapy.all import get_if_list
+                for iface in get_if_list():
+                    try:
+                        mac = get_if_hwaddr(iface)
+                        print(f"  {iface}: {mac}")
+                    except:
+                        pass
+                sys.exit(1)
+        else:
+            self.iface = interface
+
+        print(f"Using interface: {self.iface}")
         
     def replay_symbol(self, symbol, speed_multiplier=1.0, message_types=None, 
                      max_messages=None):
@@ -54,13 +101,15 @@ class ITCHReplayer:
         
         if max_messages:
             query += f" LIMIT {max_messages}"
-        
-        params = [symbol] + list(message_types)
-        
+
+        # Ensure symbol is uppercase (ITCH standard)
+        symbol_upper = symbol.upper()
+        params = [symbol_upper] + list(message_types)
+
         cursor = self.db.cursor()
         cursor.execute(query, params)
-        
-        print(f"Replaying {symbol} to {self.fpga_addr[0]}:{self.fpga_addr[1]}")
+
+        print(f"Replaying {symbol_upper} to {self.fpga_ip}:{self.fpga_port}")
         print(f"Message types: {', '.join(message_types)}")
         print(f"Speed: {speed_multiplier}x" if speed_multiplier > 0 else "Speed: MAXIMUM")
         
@@ -75,16 +124,41 @@ class ITCHReplayer:
             if speed_multiplier > 0 and last_timestamp:
                 time_delta_ns = row['timestamp_ns'] - last_timestamp
                 sleep_sec = (time_delta_ns / 1e9) / speed_multiplier
+                # Cap sleep to max 0.1 second to handle large gaps in market data
+                sleep_sec = min(sleep_sec, 0.1)
                 if sleep_sec > 0:
                     time.sleep(sleep_sec)
-                    
-            # Send raw message via UDP
-            self.sock.sendto(row['raw_message'], self.fpga_addr)
-            
+
+            # Send raw message via UDP using Scapy (same as send_itch_packets.py)
+            payload = bytearray(row['raw_message'])
+
+            # Convert symbol bytes to uppercase (bytes 24-31 for most message types)
+            # Symbol is 8 bytes starting at offset 24 for Add Order, Execute, Cancel, etc.
+            msg_type = payload[0]
+            if msg_type in [ord('A'), ord('E'), ord('X'), ord('D'), ord('U'), ord('P'), ord('Q')]:
+                # Symbol at offset 24-31 (8 bytes)
+                for i in range(24, min(32, len(payload))):
+                    if ord('a') <= payload[i] <= ord('z'):
+                        payload[i] = payload[i] - 32  # Convert to uppercase
+
+            payload = bytes(payload.upper())  # Convert back to immutable bytes
+
+            # Debug: Print payload hex
+            print(f"\n[MSG {count+1}] Type: {row['message_type']}, Length: {len(payload)} bytes")
+            print(f"Payload: {payload.hex()}")
+
+            packet = (
+                Ether(dst=FPGA_MAC) /
+                IP(dst=self.fpga_ip) /
+                UDP(sport=54321, dport=self.fpga_port) /
+                Raw(load=payload.upper())
+            )
+            sendp(packet, iface=self.iface, verbose=False)
+
             count += 1
             type_counts[row['message_type']] += 1
             last_timestamp = row['timestamp_ns']
-            
+
             # Progress display (every second)
             now = time.time()
             if now - last_display >= 1.0:
@@ -219,7 +293,7 @@ class ITCHReplayer:
         
     def close(self):
         self.db.close()
-        self.sock.close()
+        # No need to close Scapy socket - it's stateless
 
 def format_timestamp(ts_ns):
     """Convert nanosecond timestamp to human-readable format"""
