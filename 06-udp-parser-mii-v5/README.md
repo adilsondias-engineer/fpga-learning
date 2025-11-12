@@ -1,9 +1,19 @@
-# MII Ethernet Receiver with IP/UDP Parsing - Phase 1F
+# Project 06: Production UDP/IP Network Stack (Phase 1F)
 
 ![Status](https://img.shields.io/badge/status-complete-success)
 ![Hardware](https://img.shields.io/badge/hardware-verified-blue)
 ![FPGA](https://img.shields.io/badge/FPGA-Artix--7-orange)
 ![Bug%2013](https://img.shields.io/badge/Bug%2313-FIXED-brightgreen)
+
+## Professional Summary
+
+**Achievement:** Hardware-accelerated Ethernet packet processor with 100% reliability under stress testing (1000+ packets). Real-time byte-by-byte architecture eliminated CDC race conditions, achieving 1% → 100% success rate through complete architectural rewrite.
+
+**Performance:** < 2 μs wire-to-parsed latency @ 100 MHz processing clock, deterministic packet processing.
+
+**Architecture:** MII physical layer → MAC frame parser → IP header validation → UDP datagram extraction, with production-grade clock domain crossing (25 MHz PHY → 100 MHz processing via gray code FIFO).
+
+---
 
 Complete Ethernet frame reception and protocol parsing system implementing MII physical interface, MAC frame filtering, IP header validation, UDP parsing with **verified Clock Domain Crossing (CDC)** and UART debug output on Xilinx Arty A7-100T development board.
 

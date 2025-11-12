@@ -146,9 +146,10 @@ begin
                             bbo_update_count <= bbo_update_count + 1;
                         end if;
 
-                        -- Trigger on BBO update edge (rising edge) OR heartbeat (for visibility)
+                        -- Trigger on BBO update edge (rising edge) only
+                        -- Heartbeat disabled to avoid false updates in C++ gateway (Project 9)
                         -- Only trigger if UART is not busy
-                        if ((bbo_update = '1' and bbo_update_prev = '0') or heartbeat_trigger = '1') and uart_tx_ready = '1' then
+                        if (bbo_update = '1' and bbo_update_prev = '0') and uart_tx_ready = '1' then
                             -- Capture CURRENT BBO data (not stale cached data)
                             -- CRITICAL: Always capture live BBO to avoid sending stale prices
                             captured_bbo <= bbo;
