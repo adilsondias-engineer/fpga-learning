@@ -169,4 +169,4 @@ Ethernet PHY (MII) → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO
 
 ---
 
-**Contact:** [GitHub Profile](https://github.com/[your-username])
+**Contact:** [GitHub Profile](https://github.com/adilsondias-engineer)
