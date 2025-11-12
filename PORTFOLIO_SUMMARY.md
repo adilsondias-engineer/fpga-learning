@@ -1,7 +1,7 @@
 # FPGA Trading Systems Portfolio - Technical Summary
 
-**Engineer:** [Your Name]
-**Repository:** [fpga-trading-systems](https://github.com/[your-username]/fpga-trading-systems)
+**Engineer:**  Adilson Dias
+**Repository:** [fpga-trading-systems](https://github.com/adilsondias-engineer/fpga-trading-systems)
 **Hardware:** Xilinx Arty A7-100T (Artix-7 FPGA)
 
 ---
@@ -238,9 +238,8 @@ fpga-trading-systems/
 
 ## Contact & Links
 
-**GitHub:** [https://github.com/[your-username]/fpga-trading-systems](https://github.com/[your-username]/fpga-trading-systems)
-**LinkedIn:** [Your LinkedIn Profile]
-**Email:** [Your Email]
+**GitHub:** [https://github.com/adilsondias-engineer/fpga-trading-systems](https://github.com/adilsondias-engineer/fpga-trading-systems)
+**LinkedIn:** [https://www.linkedin.com/in/adilsondias](https://www.linkedin.com/in/adilsondias/)
 
 **Portfolio Highlights to Review:**
 1. Main README: [README.md](README.md) - Portfolio overview
@@ -250,5 +249,5 @@ fpga-trading-systems/
 
 ---
 
-**Last Updated:** December 2024
+**Last Updated:** November 2025
 **Status:** Production-ready, hardware-verified on Xilinx Arty A7-100T
