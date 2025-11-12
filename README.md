@@ -59,6 +59,23 @@ Progressive architecture development from digital design fundamentals to product
 - **BRAM Implementation:** Production-grade Block RAM inference using Xilinx templates
 - **Debug Methodology:** Comprehensive instrumentation for systematic troubleshooting
 - **Trading Relevance:** Deterministic latency critical for high-frequency trading
+- **BBO Output:** UART interface with symbol name, bid/ask prices and shares, change detection
+
+### Application Layer (Projects 9-10)
+
+**Project 09: C++ Order Gateway** (In Development)
+- **Purpose:** Bridge FPGA BBO output to Java application layer
+- **Architecture:** UART reader, BBO parser (hex→decimal), TCP server, CSV logger
+- **Interface:** Receives ASCII BBO from FPGA UART, serves JSON via TCP (localhost:9999)
+- **Scope:** Minimal middleware gateway (~500-800 LOC) demonstrating C++ systems programming
+- **Technologies:** C++17, Boost.Asio (or POSIX sockets), nlohmann/json
+
+**Project 10: Java Market Data Platform** (Planned)
+- **Purpose:** Real-time market data visualization and analytics
+- **Architecture:** TCP client, in-memory order book, market analytics, JavaFX dashboard
+- **Features:** BBO visualization, spread analysis, depth tracking, Chronicle Queue persistence
+- **Technologies:** Java 17+, JavaFX, Chronicle Queue, JUnit 5
+- **Testing:** ITCH packet generator (replaces Python scripts)
 
 ### Foundation Projects (Projects 1-5)
 
@@ -82,9 +99,26 @@ Each project includes:
 
 **End-to-End Trading System Pipeline:**
 ```
-Ethernet PHY (MII) → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker → UART Output
-    25 MHz              100 MHz           100 MHz         100 MHz       100 MHz      115200 baud
-                    └── Gray Code CDC ──┘
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              FPGA Layer (VHDL)                                           │
+│  Ethernet PHY → UDP/IP Parser → ITCH Decoder → Order Book → BBO Tracker → UART Output  │
+│     25 MHz         100 MHz        100 MHz        100 MHz       100 MHz      115200 baud │
+│                └── Gray Code CDC ──┘                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+                                            │
+                                            │ UART (ASCII BBO)
+                                            ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                          C++ Gateway Layer (Project 9)                                   │
+│  UART Reader → BBO Parser (hex→decimal) → TCP Server (JSON) → CSV Logger                │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+                                            │
+                                            │ TCP localhost:9999 (JSON)
+                                            ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                       Java Application Layer (Project 10)                                │
+│  TCP Client → Order Book → Market Analytics → JavaFX Dashboard → Chronicle Queue        │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Performance Characteristics:**

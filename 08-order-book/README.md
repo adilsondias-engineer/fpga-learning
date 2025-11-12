@@ -570,6 +570,14 @@ Estimated for Artix-7 XC7A100T:
 - Refactored `price_level_table` to explicit BRAM control signals following Xilinx template
 - Updated `order_book_manager` to account for 2-cycle price level table latency
 
+**BBO UART Format Enhancements (November 2025):**
+- Added symbol name to BBO output: `[BBO:AAPL    ]` instead of generic `[BBO]`
+- Added bid_shares and ask_shares to output format
+- Added `[BBO:NODATA  ]` status message when order book is empty (vs repeating stale prices)
+- Fixed symbol byte order (MSB-first extraction from TARGET_SYMBOL constant)
+- Disabled heartbeat trigger to prevent false activity in C++ gateway (Project 9 integration)
+- BBO now only sent when prices, shares, or valid status actually change
+
 ---
 
 This project demonstrates production-grade FPGA design for trading systems, including BRAM architecture, FSM design, and comprehensive debugging techniques.
