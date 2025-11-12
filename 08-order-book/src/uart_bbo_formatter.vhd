@@ -22,6 +22,7 @@ entity uart_bbo_formatter is
         -- BBO input
         bbo             : in  bbo_t;
         bbo_update      : in  std_logic;  -- Trigger to display BBO
+        bbo_symbol      : in  std_logic_vector(63 downto 0);  -- Symbol name (for multi-symbol support)
         stats           : in  order_book_stats_t;
 
         -- UART TX interface
@@ -51,6 +52,7 @@ architecture Behavioral of uart_bbo_formatter is
 
     -- Captured BBO (registered on bbo_update)
     signal captured_bbo : bbo_t;
+    signal captured_bbo_symbol : std_logic_vector(63 downto 0);
     signal captured_stats : order_book_stats_t;
 
     -- Edge detection for bbo_update (prevent continuous triggering)
@@ -153,6 +155,7 @@ begin
                             -- Capture CURRENT BBO data (not stale cached data)
                             -- CRITICAL: Always capture live BBO to avoid sending stale prices
                             captured_bbo <= bbo;
+                            captured_bbo_symbol <= bbo_symbol;
                             captured_stats <= stats;
                             sending_message <= '1';
                             state <= FORMAT_MSG;
@@ -178,12 +181,12 @@ begin
                         msg_buffer(idx) <= x"3A"; idx := idx + 1;  -- ':'
 
                         if captured_bbo.valid = '1' then
-                            -- Symbol name (8 bytes from TARGET_SYMBOL)
-                            -- TARGET_SYMBOL is x"4141504C20202020" = "AAPL    "
-                            -- Bit [63:56] = 0x41 = 'A', [55:48] = 0x41 = 'A', etc.
-                            -- Extract MSB to LSB for correct "AAPL    " order
+                            -- Symbol name (8 bytes from captured_bbo_symbol)
+                            -- captured_bbo_symbol is provided by multi_symbol_order_book
+                            -- Bit [63:56] = MSB, [55:48] = next byte, etc.
+                            -- Extract MSB to LSB for correct symbol order
                             for i in 7 downto 0 loop
-                                msg_buffer(idx) <= TARGET_SYMBOL(i*8+7 downto i*8);
+                                msg_buffer(idx) <= captured_bbo_symbol(i*8+7 downto i*8);
                                 idx := idx + 1;
                             end loop;
                         else

@@ -50,6 +50,7 @@ architecture Behavioral of bbo_tracker is
     signal best_bid_shares_reg  : std_logic_vector(31 downto 0) := (others => '0');
     signal best_ask_price_reg   : std_logic_vector(31 downto 0) := (others => '1');
     signal best_ask_shares_reg  : std_logic_vector(31 downto 0) := (others => '0');
+    signal best_spread_reg      : std_logic_vector(31 downto 0) := (others => '0');
     signal bbo_valid_reg        : std_logic := '0';
 
     -- Previous BBO (for change detection)
@@ -71,28 +72,13 @@ architecture Behavioral of bbo_tracker is
 
 begin
 
-    -- Output BBO
+    -- Output BBO (all fields assigned from registers)
     bbo.bid_price   <= best_bid_price_reg;
     bbo.bid_shares  <= best_bid_shares_reg;
     bbo.ask_price   <= best_ask_price_reg;
     bbo.ask_shares  <= best_ask_shares_reg;
     bbo.valid       <= bbo_valid_reg;
-
-    -- Calculate spread (ask - bid)
-    process(best_ask_price_reg, best_bid_price_reg, bbo_valid_reg)
-        variable spread : unsigned(31 downto 0);
-    begin
-        if bbo_valid_reg = '1' then
-            if unsigned(best_ask_price_reg) > unsigned(best_bid_price_reg) then
-                spread := unsigned(best_ask_price_reg) - unsigned(best_bid_price_reg);
-            else
-                spread := (others => '0');
-            end if;
-            bbo.spread <= std_logic_vector(spread);
-        else
-            bbo.spread <= (others => '1');  -- Invalid spread
-        end if;
-    end process;
+    bbo.spread      <= best_spread_reg;
 
     ------------------------------------------------------------------------
     -- BBO Tracking FSM
@@ -106,6 +92,7 @@ begin
                 best_bid_shares_reg <= (others => '0');
                 best_ask_price_reg <= (others => '1');
                 best_ask_shares_reg <= (others => '0');
+                best_spread_reg <= (others => '0');
                 bbo_valid_reg <= '0';
                 bbo_update <= '0';
                 bbo_ready <= '1';
@@ -249,6 +236,13 @@ begin
                         -- Set BBO valid only if both bid and ask exist
                         if best_bid_found = '1' and best_ask_found = '1' then
                             bbo_valid_reg <= '1';
+
+                            -- Calculate spread: ask_price - bid_price
+                            if unsigned(best_ask_price_reg) > unsigned(best_bid_price_reg) then
+                                best_spread_reg <= std_logic_vector(unsigned(best_ask_price_reg) - unsigned(best_bid_price_reg));
+                            else
+                                best_spread_reg <= (others => '0');  -- Crossed market or equal
+                            end if;
                         else
                             -- Clear BBO when invalid (no valid bid or ask)
                             bbo_valid_reg <= '0';
@@ -258,6 +252,7 @@ begin
                             best_bid_shares_reg <= (others => '0');
                             best_ask_price_reg <= (others => '1');
                             best_ask_shares_reg <= (others => '0');
+                            best_spread_reg <= (others => '0');
                         end if;
 
                         state <= DONE;

@@ -22,6 +22,9 @@ use work.order_book_pkg.all;
 use work.itch_msg_pkg.all;
 
 entity order_book_manager is
+    Generic (
+        TARGET_SYMBOL : std_logic_vector(63 downto 0)
+    );
     Port (
         clk     : in  std_logic;
         rst     : in  std_logic;

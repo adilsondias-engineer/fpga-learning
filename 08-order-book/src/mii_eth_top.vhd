@@ -248,6 +248,11 @@ architecture structural of mii_eth_top is
     -- Frame tracking signal
     signal in_frame : std_logic := '0';
 
+    -- Multi-symbol order book signals
+    signal bbo_symbol : std_logic_vector(63 downto 0);  
+    signal bbo_update : std_logic;
+    signal bbo_data : bbo_t;
+
     -- UDP port filtering signals
     signal port_match : std_logic := '0';  -- Latched flag: does packet match ITCH port?
     signal payload_valid_filtered : std_logic;
@@ -312,9 +317,10 @@ architecture structural of mii_eth_top is
     -- Dummy signal for legacy stats counter (v5: parse_errors removed)
     signal itch_parse_errors        : std_logic_vector(15 downto 0) := (others => '0');
 
-    -- Order Book signals (Project 8)
+    -- Order Book signals (Project 8 - Multi-symbol)
     signal ob_bbo               : bbo_t;
     signal ob_bbo_update        : std_logic;
+    signal ob_bbo_symbol        : std_logic_vector(63 downto 0);  -- Symbol name from multi-symbol wrapper
     signal ob_stats             : order_book_stats_t;
     signal ob_ready             : std_logic;
 
@@ -339,6 +345,7 @@ architecture structural of mii_eth_top is
     signal ob_bbo_valid_sync1  : std_logic := '0';
     signal ob_bbo_valid_sync2  : std_logic := '0';
     signal ob_bbo_sync         : bbo_t;
+    signal ob_bbo_symbol_sync  : std_logic_vector(63 downto 0);  -- Symbol CDC
     signal ob_stats_sync       : order_book_stats_t;
 
     -- ITCH stats counter signals
@@ -1068,31 +1075,58 @@ begin
             symbol_match => itch_symbol_match
         );
 
-    -- Instantiate Order Book Manager (25 MHz domain - Project 8)
-    order_book_manager_inst: entity work.order_book_manager
+    -- DISABLED: Single-symbol order book manager (replaced by multi-symbol version)
+    -- order_book_manager_inst: entity work.order_book_manager
+    --     port map (
+    --         clk => eth_rx_clk,
+    --         rst => mdio_rst_rxclk,
+    --         -- ITCH parser interface
+    --         itch_valid          => itch_msg_valid,
+    --         itch_msg_type       => itch_msg_type,
+    --         itch_order_ref      => itch_order_ref,
+    --         itch_symbol         => itch_stock_symbol,
+    --         itch_side           => itch_side,
+    --         itch_price          => itch_price,
+    --         itch_shares         => itch_shares,
+    --         itch_exec_shares    => itch_exec_shares,
+    --         itch_cancel_shares  => itch_cancel_shares,
+    --         itch_new_order_ref  => itch_new_order_ref,
+    --         itch_new_price      => itch_new_price,
+    --         itch_new_shares     => itch_new_shares,
+    --         -- BBO output
+    --         bbo                 => ob_bbo,
+    --         bbo_update          => ob_bbo_update,
+    --         -- Statistics
+    --         stats               => ob_stats,
+    --         -- Ready signal
+    --         ready               => ob_ready
+    --     );
+
+    -- Multi-symbol order book (8 symbols: AAPL, TSLA, SPY, QQQ, GOOGL, MSFT, AMZN, NVDA)
+    -- Runs in 25 MHz domain (same as ITCH parser)
+    multi_symbol_order_book_inst: entity work.multi_symbol_order_book
         port map (
             clk => eth_rx_clk,
-            rst => mdio_rst_rxclk,
-            -- ITCH parser interface
-            itch_valid          => itch_msg_valid,
-            itch_msg_type       => itch_msg_type,
-            itch_order_ref      => itch_order_ref,
-            itch_symbol         => itch_stock_symbol,
-            itch_side           => itch_side,  -- Converted: ITCH parser uses '1'=Buy, order_book uses 0=Buy
-            itch_price          => itch_price,
-            itch_shares         => itch_shares,
-            itch_exec_shares    => itch_exec_shares,
-            itch_cancel_shares  => itch_cancel_shares,
-            itch_new_order_ref  => itch_new_order_ref,
-            itch_new_price      => itch_new_price,
-            itch_new_shares     => itch_new_shares,
-            -- BBO output
-            bbo                 => ob_bbo,
-            bbo_update          => ob_bbo_update,
-            -- Statistics
-            stats               => ob_stats,
-            -- Ready signal
-            ready               => ob_ready
+            reset => mdio_rst_rxclk,
+
+            -- ITCH message inputs (direct from parser - no CDC needed, same clock domain)
+            msg_valid     => itch_msg_valid,
+            msg_type      => itch_msg_type,
+            stock_symbol  => itch_stock_symbol,
+            order_ref     => itch_order_ref,
+            buy_sell      => itch_side,
+            shares        => itch_shares,
+            price         => itch_price,
+
+            -- BBO outputs (with symbol name)
+            bbo_update    => ob_bbo_update,
+            bbo_symbol    => ob_bbo_symbol,
+            bbo_valid     => ob_bbo.valid,
+            bid_price     => ob_bbo.bid_price,
+            bid_shares    => ob_bbo.bid_shares,
+            ask_price     => ob_bbo.ask_price,
+            ask_shares    => ob_bbo.ask_shares,
+            spread        => ob_bbo.spread
         );
 
     -- CDC: Synchronize BBO signals from 25 MHz to 100 MHz domain
@@ -1145,19 +1179,22 @@ begin
                 ob_bbo_sync.spread <= ob_bbo.spread;
                 -- Use synchronized valid bit (proper CDC for single bit)
                 ob_bbo_sync.valid <= ob_bbo_valid_sync2;
+                -- Symbol is stable during bbo_update pulse, safe to sample
+                ob_bbo_symbol_sync <= ob_bbo_symbol;
                 ob_stats_sync <= ob_stats;
             end if;
         end if;
     end process;
 
-    -- Instantiate BBO UART Formatter (100 MHz domain - Project 8)
+    -- Instantiate BBO UART Formatter (100 MHz domain - Project 8, Multi-symbol)
     uart_bbo_formatter_inst: entity work.uart_bbo_formatter
         port map (
             clk => clk,
             rst => reset,
-            -- BBO input (synchronized)
+            -- BBO input (synchronized from 25 MHz domain)
             bbo             => ob_bbo_sync,
             bbo_update      => ob_bbo_update_sync2,
+            bbo_symbol      => ob_bbo_symbol_sync,  -- Synchronized symbol name
             stats           => ob_stats_sync,
             -- UART TX interface
             uart_tx_data    => bbo_uart_tx_data,
