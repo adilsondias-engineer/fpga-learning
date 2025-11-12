@@ -54,7 +54,10 @@ architecture Behavioral of bbo_tracker is
 
     -- Previous BBO (for change detection)
     signal prev_bid_price       : std_logic_vector(31 downto 0) := (others => '0');
+    signal prev_bid_shares      : std_logic_vector(31 downto 0) := (others => '0');
     signal prev_ask_price       : std_logic_vector(31 downto 0) := (others => '1');
+    signal prev_ask_shares      : std_logic_vector(31 downto 0) := (others => '0');
+    signal prev_bbo_valid       : std_logic := '0';
 
     -- Scan state
     signal scan_counter         : integer range 0 to BBO_SCAN_DEPTH := 0;
@@ -127,7 +130,10 @@ begin
                             best_bid_found <= '0';
                             best_ask_found <= '0';
                             prev_bid_price <= best_bid_price_reg;
+                            prev_bid_shares <= best_bid_shares_reg;
                             prev_ask_price <= best_ask_price_reg;
+                            prev_ask_shares <= best_ask_shares_reg;
+                            prev_bbo_valid <= bbo_valid_reg;
                             bbo_ready <= '0';
                         end if;
 
@@ -240,21 +246,31 @@ begin
                         state <= SCAN_ASKS;
 
                     when COMPUTE_SPREAD =>
-                        -- TEMPORARY DEBUG: Always set BBO as valid to test
-                        --if best_bid_found = '1' and best_ask_found = '1' then
-                        --    bbo_valid_reg <= '1';
-                        --else
-                        --    bbo_valid_reg <= '0';
-                        --end if;
-                        bbo_valid_reg <= '1';  -- Force valid to see if prices are captured
+                        -- Set BBO valid only if both bid and ask exist
+                        if best_bid_found = '1' and best_ask_found = '1' then
+                            bbo_valid_reg <= '1';
+                        else
+                            -- Clear BBO when invalid (no valid bid or ask)
+                            bbo_valid_reg <= '0';
+                            -- Clear ALL price registers when BBO becomes invalid
+                            -- This ensures stale data doesn't persist when BBO is invalid
+                            best_bid_price_reg <= (others => '0');
+                            best_bid_shares_reg <= (others => '0');
+                            best_ask_price_reg <= (others => '1');
+                            best_ask_shares_reg <= (others => '0');
+                        end if;
 
                         state <= DONE;
 
                     when DONE =>
-                        -- TEMPORARY DEBUG: Always pulse bbo_update to test if DONE state is reached
-                        --if (best_bid_price_reg /= prev_bid_price) or (best_ask_price_reg /= prev_ask_price) then
+                        -- Pulse bbo_update if BBO changed (price, shares, or valid status)
+                        if (best_bid_price_reg /= prev_bid_price) or
+                           (best_bid_shares_reg /= prev_bid_shares) or
+                           (best_ask_price_reg /= prev_ask_price) or
+                           (best_ask_shares_reg /= prev_ask_shares) or
+                           (bbo_valid_reg /= prev_bbo_valid) then
                             bbo_update <= '1';  -- BBO changed!
-                        --end if;
+                        end if;
 
                         state <= IDLE;
                         bbo_ready <= '1';

@@ -269,9 +269,8 @@ begin
                             price_cmd_side <= '0';
                         end if;
                         
-                        -- TEMPORARY DEBUG: Remove symbol check to test if order book works
-                        -- if itch_valid = '1' and itch_symbol = TARGET_SYMBOL then
-                        if itch_valid = '1' then  -- Accept ALL symbols for debugging
+                        -- Only accept orders for TARGET_SYMBOL (AAPL in Phase 1)
+                        if itch_valid = '1' and itch_symbol = TARGET_SYMBOL then
                             -- Capture message fields
                             msg_order_ref <= itch_order_ref;
                             msg_price <= itch_price;

@@ -3,8 +3,10 @@
 -- Description: Simple UART formatter for BBO (Best Bid/Offer) display
 --              Displays BBO updates in human-readable format
 --
--- Output Format:
---   [BBO] Bid: $150.25 (100) | Ask: $150.75 (200) | Spread: $0.50
+-- Output Format (enhanced for Project 9 integration):
+--   Valid BBO:   [BBO:AAPL    ] Bid:0x12345678 (0x00000064) | Ask:0x12345678 (0x000000C8) | Spr:0x00000050
+--   No BBO data: [BBO:NODATA  ]
+--   Where: Symbol (8 chars), Bid price, (Bid shares), Ask price, (Ask shares), Spread
 --------------------------------------------------------------------------------
 
 library IEEE;
@@ -147,7 +149,8 @@ begin
                         -- Trigger on BBO update edge (rising edge) OR heartbeat (for visibility)
                         -- Only trigger if UART is not busy
                         if ((bbo_update = '1' and bbo_update_prev = '0') or heartbeat_trigger = '1') and uart_tx_ready = '1' then
-                            -- Capture BBO data
+                            -- Capture CURRENT BBO data (not stale cached data)
+                            -- CRITICAL: Always capture live BBO to avoid sending stale prices
                             captured_bbo <= bbo;
                             captured_stats <= stats;
                             sending_message <= '1';
@@ -165,14 +168,35 @@ begin
 
                         -- Build message (all assignments happen in this cycle)
                         idx := 0;
-                        
-                        -- "[BBO] "
+
+                        -- "[BBO:SYMBOL] " - Symbol or NODATA status
                         msg_buffer(idx) <= x"5B"; idx := idx + 1;  -- '['
                         msg_buffer(idx) <= x"42"; idx := idx + 1;  -- 'B'
                         msg_buffer(idx) <= x"42"; idx := idx + 1;  -- 'B'
                         msg_buffer(idx) <= x"4F"; idx := idx + 1;  -- 'O'
+                        msg_buffer(idx) <= x"3A"; idx := idx + 1;  -- ':'
+
+                        if captured_bbo.valid = '1' then
+                            -- Symbol name (8 bytes from TARGET_SYMBOL)
+                            -- TARGET_SYMBOL is x"4141504C20202020" = "AAPL    "
+                            -- Bit [63:56] = 0x41 = 'A', [55:48] = 0x41 = 'A', etc.
+                            -- Extract MSB to LSB for correct "AAPL    " order
+                            for i in 7 downto 0 loop
+                                msg_buffer(idx) <= TARGET_SYMBOL(i*8+7 downto i*8);
+                                idx := idx + 1;
+                            end loop;
+                        else
+                            -- No valid BBO - output "NODATA  " (8 chars, space-padded)
+                            msg_buffer(idx) <= x"4E"; idx := idx + 1;  -- 'N'
+                            msg_buffer(idx) <= x"4F"; idx := idx + 1;  -- 'O'
+                            msg_buffer(idx) <= x"44"; idx := idx + 1;  -- 'D'
+                            msg_buffer(idx) <= x"41"; idx := idx + 1;  -- 'A'
+                            msg_buffer(idx) <= x"54"; idx := idx + 1;  -- 'T'
+                            msg_buffer(idx) <= x"41"; idx := idx + 1;  -- 'A'
+                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' ' (padding)
+                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' ' (padding)
+                        end if;
                         msg_buffer(idx) <= x"5D"; idx := idx + 1;  -- ']'
-                        msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
 
                         if captured_bbo.valid = '1' then
                             -- "Bid:0x"
@@ -189,6 +213,19 @@ begin
                                 idx := idx + 1;
                             end loop;
 
+                            -- " (0x" - Bid shares
+                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
+                            msg_buffer(idx) <= x"28"; idx := idx + 1;  -- '('
+                            msg_buffer(idx) <= x"30"; idx := idx + 1;  -- '0'
+                            msg_buffer(idx) <= x"78"; idx := idx + 1;  -- 'x'
+
+                            -- Bid shares (8 hex digits)
+                            for i in 7 downto 0 loop
+                                msg_buffer(idx) <= nibble_to_hex(captured_bbo.bid_shares(i*4+3 downto i*4));
+                                idx := idx + 1;
+                            end loop;
+
+                            msg_buffer(idx) <= x"29"; idx := idx + 1;  -- ')'
                             msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
                             msg_buffer(idx) <= x"7C"; idx := idx + 1;  -- '|'
                             msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
@@ -207,6 +244,19 @@ begin
                                 idx := idx + 1;
                             end loop;
 
+                            -- " (0x" - Ask shares
+                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
+                            msg_buffer(idx) <= x"28"; idx := idx + 1;  -- '('
+                            msg_buffer(idx) <= x"30"; idx := idx + 1;  -- '0'
+                            msg_buffer(idx) <= x"78"; idx := idx + 1;  -- 'x'
+
+                            -- Ask shares (8 hex digits)
+                            for i in 7 downto 0 loop
+                                msg_buffer(idx) <= nibble_to_hex(captured_bbo.ask_shares(i*4+3 downto i*4));
+                                idx := idx + 1;
+                            end loop;
+
+                            msg_buffer(idx) <= x"29"; idx := idx + 1;  -- ')'
                             msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
                             msg_buffer(idx) <= x"7C"; idx := idx + 1;  -- '|'
                             msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
@@ -225,103 +275,6 @@ begin
                                 idx := idx + 1;
                             end loop;
 
-                        else
-                            -- "NO DATA" - show debug information
-                            msg_buffer(idx) <= x"4E"; idx := idx + 1;  -- 'N'
-                            msg_buffer(idx) <= x"4F"; idx := idx + 1;  -- 'O'
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            msg_buffer(idx) <= x"44"; idx := idx + 1;  -- 'D'
-                            msg_buffer(idx) <= x"41"; idx := idx + 1;  -- 'A'
-                            msg_buffer(idx) <= x"54"; idx := idx + 1;  -- 'T'
-                            msg_buffer(idx) <= x"41"; idx := idx + 1;  -- 'A'
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            msg_buffer(idx) <= x"28"; idx := idx + 1;  -- '('
-                            msg_buffer(idx) <= x"76"; idx := idx + 1;  -- 'v'
-                            msg_buffer(idx) <= x"3D"; idx := idx + 1;  -- '='
-                            -- Show valid bit as hex
-                            msg_buffer(idx) <= nibble_to_hex("000" & captured_bbo.valid);
-                            idx := idx + 1;
-                            msg_buffer(idx) <= x"2C"; idx := idx + 1;  -- ','
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            
-                            -- Show add_count (lifetime adds)
-                            msg_buffer(idx) <= x"41"; idx := idx + 1;  -- 'A'
-                            msg_buffer(idx) <= x"64"; idx := idx + 1;  -- 'd'
-                            msg_buffer(idx) <= x"64"; idx := idx + 1;  -- 'd'
-                            msg_buffer(idx) <= x"3D"; idx := idx + 1;  -- '='
-                            -- Show add_count as hex (8 digits)
-                            for i in 7 downto 0 loop
-                                msg_buffer(idx) <= nibble_to_hex(add_count_slv(i*4+3 downto i*4));
-                                idx := idx + 1;
-                            end loop;
-                            msg_buffer(idx) <= x"2C"; idx := idx + 1;  -- ','
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            
-                            -- Show bid_level_count
-                            msg_buffer(idx) <= x"42"; idx := idx + 1;  -- 'B'
-                            msg_buffer(idx) <= x"4C"; idx := idx + 1;  -- 'L'
-                            msg_buffer(idx) <= x"76"; idx := idx + 1;  -- 'v'
-                            msg_buffer(idx) <= x"3D"; idx := idx + 1;  -- '='
-                            -- Show bid_level_count as hex (2 digits)
-                            msg_buffer(idx) <= nibble_to_hex("0000" & bid_level_slv(7 downto 4));
-                            idx := idx + 1;
-                            msg_buffer(idx) <= nibble_to_hex("0000" & bid_level_slv(3 downto 0));
-                            idx := idx + 1;
-                            msg_buffer(idx) <= x"2C"; idx := idx + 1;  -- ','
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            
-                            -- Show ask_level_count
-                            msg_buffer(idx) <= x"41"; idx := idx + 1;  -- 'A'
-                            msg_buffer(idx) <= x"4C"; idx := idx + 1;  -- 'L'
-                            msg_buffer(idx) <= x"76"; idx := idx + 1;  -- 'v'
-                            msg_buffer(idx) <= x"3D"; idx := idx + 1;  -- '='
-                            -- Show ask_level_count as hex (2 digits)
-                            msg_buffer(idx) <= nibble_to_hex("0000" & ask_level_slv(7 downto 4));
-                            idx := idx + 1;
-                            msg_buffer(idx) <= nibble_to_hex("0000" & ask_level_slv(3 downto 0));
-                            idx := idx + 1;
-                            msg_buffer(idx) <= x"2C"; idx := idx + 1;  -- ','
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            
-                            -- Show bbo_update_count (how many times BBO update has pulsed)
-                            msg_buffer(idx) <= x"55"; idx := idx + 1;  -- 'U'
-                            msg_buffer(idx) <= x"70"; idx := idx + 1;  -- 'p'
-                            msg_buffer(idx) <= x"64"; idx := idx + 1;  -- 'd'
-                            msg_buffer(idx) <= x"3D"; idx := idx + 1;  -- '='
-                            -- Show bbo_update_count as hex (4 digits)
-                            for i in 3 downto 0 loop
-                                msg_buffer(idx) <= nibble_to_hex(update_count_slv(i*4+3 downto i*4));
-                                idx := idx + 1;
-                            end loop;
-                            msg_buffer(idx) <= x"2C"; idx := idx + 1;  -- ','
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            
-                            -- Show bid_order_count (active buy orders)
-                            msg_buffer(idx) <= x"42"; idx := idx + 1;  -- 'B'
-                            msg_buffer(idx) <= x"4F"; idx := idx + 1;  -- 'O'
-                            msg_buffer(idx) <= x"72"; idx := idx + 1;  -- 'r'
-                            msg_buffer(idx) <= x"64"; idx := idx + 1;  -- 'd'
-                            msg_buffer(idx) <= x"3D"; idx := idx + 1;  -- '='
-                            -- Show bid_order_count as hex (4 digits)
-                            for i in 3 downto 0 loop
-                                msg_buffer(idx) <= nibble_to_hex(bid_order_slv(i*4+3 downto i*4));
-                                idx := idx + 1;
-                            end loop;
-                            msg_buffer(idx) <= x"2C"; idx := idx + 1;  -- ','
-                            msg_buffer(idx) <= x"20"; idx := idx + 1;  -- ' '
-                            
-                            -- Show ask_order_count (active sell orders)
-                            msg_buffer(idx) <= x"41"; idx := idx + 1;  -- 'A'
-                            msg_buffer(idx) <= x"4F"; idx := idx + 1;  -- 'O'
-                            msg_buffer(idx) <= x"72"; idx := idx + 1;  -- 'r'
-                            msg_buffer(idx) <= x"64"; idx := idx + 1;  -- 'd'
-                            msg_buffer(idx) <= x"3D"; idx := idx + 1;  -- '='
-                            -- Show ask_order_count as hex (4 digits)
-                            for i in 3 downto 0 loop
-                                msg_buffer(idx) <= nibble_to_hex(ask_order_slv(i*4+3 downto i*4));
-                                idx := idx + 1;
-                            end loop;
-                            msg_buffer(idx) <= x"29"; idx := idx + 1;  -- ')'
                         end if;
 
                         -- "\r\n"
