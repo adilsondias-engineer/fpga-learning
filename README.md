@@ -52,14 +52,18 @@ Progressive architecture development from digital design fundamentals to product
 - **Performance:** Deterministic message parsing, symbol filtering reduces downstream load
 - **Integration:** Feeds parsed ITCH messages to Project 8 order book
 
-**Project 08: Hardware Order Book**
-- **Achievement:** Sub-microsecond order book with real-time BBO tracking
-- **Architecture:** BRAM-based order storage (1024 orders), price level table (256 levels), FSM-based BBO scanner
-- **Latency:** Order processing 120-170 ns, BBO update 2.6 μs
+**Project 08: Multi-Symbol Hardware Order Book** ✅
+- **Achievement:** Sub-microsecond order book tracking 8 symbols simultaneously
+- **Architecture:** 8 parallel BRAM-based order books with round-robin BBO arbiter
+- **Symbols:** AAPL, TSLA, SPY, QQQ, GOOGL, MSFT, AMZN, NVDA
+- **Capacity:** 1,024 orders × 256 price levels per symbol
+- **Latency:** Order processing 120-170 ns, BBO update 2.6 μs per symbol
+- **Resources:** 32 RAMB36 tiles (24% utilization), excellent scalability headroom
+- **Spread Calculation:** Real-time ask - bid calculation for risk management
 - **BRAM Implementation:** Production-grade Block RAM inference using Xilinx templates
 - **Debug Methodology:** Comprehensive instrumentation for systematic troubleshooting
-- **Trading Relevance:** Deterministic latency critical for high-frequency trading
-- **BBO Output:** UART interface with symbol name, bid/ask prices and shares, change detection
+- **Trading Relevance:** Multi-symbol tracking essential for real-world exchange systems
+- **BBO Output:** UART interface with symbol name, bid/ask prices/shares, spread, change detection
 
 ### Application Layer (Projects 9-10)
 
