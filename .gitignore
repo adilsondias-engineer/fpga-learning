@@ -32,6 +32,3 @@ Thumbs.db
 *.bak
 *.old
 dfx_runtime.txt
-nul
-context.txt
-cmd.txt
