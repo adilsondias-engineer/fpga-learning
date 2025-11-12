@@ -35,6 +35,3 @@ dfx_runtime.txt
 nul
 context.txt
 cmd.txt
-*QUICK_START.md
-*PERSONAL_README.md
-.claude/settings.local.json
