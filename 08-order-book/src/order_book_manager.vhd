@@ -262,18 +262,9 @@ begin
 
                 case state is
                     when IDLE =>
-                        -- Allow BBO tracker to read from price level table when idle
-                        if bbo_level_req = '1' then
-                            price_cmd_valid <= '1';
-                            price_cmd_type <= "10";  -- CMD_LOOKUP
-                            price_cmd_addr <= bbo_level_addr;
-                            price_cmd_price <= (others => '0');
-                            price_cmd_shares <= (others => '0');
-                            price_cmd_side <= '0';
-                        end if;
-                        
-                        -- Only accept orders for TARGET_SYMBOL (AAPL in Phase 1)
-                        if itch_valid = '1' and itch_symbol = TARGET_SYMBOL then
+                        -- Wrapper already demuxes by symbol, so itch_valid guarantees correct routing
+                        -- IMPORTANT: Check itch_valid FIRST (priority over BBO scanning)
+                        if itch_valid = '1' then
                             -- Capture message fields
                             msg_order_ref <= itch_order_ref;
                             msg_price <= itch_price;
@@ -313,6 +304,15 @@ begin
                                     -- Ignore other message types (S, R, P, Q)
                                     null;
                             end case;
+
+                        -- Allow BBO tracker to read from price level table when idle (if no ITCH message)
+                        elsif bbo_level_req = '1' then
+                            price_cmd_valid <= '1';
+                            price_cmd_type <= "10";  -- CMD_LOOKUP
+                            price_cmd_addr <= bbo_level_addr;
+                            price_cmd_price <= (others => '0');
+                            price_cmd_shares <= (others => '0');
+                            price_cmd_side <= '0';
                         end if;
 
                     when LOOKUP_ORDER =>
