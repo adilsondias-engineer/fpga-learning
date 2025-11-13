@@ -154,6 +154,7 @@ begin
                     prev_bbo(i).bid_shares <= (others => '0');
                     prev_bbo(i).ask_price <= (others => '1');
                     prev_bbo(i).ask_shares <= (others => '0');
+                    prev_bbo(i).spread <= (others => '1');  -- Initialize spread to max (no spread)
                 end loop;
 
             else
@@ -180,7 +181,8 @@ begin
                    (bbo_data_vec(current_symbol).bid_price /= prev_bbo(current_symbol).bid_price) or
                    (bbo_data_vec(current_symbol).bid_shares /= prev_bbo(current_symbol).bid_shares) or
                    (bbo_data_vec(current_symbol).ask_price /= prev_bbo(current_symbol).ask_price) or
-                   (bbo_data_vec(current_symbol).ask_shares /= prev_bbo(current_symbol).ask_shares) then
+                   (bbo_data_vec(current_symbol).ask_shares /= prev_bbo(current_symbol).ask_shares) or
+                   (bbo_data_vec(current_symbol).spread /= prev_bbo(current_symbol).spread) then
 
                     -- BBO changed! Output update
                     bbo_update <= '1';

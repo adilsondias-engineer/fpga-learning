@@ -577,11 +577,12 @@ Actual for Artix-7 XC7A100T (Multi-Symbol Implementation):
 - Order book snapshots
 - Real-time updates via Ethernet
 
-**Phase 5: C++ Order Gateway (Project 9)**
-- UART BBO parser (C++)
-- Risk checking (spread-based validation)
-- Order generation (FIX/ITCH output)
-- Integration with FPGA order book
+**✅ Phase 5: C++ Order Gateway (Project 9)** - COMPLETE (See `09-order-gateway-cpp/`)
+- ✅ UART BBO parser (C++)
+- ✅ Multi-protocol output: TCP JSON, MQTT, Kafka
+- ✅ Real-time market data distribution
+- ✅ Integration with FPGA order book
+- ✅ Live chart display in Java desktop application
 
 ---
 
@@ -604,12 +605,23 @@ Actual for Artix-7 XC7A100T (Multi-Symbol Implementation):
 - ✅ Per-symbol BBO tracking maintains independent state for each symbol
 - ✅ Resource usage: 32 RAMB36 tiles (23.7% utilization) - well within capacity
 
-**Spread Calculation Fix (November 2025):**
+**Spread Calculation & BBO Persistence Fix (November 2025):**
 - ✅ Fixed `bbo_tracker.vhd` spread calculation by moving to clocked FSM (was combinational process)
 - ✅ Added `best_spread_reg` register and calculate in COMPUTE_SPREAD state
 - ✅ Fixed `multi_symbol_order_book.vhd` missing spread output port
 - ✅ Connected spread through complete data path: bbo_tracker → order_book_manager → multi_symbol_order_book → mii_eth_top → UART
+- ✅ **CRITICAL FIX**: Removed data-clearing logic in `bbo_tracker.vhd` that was wiping BBO registers when one side was empty
+  - **Root Cause**: COMPUTE_SPREAD state cleared all price registers when `best_bid_found='0' OR best_ask_found='0'`
+  - **Impact**: Orders were being added correctly but BBO scan would clear bid data when no asks existed (and vice versa)
+  - **Solution**: Removed clearing logic from SCAN_BIDS/SCAN_ASKS completion (lines 139-143, 187-191)
+  - **Result**: Price registers now persist between scans, only updated when valid data is found
+- ✅ **CRITICAL FIX**: Changed COMPUTE_SPREAD validation from scan flags to register contents
+  - **Root Cause**: `best_bid_found` and `best_ask_found` flags only tracked current scan, not accumulated data
+  - **Impact**: Spread was always 0 because flags were cleared at start of each scan, even if registers had valid data
+  - **Solution**: Check actual register values (`best_bid_price_reg /= 0x00000000` and `best_ask_price_reg /= 0xFFFFFFFF`) instead of scan flags
+  - **Result**: Spread now correctly calculates `ask_price - bid_price` when both sides exist in register
 - ✅ Spread now correctly calculates ask_price - bid_price for all symbols
+- ✅ BBO maintains both bid and ask sides simultaneously (no longer clears one when updating the other)
 
 **BRAM Inference Fixes (November 2025):**
 - Fixed `order_storage.vhd` LUTRAM inference by separating read and write processes (Simple Dual-Port pattern)
