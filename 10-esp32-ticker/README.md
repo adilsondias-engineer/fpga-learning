@@ -19,7 +19,7 @@ FPGA Order Book → C++ Gateway → MQTT Broker → ESP32 Display
 
 **Why MQTT for IoT?**
 
-✅ **Perfect Protocol for ESP32:**
+**MQTT Advantages for ESP32:**
 - Lightweight (minimal RAM/flash usage)
 - Low power consumption (critical for battery operation)
 - Handles unreliable WiFi gracefully
@@ -38,7 +38,7 @@ FPGA Order Book → C++ Gateway → MQTT Broker → ESP32 Display
 
 This project uses **Arduino IDE** instead of VSCode with Espressif IDF (C/C++) for the following reasons:
 
-✅ **Arduino IDE - Perfect for This Simple Project:**
+**Arduino IDE - Appropriate for This Simple Project:**
 - **Simplicity:** Simple ticker display doesn't require ESP-IDF advanced features
 - **Library Ecosystem:** TFT_eSPI, PubSubClient, ArduinoJson work out-of-the-box
 - **Quick Setup:** Install IDE + boards + libraries in < 10 minutes
@@ -59,7 +59,7 @@ This project uses **Arduino IDE** instead of VSCode with Espressif IDF (C/C++) f
 - Bluetooth Low Energy (BLE) integration
 - Custom hardware drivers (not available in Arduino)
 
-For this demonstration project, Arduino IDE provides the perfect balance of simplicity and functionality.
+For this demonstration project, Arduino IDE provides an appropriate balance of simplicity and functionality.
 
 ---
 

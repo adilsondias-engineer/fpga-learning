@@ -343,14 +343,14 @@ TCP Gateway (9999)
 The C++ Gateway (Project 9) distributes BBO data via **three protocols simultaneously**:
 
 ```
-FPGA Order Book → C++ Gateway ─┬→ TCP (localhost:9999) → Java Desktop ✅ (This App!)
+FPGA Order Book → C++ Gateway ─┬→ TCP (localhost:9999) → Java Desktop (This App)
                                ├→ MQTT (192.168.0.2:1883) → ESP32 IoT + Mobile App
                                └→ Kafka (192.168.0.203:9092) → (Future Analytics)
 ```
 
 **Why TCP for Desktop?**
 
-✅ **Perfect for High-Performance Desktop Applications:**
+**TCP Advantages for Desktop Applications:**
 - Low latency (< 10ms localhost)
 - Simple request/response model
 - Direct connection (no broker overhead)
