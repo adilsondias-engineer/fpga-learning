@@ -726,25 +726,34 @@ fpga/
 **Payload Format (JSON):**
 ```json
 {
+  "type": "bbo",
   "symbol": "AAPL",
-  "bid": 290.1708,
-  "ask": 290.2208,
-  "spread": 0.05,
-  "ts": 1699824000123
+  "timestamp": 1699824000123456789,
+  "bid": {
+    "price": 290.1708,
+    "shares": 30
+  },
+  "ask": {
+    "price": 290.2208,
+    "shares": 30
+  },
+  "spread": {
+    "price": 0.05,
+    "percent": 0.017
+  }
 }
 ```
 
 **Subscribe Example (ESP32):**
 ```cpp
-mqtt.subscribe("fpga/bbo/AAPL");
-mqtt.subscribe("fpga/spread/high");
+mqtt.subscribe("bbo_messages");
 ```
 
 ---
 
 ### Kafka Protocol
 
-**Topic:** `fpga-bbo-updates`
+**Topic:** `bbo_messages`
 **Partitions:** 8 (one per symbol, keyed by symbol)
 **Replication:** 3 (for production)
 **Retention:** 7 days
@@ -757,15 +766,21 @@ mqtt.subscribe("fpga/spread/high");
 **Value Schema:**
 ```json
 {
+  "type": "bbo",
   "symbol": "AAPL",
-  "bid_price": 290.1708,
-  "bid_shares": 30,
-  "ask_price": 290.2208,
-  "ask_shares": 30,
-  "spread_price": 0.05,
-  "spread_percent": 0.017,
-  "timestamp_ns": 1699824000123456789,
-  "source": "fpga-order-book"
+  "timestamp": 1699824000123456789,
+  "bid": {
+    "price": 290.1708,
+    "shares": 30
+  },
+  "ask": {
+    "price": 290.2208,
+    "shares": 30
+  },
+  "spread": {
+    "price": 0.05,
+    "percent": 0.017
+  }
 }
 ```
 
@@ -948,7 +963,7 @@ With 8 symbols: 96 / 8 = 12 BBO/sec per symbol
 
 ---
 
-### Phase 2: Scalability (Q2 2026)
+### Phase 2: Scalability
 
 **Increase Symbol Count:**
 - Current: 8 symbols
@@ -966,7 +981,7 @@ With 8 symbols: 96 / 8 = 12 BBO/sec per symbol
 
 ---
 
-### Phase 3: Advanced Features (Q3 2026)
+### Phase 3: Advanced Features
 
 **Order Matching Engine:**
 - Price-time priority matching
@@ -986,7 +1001,7 @@ With 8 symbols: 96 / 8 = 12 BBO/sec per symbol
 
 ---
 
-### Phase 4: Cloud Integration (Q4 2026)
+### Phase 4: Cloud Integration
 
 **AWS/GCP Deployment:**
 - FPGA on AWS F1 instances
