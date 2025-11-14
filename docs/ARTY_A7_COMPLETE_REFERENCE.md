@@ -212,7 +212,7 @@ end process;
 
 ## Ethernet PHY
 
-**See separate document:** [ARTY_A7_ETHERNET_SPECS.md](computer:///mnt/user-data/outputs/ARTY_A7_ETHERNET_SPECS.md)
+**See separate document:** [ARTY_A7_ETHERNET_SPECS.md](ARTY_A7_ETHERNET_SPECS.md)
 
 **Quick Summary:**
 

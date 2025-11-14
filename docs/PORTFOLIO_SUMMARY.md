@@ -65,7 +65,7 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 - Symbol filtering and price level aggregation tested
 - All performance metrics based on real trading day workload
 
-**Detailed Information:** See [docs/database.md](docs/database.md) for extraction process, message distribution, historical context, and data quality validation.
+**Detailed Information:** See [database.md](database.md) for extraction process, message distribution, historical context, and data quality validation.
 
 ### 4. Production Techniques Demonstrated
 
@@ -191,7 +191,7 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 
 ## Complete System Architecture
 
-![System Architecture](docs/system_architecture.png)
+![System Architecture](images/system_architecture.png)
 
 **Protocol Selection Strategy:**
 
@@ -356,8 +356,8 @@ fpga-trading-systems/
 
 **Architecture & Lessons:**
 8. System Architecture: [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md) - Complete system design
-9. Lessons Learned: [docs/lessons-learned.md](docs/lessons-learned.md) - Technical insights from all 12 projects
-10. Visual Diagram: [docs/system_architecture.png](docs/system_architecture.png) - End-to-end architecture
+9. Lessons Learned: [lessons-learned.md](lessons-learned.md) - Technical insights from all 12 projects
+10. Visual Diagram: [images/system_architecture.png](images/system_architecture.png) - End-to-end architecture
 
 ---
 
