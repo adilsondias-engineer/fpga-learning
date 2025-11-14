@@ -4,8 +4,8 @@ Universal TCL scripts for building and programming any FPGA project in this repo
 
 ## Scripts
 
-- **[..\scripts\build.tcl](..\scripts\build.tcl)** - Synthesizes, implements, and generates bitstream for any project
-- **[..\scripts\program.tcl](..\scripts\program.tcl)** - Programs FPGA with generated bitstream
+- **[../scripts/build.tcl](../scripts/build.tcl)** - Synthesizes, implements, and generates bitstream for any project
+- **[../scripts/program.tcl](../scripts/program.tcl)** - Programs FPGA with generated bitstream
 
 ## Usage
 
