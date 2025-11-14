@@ -187,6 +187,28 @@ Protocol Selection Strategy:
 - Multi-stage FSM pipelines for deterministic latency
 - Comprehensive debug instrumentation for systematic troubleshooting
 
+## Test Data
+
+The system has been tested and validated using real-world NASDAQ market data:
+
+**Source File:** `12302019.NASDAQ_ITCH50` (December 30, 2019 trading day)
+- **Total Dataset:** ~250 million ITCH 5.0 messages (8 GB binary file)
+- **Database:** 50 million records imported to MySQL (first 3 hours of trading)
+- **Test Dataset:** 80,000 messages (10,000 per symbol: AAPL, TSLA, SPY, QQQ, GOOGL, MSFT, AMZN, NVDA)
+- **Message Mix:** 98.2% Add Orders (A), 1.8% Trades (P)
+- **Test Rate:** 600+ messages/second sustained
+
+The test data includes real order flow and trades from a full trading day, providing realistic validation of:
+- Order book construction and maintenance
+- BBO calculation accuracy
+- Multi-symbol tracking (8 symbols simultaneously)
+- Symbol filtering and price level aggregation
+- Sustained message processing at 600+ msgs/sec
+
+All performance metrics and latency measurements in this documentation are based on processing this real-world dataset.
+
+**Detailed database information:** See [docs/database.md](docs/database.md) for complete extraction process, message distribution, and data quality validation.
+
 ## Technical Skills
 ### HDL Design & Architecture
 

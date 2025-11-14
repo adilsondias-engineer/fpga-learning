@@ -47,7 +47,27 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 - Software (OS network stack): 10-100+ μs, non-deterministic
 - This FPGA implementation: < 5 μs, deterministic
 
-### 3. Production Techniques Demonstrated
+### 3. Test Data & Validation
+
+**Real-World Market Data:**
+- **Source:** `12302019.NASDAQ_ITCH50` (December 30, 2019 trading day)
+- **Total Dataset:** ~250 million ITCH 5.0 messages (8 GB binary file)
+- **MySQL Database:** 50 million records imported (first 3 hours of trading)
+- **Test Dataset:** 80,000 messages (10,000 per symbol)
+- **Symbols:** AAPL, TSLA, SPY, QQQ, GOOGL, MSFT, AMZN, NVDA
+- **Message Mix:** 98.2% Add Orders (A), 1.8% Trades (P)
+- **Test Rate:** 600+ messages/second sustained
+
+**Validation Results:**
+- Order book construction and maintenance accuracy verified
+- BBO calculation correctness confirmed against reference data
+- Multi-symbol tracking (8 symbols simultaneously) validated
+- Symbol filtering and price level aggregation tested
+- All performance metrics based on real trading day workload
+
+**Detailed Information:** See [docs/database.md](docs/database.md) for extraction process, message distribution, historical context, and data quality validation.
+
+### 4. Production Techniques Demonstrated
 
 **Clock Domain Crossing:**
 - Gray code FIFO synchronization (25 MHz → 100 MHz)

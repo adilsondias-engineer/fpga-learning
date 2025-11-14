@@ -440,6 +440,22 @@ python send_itch_packets.py --target 192.168.1.10 --port 12345 --test multi_leve
 
 ## Performance Metrics
 
+### Test Data
+
+The order book has been validated using real-world NASDAQ market data:
+
+**Source:** `12302019.NASDAQ_ITCH50` (December 30, 2019 trading day)
+- **Total Dataset:** ~250 million ITCH 5.0 messages (8 GB binary file)
+- **MySQL Database:** 50 million records imported (first 3 hours of trading)
+- **Test Dataset:** 80,000 messages (10,000 per symbol)
+- **Symbols:** AAPL, TSLA, SPY, QQQ, GOOGL, MSFT, AMZN, NVDA
+- **Message Mix:** 98.2% Add Orders (A), 1.8% Trades (P)
+- **Test Rate:** 600+ messages/second sustained
+
+All performance metrics below are based on processing this real-world trading day data.
+
+**Detailed Information:** See [../docs/database.md](../docs/database.md) for complete extraction process, message distribution, and data quality validation.
+
 ### Latency
 
 - **Order processing:** ~12-17 clock cycles per message (@ 100 MHz = 120-170 ns)
