@@ -344,15 +344,15 @@ fpga-trading-systems/
 **Portfolio Highlights to Review:**
 
 **FPGA Hardware Layer:**
-1. UDP/IP Stack: [06-mii-ethernet-udp/README.md](06-mii-ethernet-udp/README.md) - Production CDC, 100% reliability
-2. ITCH Parser: [07-itch-parser/README.md](07-itch-parser/README.md) - Async FIFO, gray code synchronization
-3. Order Book: [08-order-book/README.md](08-order-book/README.md) - BRAM inference, sub-μs latency
+1. UDP/IP Stack: [06-mii-ethernet-udp/README.md](../06-mii-ethernet-udp/README.md) - Production CDC, 100% reliability
+2. ITCH Parser: [07-itch-parser/README.md](../07-itch-parser/README.md) - Async FIFO, gray code synchronization
+3. Order Book: [08-order-book/README.md](../08-order-book/README.md) - BRAM inference, sub-μs latency
 
 **Application Layer:**
-4. C++ Gateway: [09-order-gateway-cpp/README.md](09-order-gateway-cpp/README.md) - Multi-protocol distribution
-5. ESP32 IoT: [10-esp32-ticker/README.md](10-esp32-ticker/README.md) - Arduino + MQTT physical display
-6. Mobile App: [11-mobile-app/README.md](11-mobile-app/README.md) - .NET MAUI cross-platform
-7. Java Desktop: [12-java-desktop-trading-terminal/README.md](12-java-desktop-trading-terminal/README.md) - JavaFX terminal
+4. C++ Gateway: [09-order-gateway-cpp/README.md](../09-order-gateway-cpp/README.md) - Multi-protocol distribution
+5. ESP32 IoT: [10-esp32-ticker/README.md](../10-esp32-ticker/README.md) - Arduino + MQTT physical display
+6. Mobile App: [11-mobile-app/README.md](../11-mobile-app/README.md) - .NET MAUI cross-platform
+7. Java Desktop: [12-java-desktop-trading-terminal/README.md](../12-java-desktop-trading-terminal/README.md) - JavaFX terminal
 
 **Architecture & Lessons:**
 8. System Architecture: [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md) - Complete system design
