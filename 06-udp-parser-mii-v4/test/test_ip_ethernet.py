@@ -20,7 +20,7 @@ import argparse
 try:
     from scapy.all import Ether, IP, UDP, TCP, ICMP, Raw, sendp, get_if_list
 except ImportError:
-    print("\n❌ ERROR: Scapy not installed")
+    print("\nERROR: ERROR: Scapy not installed")
     print("\nInstall with:")
     print("  pip3 install scapy")
     print("  or")
@@ -30,12 +30,12 @@ except ImportError:
 # Check for root privileges
 import os
 if os.name != 'nt' and os.geteuid() != 0:
-    print("\n❌ ERROR: This script requires root privileges")
+    print("\nERROR: ERROR: This script requires root privileges")
     print("\nRun with sudo:")
     print(f"  sudo python3 {sys.argv[0]}")
     sys.exit(1)
 elif os.name == 'nt':
-    print("\n📝 Note: On Windows, you may need Administrator privileges")
+    print("\nNote: Note: On Windows, you may need Administrator privileges")
     print("   If you get errors, run Command Prompt as Administrator\n")
 
 # Configuration
@@ -70,7 +70,7 @@ def find_interface():
     # Try to auto-detect USB Ethernet by MAC
     for i, (iface, mac) in interface_map.items():
         if mac and mac.lower() == PC_INTERFACE_MAC.lower().replace('-', ':'):
-            print(f"\n✓ Auto-detected USB Ethernet: {iface} (MAC: {mac})")
+            print(f"\n Auto-detected USB Ethernet: {iface} (MAC: {mac})")
             confirm = input("Use this interface? (y/n): ").strip().lower()
             if confirm == 'y' or confirm == '':
                 return iface, mac
@@ -95,7 +95,7 @@ def find_interface():
             if choice in interfaces:
                 mac = get_if_hwaddr_safe(choice)
                 return choice, mac
-            print("❌ Invalid selection. Try again.")
+            print("ERROR: Invalid selection. Try again.")
         except KeyboardInterrupt:
             print("\n\nAborted.")
             sys.exit(0)
@@ -131,9 +131,9 @@ def send_test_packet(iface, description, packet):
     print(f"\nSending packet on {iface}...")
     try:
         sendp(built_packet, iface=iface, verbose=False)
-        print("✓ Sent successfully!")
+        print(" Sent successfully!")
     except Exception as e:
-        print(f"❌ Error sending packet: {e}")
+        print(f"ERROR: Error sending packet: {e}")
         return False
 
     time.sleep(0.5)
@@ -229,7 +229,7 @@ def main():
     iface, mac = find_interface()
 
     if not iface:
-        print("\n❌ No interface selected")
+        print("\nERROR: No interface selected")
         sys.exit(1)
 
     print(f"\nConfiguration:")
@@ -286,7 +286,7 @@ def main():
         print("\n\nTest interrupted by user")
     except Exception as e:
         import traceback
-        print(f"\n❌ Error: {e}")
+        print(f"\nERROR: Error: {e}")
         print("\nTraceback:")
         traceback.print_exc()
 

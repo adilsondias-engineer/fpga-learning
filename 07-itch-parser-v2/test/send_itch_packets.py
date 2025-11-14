@@ -24,7 +24,7 @@ import os
 try:
     from scapy.all import Ether, IP, UDP, Raw, sendp, get_if_list
 except ImportError:
-    print("\n❌ ERROR: Scapy not installed")
+    print("\nERROR: ERROR: Scapy not installed")
     print("\nInstall with:")
     print("  pip3 install scapy")
     print("  or")
@@ -34,12 +34,12 @@ except ImportError:
 # Check for root privileges
 if os.name != 'nt':  # Unix/Linux/Mac
     if os.geteuid() != 0:
-        print("\n❌ ERROR: This script requires root privileges")
+        print("\nERROR: ERROR: This script requires root privileges")
         print("\nRun with sudo:")
         print(f"  sudo python3 {sys.argv[0]}")
         sys.exit(1)
 else:  # Windows
-    print("\n📝 Note: On Windows, you may need Administrator privileges")
+    print("\nNote: Note: On Windows, you may need Administrator privileges")
     print("   If you get errors, run Command Prompt as Administrator\n")
 
 # Configuration
@@ -73,7 +73,7 @@ def find_interface():
     # Try to auto-detect USB Ethernet by MAC
     # for i, (iface, mac) in interface_map.items():
     #     if mac and mac.lower() == PC_INTERFACE_MAC.lower().replace('-', ':'):
-    #         print(f"\n✓ Auto-detected USB Ethernet: {iface} (MAC: {mac})")
+    #         print(f"\n Auto-detected USB Ethernet: {iface} (MAC: {mac})")
     #         confirm = input("Use this interface? (y/n): ").strip().lower()
     #         if confirm == 'y':
     #             return iface, mac
@@ -632,10 +632,10 @@ def main():
     # Find USB Ethernet interface
     iface, mac = find_interface()
     if not iface:
-        print("\n❌ ERROR: No interface selected")
+        print("\nERROR: ERROR: No interface selected")
         sys.exit(1)
 
-   # print(f"\n✓ Using interface: {iface}")
+   # print(f"\n Using interface: {iface}")
     print(f"  Target: {args.target}:{args.port}")
     print()
 

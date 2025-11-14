@@ -37,7 +37,7 @@ import heapq
 try:
     from scapy.all import Ether, IP, UDP, Raw, sendp, get_if_hwaddr, get_if_list
 except ImportError:
-    print("\n❌ ERROR: Scapy not installed")
+    print("\n ERROR: Scapy not installed")
     print("Install with: pip install scapy")
     sys.exit(1)
 
@@ -45,7 +45,7 @@ try:
     import pymysql
     import pymysql.cursors
 except ImportError:
-    print("\n❌ ERROR: PyMySQL not installed")
+    print("\n ERROR: PyMySQL not installed")
     print("Install with: pip install pymysql")
     sys.exit(1)
 
@@ -77,7 +77,7 @@ class LiveFeedSimulator:
             cursorclass=pymysql.cursors.SSCursor  # Server-side cursor for large result sets
         )
         self.cursor = self.conn.cursor()
-        print("✓ Connected to MySQL")
+        print(" Connected to MySQL")
 
         # Network setup
         self.fpga_ip = fpga_ip
@@ -106,12 +106,12 @@ class LiveFeedSimulator:
             try:
                 mac = get_if_hwaddr(iface)
                 if mac and mac.lower() == target_mac:
-                    print(f"✓ Using interface: {iface} ({mac})")
+                    print(f"Using interface: {iface} ({mac})")
                     return iface
             except:
                 continue
 
-        print(f"\n❌ ERROR: Could not find interface with MAC {self.PC_INTERFACE_MAC}")
+        print(f"\n ERROR: Could not find interface with MAC {self.PC_INTERFACE_MAC}")
         print("\nAvailable interfaces:")
         for iface in get_if_list():
             try:
@@ -161,10 +161,10 @@ class LiveFeedSimulator:
         message_heap = self._load_messages_heap(symbols, max_per_symbol)
 
         if not message_heap:
-            print("❌ No messages found for specified symbols")
+            print(" No messages found for specified symbols")
             return
 
-        print(f"✓ Loaded {len(message_heap):,} messages\n")
+        print(f" Loaded {len(message_heap):,} messages\n")
         print("Starting replay...\n")
 
         # Replay with time-based scheduling
@@ -291,7 +291,7 @@ class LiveFeedSimulator:
         except Exception as e:
             self.stats['errors'] += 1
             if self.stats['errors'] < 10:  # Only print first 10 errors
-                print(f"\n❌ Error sending message: {e}")
+                print(f"\n Error sending message: {e}")
 
     def _display_progress(self):
         """Display live progress statistics"""
@@ -429,7 +429,7 @@ Examples:
             simulator.list_available_symbols()
         else:
             if not args.fpga_ip:
-                print("❌ ERROR: --fpga-ip required for replay")
+                print(" ERROR: --fpga-ip required for replay")
                 sys.exit(1)
 
             # Parse symbols

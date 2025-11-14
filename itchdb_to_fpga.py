@@ -17,7 +17,7 @@ try:
     from scapy.all import Ether, IP, UDP, Raw, sendp
     from scapy.arch import get_if_hwaddr
 except ImportError:
-    print("\n❌ ERROR: Scapy not installed")
+    print("\nERROR: Scapy not installed")
     print("\nInstall with: pip install scapy")
     sys.exit(1)
 
@@ -54,7 +54,7 @@ class ITCHReplayer:
         if interface is None:
             self.iface = find_interface_by_mac(PC_INTERFACE_MAC)
             if not self.iface:
-                print(f"\n❌ ERROR: Could not find interface with MAC {PC_INTERFACE_MAC}")
+                print(f"\nERROR: Could not find interface with MAC {PC_INTERFACE_MAC}")
                 print("\nAvailable interfaces:")
                 from scapy.all import get_if_list
                 for iface in get_if_list():
@@ -337,9 +337,9 @@ if __name__ == '__main__':
             print(f"Total messages: {total:,}\n")
             for msg_type, count in stats:
                 pct = (count / total) * 100
-                fpga = "✓" if msg_type in ITCHReplayer.FPGA_MESSAGE_TYPES else " "
+                fpga = "*" if msg_type in ITCHReplayer.FPGA_MESSAGE_TYPES else " "
                 print(f"  [{fpga}] {msg_type}: {count:,} ({pct:.1f}%)")
-            print("\n✓ = Implemented in FPGA")
+            print("\n* = Implemented in FPGA")
             
         elif args.time_info:
             first, last, hours = replayer.get_time_range()

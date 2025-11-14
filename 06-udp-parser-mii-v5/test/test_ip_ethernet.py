@@ -21,7 +21,7 @@ import argparse
 try:
     from scapy.all import Ether, IP, UDP, TCP, ICMP, Raw, sendp, get_if_list
 except ImportError:
-    print("\n❌ ERROR: Scapy not installed")
+    print("\nERROR: ERROR: Scapy not installed")
     print("\nInstall with:")
     print("  pip3 install scapy")
     print("  or")
@@ -32,12 +32,12 @@ except ImportError:
 import os
 if os.name != 'nt':  # Unix/Linux/Mac
     if os.geteuid() != 0:
-        print("\n❌ ERROR: This script requires root privileges")
+        print("\nERROR: ERROR: This script requires root privileges")
         print("\nRun with sudo:")
         print(f"  sudo python3 {sys.argv[0]}")
         sys.exit(1)
 else:  # Windows
-    print("\n📝 Note: On Windows, you may need Administrator privileges")
+    print("\nNote: Note: On Windows, you may need Administrator privileges")
     print("   If you get errors, run Command Prompt as Administrator\n")
 
 # Configuration
@@ -73,7 +73,7 @@ def find_interface():
     # Try to auto-detect USB Ethernet by MAC
     for i, (iface, mac) in interface_map.items():
         if mac and mac.lower() == PC_INTERFACE_MAC.lower().replace('-', ':'):
-            print(f"\n✓ Auto-detected USB Ethernet: {iface} (MAC: {mac})")
+            print(f"\n Auto-detected USB Ethernet: {iface} (MAC: {mac})")
             confirm = input("Use this interface? (y/n): ").strip().lower()
             if confirm == 'y':
                 return iface, mac
@@ -115,7 +115,7 @@ def send_test_packet(iface, description, packet):
     
     print(f"\nSending...")
     sendp(packet, iface=iface, verbose=False)
-    print("✓ Sent!")
+    print(" Sent!")
     print(f"{'='*70}")
 
 def test_valid_udp(iface):
@@ -171,7 +171,7 @@ def test_burst(iface, count=10):
         print(f"  Sent packet {i+1}/{count}", end='\r')
         time.sleep(0.1)
     
-    print(f"\n✓ Sent {count} packets!")
+    print(f"\n Sent {count} packets!")
     print(f"Expected: Mode 0 counter increments by {count}")
     print(f"{'='*70}")
 
@@ -280,7 +280,7 @@ def main():
     print("  - LD4 Red: Checksum error (flashes on invalid checksum)")
     print("  - LD5 Red: Version/IHL error (flashes on invalid header)")
     print("="*70)
-    print("\n✓ Ready for Phase 1E: UDP Parser!")
+    print("\n Ready for Phase 1E: UDP Parser!")
     print("="*70)
 
 if __name__ == "__main__":

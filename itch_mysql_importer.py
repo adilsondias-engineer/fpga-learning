@@ -28,7 +28,7 @@ import time
 try:
     from scapy.all import rdpcap, Raw
 except ImportError:
-    print("\n❌ ERROR: Scapy not installed")
+    print("\nERROR: Scapy not installed")
     print("Install with: pip install scapy")
     sys.exit(1)
 
@@ -36,7 +36,7 @@ try:
     import pymysql
     import pymysql.cursors
 except ImportError:
-    print("\n❌ ERROR: PyMySQL not installed")
+    print("\nERROR: PyMySQL not installed")
     print("Install with: pip install pymysql")
     sys.exit(1)
 
@@ -79,7 +79,7 @@ class MySQLITCHImporter:
         self.cursor.execute("SET SESSION unique_checks = 0")
         self.cursor.execute("SET SESSION foreign_key_checks = 0")
 
-        print("✓ Connected to MySQL")
+        print("Connected to MySQL successfully")
 
     def create_tables(self, drop_existing=False):
         """Create optimized tables with proper indexing"""
@@ -140,7 +140,7 @@ class MySQLITCHImporter:
         """)
 
         self.conn.commit()
-        print("✓ Tables created")
+        print("Tables created successfully")
 
     def parse_itch_message(self, payload):
         """Parse ITCH message to extract type, symbol, and timestamp"""
@@ -208,7 +208,7 @@ class MySQLITCHImporter:
                     if message_count % 1000000 == 0:
                         print(f"  Read {message_count:,} messages...")
 
-        print(f"✓ Read {message_count:,} messages from binary ITCH file")
+        print(f"Read {message_count:,} messages from binary ITCH file")
         return messages
 
     def _read_pcap(self, filename):
@@ -233,7 +233,7 @@ class MySQLITCHImporter:
                     timestamp_ns = int(time.time() * 1e9) + i
                     messages.append((timestamp_ns, msg))
 
-        print(f"✓ Read {len(messages):,} messages from PCAP")
+        print(f"Read {len(messages):,} messages from PCAP")
         return messages
 
     def import_file(self, input_file, batch_size=10000, progress_interval=50000):
@@ -259,12 +259,12 @@ class MySQLITCHImporter:
                 # Assume binary ITCH 5.0 file
                 messages = self._read_binary_itch(input_file)
         except Exception as e:
-            print(f"❌ Error reading file: {e}")
+            print(f"ERROR reading file: {e}")
             import traceback
             traceback.print_exc()
             return
 
-        print(f"✓ File loaded, processing messages...")
+        print(f"File loaded, processing messages...")
 
         # Prepare batch insert
         batch = []
@@ -399,7 +399,7 @@ class MySQLITCHImporter:
         """Close database connection"""
         self.cursor.close()
         self.conn.close()
-        print("✓ Database connection closed")
+        print("Database connection closed")
 
 
 if __name__ == '__main__':

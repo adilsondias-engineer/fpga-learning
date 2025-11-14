@@ -30,7 +30,7 @@ def listen_udp(port=80, timeout=30):
         sock.bind(('0.0.0.0', port))  # Listen on all interfaces
         sock.settimeout(timeout)
         
-        print(f"✓ Listening on port {port}...")
+        print(f" Listening on port {port}...")
         print(f"  (Press Ctrl+C to stop)\n")
         
         packet_count = 0
@@ -62,10 +62,10 @@ def listen_udp(port=80, timeout=30):
                 break
                 
     except KeyboardInterrupt:
-        print(f"\n\n✓ Stopped by user")
+        print(f"\n\n Stopped by user")
         print(f"   Received {packet_count} packet(s)")
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\nERROR: Error: {e}")
         import traceback
         traceback.print_exc()
     finally:

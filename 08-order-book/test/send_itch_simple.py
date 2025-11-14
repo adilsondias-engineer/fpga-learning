@@ -60,7 +60,7 @@ class SimpleITCHSender:
     def send(self, payload):
         """Send UDP packet"""
         self.sock.sendto(payload, (self.target_ip, self.target_port))
-        print(f"✓ Sent {len(payload)} bytes to {self.target_ip}:{self.target_port}")
+        print(f" Sent {len(payload)} bytes to {self.target_ip}:{self.target_port}")
 
 
 def test_order_book():
