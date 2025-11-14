@@ -1,4 +1,4 @@
-If anyone is curious this is my little lab, development environment setup:
+If anyone is curious, this is my little lab, development environment setup:
 
 1) Mac mini for Mac Os development using Xcode and other IDEs(Vscode)
 2) Linux server(96GB RAM,  Intel(R) Core(TM) i7-14700KF(20 Cores, 28 Threads), 15TB storage, for development and testing with Ubuntu installed, kubernetes, Mysql, git server.
