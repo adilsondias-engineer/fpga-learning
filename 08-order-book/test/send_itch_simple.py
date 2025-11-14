@@ -9,7 +9,7 @@ import time
 import random
 
 class SimpleITCHSender:
-    def __init__(self, target_ip='192.168.0.201', target_port=12345):
+    def __init__(self, target_ip='192.168.0.212', target_port=12345):
         self.target_ip = target_ip
         self.target_port = target_port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

@@ -25,7 +25,7 @@ Requirements:
 
 Usage Examples:
     python send_itch_packets.py --help
-    python send_itch_packets.py --target 192.168.0.201 --port 12345
+    python send_itch_packets.py --target 192.168.0.212 --port 12345
     python send_itch_packets.py --test add_order
     python send_itch_packets.py --test order_replace
     python send_itch_packets.py --test trade
@@ -945,8 +945,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
-    parser.add_argument('--target', default='192.168.0.201',
-                       help='Target FPGA IP address (default: 192.168.0.201)')
+    parser.add_argument('--target', default='192.168.0.212',
+                       help='Target FPGA IP address (default: 192.168.0.212)')
     parser.add_argument('--port', type=int, default=12345,
                        help='Target UDP port (default: 12345)')
     parser.add_argument('--test', choices=['add_order', 'order_executed', 'order_cancel',

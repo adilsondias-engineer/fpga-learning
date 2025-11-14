@@ -1,0 +1,7 @@
+{
+  "dependencies": [
+    "boost",
+    "paho-mqtt",
+    "librdkafka"
+  ]
+}

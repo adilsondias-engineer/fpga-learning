@@ -1,0 +1,189 @@
+If anyone is curious this is my little lab, development environment setup:
+
+1) Mac mini for Mac Os development using Xcode and other IDEs(Vscode)
+2) Linux server(96GB RAM,  Intel(R) Core(TM) i7-14700KF(20 Cores, 28 Threads), 15TB storage, for development and testing with Ubuntu installed, kubernetes, Mysql, git server.
+3) Rasberry PI v4 for development for small devices
+4) Mini PC DreamQuest Pro 16RAM, 512G disk storage for generic development and testing or low ram/space
+5) Rasberry PI v5 local DNS server and EmonCMS host
+6) Mini PC DreamQuest Pro 16RAM, 512G disk storage space with PiHole to block wanted ads via dns filtering
+7) Workstation PC Intel i9-14900KF, 128GB RAM, 26TB disk storage, GPU RTX 5090(31GB), os dual boot Windows 11 and Ubuntu:
+	a) Hypervisor(Hyper-V) for many different OSes development and testing
+	b) WSL with different Linux flavour and versions
+	c) Software installed:
+		1) KeyStore Explorer(kse-552) for Certificate and SSL keys management
+		2) Remote Desktop, VNC, TinyVNC, Amazon Workspaces, Windows App(remote desktop)
+		3) Gimp for graphics design
+		4) Browsers : Firefox, Waterfox, Edge, Chrome, Vivaldi
+		5) InkScape for graphics design 
+		6) Adobe Photoshop
+		7) Corel Suite
+		8) Postman for API testing
+		9) Arduino IDE
+		10) Android Studio
+		11) EZP2023+ to burn/program firmware on microchips/microcrontollers
+		12) STC-ISP to burn/program firmware STC/STM microchips/microcrontollers
+		13) Cursor IDE - combined with Claude
+		14) Claude desktop - Best AI, I've found so far
+		15) Copilot 
+		16) Vcode with all sort of extensions: Mulesoft Anypoint Code Builder, Mulesoft Agent Dev, IBM Explorer, IBM Zowe, C++ compiler, Python, Epic UDK Verse, Java, etc.
+		17) Visual Studio 2017
+		18) Visual Studio 2019
+		19) Visual Studio 2022
+		20) Visual Studio 2026 
+		21) Eclipse Photon 2018
+		22) Eclipse 2023 - Java and C++ extensions 
+		23) Anypoint Studio 7.20 - for old Mule versions prior Java 17.
+		24) Anypoint Studio 7.21 - for Mule versions equals or greather than Java 17.
+		25) TCP-UDP endpoint viewer
+		26) HxD Hex Editor
+		27) Cheat Engine (64-bit) - reverse engineering
+		28) IDA 6.5 - reverse engineering
+		29) DB Browser for SQLite
+		30) Nmap - Zenmap GUI - Network mapping
+		31) Wireshark
+		32) Proteus 8 Professional -> microchips/microcrontollers development with Keil 5 and simulation
+		33) CodeBlocks another open source C++ IDE that supports multiple compilers( SDCC, GCC, Microsoft, and others)
+		34) GitHub desktop for source control
+		35) EasyEDA PRO for PCB design
+		36) Tuya Module Debugging Assistant - to debug IOT devices build on Tuya library
+		37) JALEdit exe file - Another microchip development IDE using JAL language -> Pascal look a like
+		38) ATK-Logic - USB waveform debugger
+		39) MQTT Browser
+		40) Hercules GUI for os390, z/os development/testing.
+		41) Vista 3270 Terminal for os390, z/os access
+		42) LightBurn to control CO2 Laser machines with Ruida controllers - yes, I used to have 2 big CO2 laser machines, I've only 1 now
+		43) Oracle Virtualbox for VMs
+		44) SoapUI for webservices testing
+		45) Kleopatra for Certificate and SSL keys management a bit different purpose and different formats supported than kse-552
+		46) BlueStacks for Android simulation
+		47) Blender for 3D modelling 
+		48) WinSCP for remote server access
+		49) Vivado for FPGA development
+		50) S3 Browser to browse Amazon S3 buckets
+		51) LM Studio for llama/LLM(Large Language Model)
+		52) Epic UDK(unreal engine) for game/mod development
+		53) Unity for game/mod development
+		54) ILSpy - reverse engineering
+		55) SEEGER J-Link Commander V7.98 - for JTAG debug of microchips/microcrontollers
+		56) Microsoft Process Monitor - to debug apps
+		57) Microsoft Sysinternal Process Explorer - to debug/kill apps
+		58) balenaEtcher to create and burn disk images into microSDs and HDDs.
+		59) Docker Desktop - for containers - kubernetes
+		60) Cocos Dashboard - IDE for game development
+		61) GraphQL playground 
+		62) Node.js
+		63) DBeaver - database browser/sql 
+		64) NVidia Cudda SDK
+		65) Unreal for Fortinite 
+		66) Regina Rexx - Mainframe Reex scripting
+		67) OpenTFT server - to debug small devices firmware 
+		68) Python - many versions - 3.10, 3.6, 3.9 
+		69) QEMU to emulate small devices
+		70) MySQL workbench 
+		71) GUI turbo Assembler 5.1
+		72) MongoDB browser/sql
+		73) HeidiSQL
+		74) Apache ActiveMQ
+		75) Drools BRE
+		76) Elastic Search
+		77) Bochs - old system emulator
+		78) gnucobol
+		79) Java/JDK - 1.7, 1.8, 1.9, 11, 12, 17, 21, 24, temurin-16, temurin-18, corretto-11, jbr-17
+		80) JMS Toolbox for JMS queues - messaging queue troubleshooting
+		81) Keil_v5 compiler for microchips/microcrontollers
+		82) Mule 4.10 runtime - open source community edition compiled from source
+		83) There are a bunch more not listed here - less frequent used but all related to software/hardware development
+
+My hardware list:
+
+1)Hantek DSO2d15
+2)TOPPoer STP3010DH
+3)LCR TC1 1.8" TFT LCD Display Multi-meter Transistor Tester Diode Triode Capacitor Resistor Test Meter MOSFET NPN PNP Triac MOS - capacitors, leds, resistors, transistors, tester
+4)ElecBit High Speed USB JTAG Emulator Debugger Programmer V9,CP2102 USB to 5PIN UART TTL,Support 1.8V 3.3V 5V, ARM ARM9 ARM7 Cortex M0/M1/M3/M4, Cortex A5/A8/A9 STM32 STM8 Debug Probes
+5)EZP2023 USB High Speed Programmer 24/25/93/95Bois 2019/2010
+6)STC89/90/10/11/12 adapter burner
+7)FYDK XDS100 V3 DSP Emulator - JTAG debugger
+8)STC auto Programmer - burner
+9)Downloader for ESP32-Wrover - burner
+10)Wishiot ESP8266 Burning Fixture Development Board Micro USB Port Onboard CP2102 Chip Support ESP-01S ESP-07 ESP-07S ESP-12E ESP-12F ESP-12S ESP-C2 Easy Programer 
+11)breadboards - lots of them
+12)ALIENTEK Logic Analyzer DL16 250MHz Max Sample Rate 16Channels Logic Analyzer Tools ARM FPGA Debug Protocol Decoding Software
+12)ANENG A3005 Digital Multimeter Pen Type 4000 Counts Professional Meter Non-Contact Auto AC/DC Voltage Ohm Diode Tester For Tool
+13)KWS-2303C Multi-function Digital Display DC Voltage Ammeter Power Meter Type-c Cell Phone Charging Tester DC 4-30V 0-12A
+14)PUYA Start Kit 32bit MCU Development Board For Microcontroller PY32F003 PY32F030 PY32 Develop Tool
+15)Pro'sKit SS-331H Electric Desoldering Station ESD LCD Digital Electric Desoldering Pump BGA Suction Vacuum Solder With Gun
+16)MMOBIEL YiHua 995D 2 in 1 Soldering Station iron 75W Hot Air Blower Rework Station 720W Hot Air 
+17)ANENG 681 Rechargable Digital Professional Multimeter Non-contact Voltage Tester AC/DC Voltage Meter LCD Screen Current Tester
+18)CO2 laser machine - Ruida RD RDC6332G 6332M Co2 Laser DSP Controller for Laser
+19)Soiiw 220V 850W Soldering Hot Plate LED Microcomputer Electric Preheat Soldering Station Welder Hot Plate Rework Heater Lab 200X200mm Plate
+20)Pet Microchip Scanner, Universal Handheld Animal Chip Reader Portable RFID Reader Supports for iOS 11784/11785, FDX-B and ID64 RFID 
+21)Freenove Breakout Board for ESP32 / ESP32-S3 WROVER WROOM, Terminal Block Shield with Pin Header, 5V 3.3V Power Outputs, GPIO Status LED
+22) Magnifying Glass with Light and Stand, Cenawin 15X 10X LED Magnifier Lamp with Clamp and 3 Swivel Arm, Desk Lamp with 3 Color Modes Dimmable, LED Magnifying Lamp for Hobby Crafting, Workplace Reading
+23)DIGISHUO 2Pcs FT232RL FTDI Mini USB to TTL Serial Converter Adapter Module 3.3V 5.5V FT232R Breakout FT232RL USB to Serial Mini USB to TTL Adapter Board
+
+Material in stock(heaps of them):
+
+DX-LRO2 Product Set 433MHz LoRa ASR6601 Long Range 8KM 22dBm Transceiver Wireless Module With Antenna SPI Interface For Arduino
+NRF24L01+PA+LNA 2.4GHz Wireless Transceiver Module with Antenna, 1000m Long-Range for Arduino
+433MHZ Wireless Transmitter Receiver Board Module SYN115 SYN480R ASK/OOK Chip PCB for arduino
+ESP12F
+ESP12S
+ESP8266
+ESP32-Wrover
+ESP32-WROOM Cheap Chinese clone of ESP32-Wrover
+StepStick A4988 DRV8825 Stepper Motor
+HLK-LD2410 24G FMCW 24GHz Smart Human Presence Sensing Radar Module LD2410 Millimeter Wave Motion Switch Sensor 5P Cable
+Piezo Elements Buzzer Sounder Sensor Trigger Drum Disc Copper Piezo Speaker 12MM 20MM 27MM 35MM 50MM Piezoelectric
+1.44/1.8/2.0/2.2/2.8 Inch TFT Color Screen LCD Display Module Drive ST7735 ILI9225 ILI9341 Interface SPI 128*128 240*320
+HC-SR501 Adjust IR Pyroelectric Infrared PIR Motion Sensor Detector 
+40KHZ 16mm 12mm 10mm BLACK Ultrasonic Sensor 40KHZ Receiver
+134.2KHZ Animal Tag Reader Module TTL Output AGV RFID FDX-B FDXB ISO11784 Long distance
+PCM5102APWR PCM5102APW PCM5102A PCM5102 TSSO
+Puya 32bit Microcontroller IC PY32F030K18T6 LQFP32 
+HC-49S Quartz Resonator DIP Crystal Oscillator Kit 4MHz 6MHz 8MHz 12MHz 16MHz 24MHz 25MHz 48MHz 2Pin
+32.768KHz Oscillator Quartz Crystal 32.768 KHZ 32.768K
+0.91 inch OLED module 0.91" white/Blue OLED 128X32
+CD4001BE CD4011BE CD4013 CD4017 CD4040 
+HC-49S Quartz Resonator SMD Crystal Oscillator
+Toroid Core Choke Color Ring Inductor Assorted Kit 2.2uH 3.3uH 4.7uH 
+DIP SMD Zener Diode Fast Switching Schottky TVS Diode Kit 1N4001
+KY-040 Rotary Encoder Module with 15x16.5mm Black Silver 
+XKC Y25 T12V Liquid Level Sensor Switch Detector Water Non Contact 
+CD4017BM CD4017 CD4017BM96 4017 SOP16
+SRD Relay SRD-05VDC-SL-C SRD-09VDC-SL-C SRD-12VDC-SL
+1/4W (0.25W) five-color ring 1% 1 ohm-10M metal film resistor
+4/5/6 Inch Car Speakers 600W 2-Way Vehicle Door Auto Audio Music
+5W 8R Horn Speaker LCD Monitor/TV 3070 Loud Speakers 8 ohm 5watt
+9x7mm 9767 Microphone Electret Microphone
+STC12C2052-35I-DIP20 PDIP20 STC12C2052
+ATmega48/8/168/328P-PU DIP28 burner debugger
+FM Stereo Radio RDA5807M Wireless Module RRD-102V2.0 
+Aluminum Electrolytic Capacitors SMD Assortment Kit 
+TPA6120A2DWPR 6120A2 HSOP-20 TPA6120A2DWP TPA6120A2
+Module TDA7295 TDA7296 TDA7266 TDA7269A TDA7292 TDA7294
+OPA2134 OPA2134U OPA2134UA High Performance Audio Operational Amplifier
+OPA2134UA SOP-8 OPA2134 OPA2134U 2134UA SOP
+LM4562NA DIP-8 LM4562 DIP8 IC 4562NA DIP
+Integrated Circuit Chip Kit 10 Specifications IC-NE555 IC-LM324 IC-LM358 DIP Single Precision Timer Combination kit
+MMBT2222A MMBT2907A MMBT3904 MMBT3906 MMBT4401
+WH148 15MM Single Potentiometer Kit B1K/5K/10K/20K
+Trimming Potentiometer Variable Resistors Assorted Kit Electronic Diy Kit 15 Values Each 10pcs with box
+3296W Multiturn Trimmer Potentiometer Kit High Precision 3296 Variable Resistor With Free Box electronic diy kit
+Switching Power Supply Light Transformer AC110V 220V To DC 5V 12V 15V 24V 36V 48V Power Supply Source Adapter For Led Strip CCTV
+STC15W408AS STC15W408 Microcomputer Microcontroller
+Integrated Circuit IC DIP Kit Box LM358 LM386 ULN2003 LM324 NE555 MC34063 TL494 ULN2803 LM324 TDA2030 LM339 ULN2803 TDA782
+PCF8575 Module Expansion IO port Expander board DC 2.5-5.5V I2C communication control 16 IO ports
+15Value x 40Pcs Transistor TO-92 Assortment Box Kit Transistors 2N2222 2N3904 2N3906 C945 S8050 S8550 S9014 S9013 S9018
+300pcs/960pcs Ceramic Capacitor Set 2pF-0.1uF Electronic Components Capacitor Assorted Kit Samples DIY
+TZT Ecg module AD8232 ecg measurement pulse heart ecg monitoring sensor module kit 
+RCWL-0516 Microwave Radar Sensor Switch Module Body
+LM317T L7805CV L7806 L7808 L7809 L7810 L7812 L7815 L7818 L7824 L7805 Three End Voltage Regulating Tube Set
+GeeekPi 2Pcs OLED Display Module I2C IIC 128X64 Pixel 0.96 Inch Display Module Yellow Blue Two-Color Display Compatible with Raspberry Pi Arduino 51 Series MCU STM32 R3 and Mega 
+TFT LCD Display Module, RGB 65K Color 4 Line Communication 16 Bit 5V 3.3V SPI LCD Display Touch Panel with PCB for Industrial Use
+VGOL 10PCS 2W 8 Ohm Internal Magnet Speaker 28mm Round Mini Loudspeaker for Electronic DIY Toys Radio Intercom Multimedia Speakers Mini Box Speakers
+Micro USB TP4056 Module Board with Protection 5V 1A Dual Functions
+ELEGOO Nano V3.0 Compatible with Arduino IDE, Elegoo Nano Board CH340/ATmega328P Without USB Cable, Compatible with Arduino Nano V3.0 (Nano x 3 Without Cable)   
+Nema Stepper motors various sizes
+capacitors
+resistors
+transistors

@@ -2,7 +2,8 @@
 ![Language](https://img.shields.io/badge/Language-VHDL-blue)
 ![Status](https://img.shields.io/badge/Status-Production%20Ready-green)
 ![Hardware Verified](https://img.shields.io/badge/Hardware-Verified-brightgreen)
-![Projects](https://img.shields.io/badge/Projects-8%20Complete-brightgreen)
+![Projects](https://img.shields.io/badge/Projects-12%20Complete-brightgreen)
+![Development Time](https://img.shields.io/badge/Development%20Time-300%2B%20hours-blue)
 
 # FPGA Trading Systems
 
@@ -65,21 +66,43 @@ Progressive architecture development from digital design fundamentals to product
 - **Trading Relevance:** Multi-symbol tracking essential for real-world exchange systems
 - **BBO Output:** UART interface with symbol name, bid/ask prices/shares, spread, change detection
 
-### Application Layer (Projects 9-10)
+### Application Layer (Projects 9-12) ✅
 
-**Project 09: C++ Order Gateway** (In Development)
-- **Purpose:** Bridge FPGA BBO output to Java application layer
-- **Architecture:** UART reader, BBO parser (hex→decimal), TCP server, CSV logger
-- **Interface:** Receives ASCII BBO from FPGA UART, serves JSON via TCP (localhost:9999)
-- **Scope:** Minimal middleware gateway (~500-800 LOC) demonstrating C++ systems programming
-- **Technologies:** C++17, Boost.Asio (or POSIX sockets), nlohmann/json
+**Project 09: C++ Order Gateway** ✅ **COMPLETE**
+- **Purpose:** Multi-protocol data distribution bridge (FPGA → Applications)
+- **Architecture:** UART reader, BBO parser (hex→decimal), multi-protocol publisher
+- **Protocols:** TCP Server (9999), MQTT Publisher (Mosquitto), Kafka Producer
+- **Distribution:**
+  - **TCP → Java Desktop** (low-latency trading terminal)
+  - **MQTT → ESP32 IoT + Mobile App** (lightweight, mobile-friendly)
+  - **Kafka → Future Analytics** (data persistence, replay, ML pipelines)
+- **Technologies:** C++17, Boost.Asio, libmosquitto, librdkafka, nlohmann/json
+- **Status:** Production ready, running 24/7 with live NASDAQ ITCH feed
 
-**Project 10: Java Market Data Platform** (Planned)
-- **Purpose:** Real-time market data visualization and analytics
-- **Architecture:** TCP client, in-memory order book, market analytics, JavaFX dashboard
-- **Features:** BBO visualization, spread analysis, depth tracking, Chronicle Queue persistence
-- **Technologies:** Java 17+, JavaFX, Chronicle Queue, JUnit 5
-- **Testing:** ITCH packet generator (replaces Python scripts)
+**Project 10: ESP32 IoT Live Ticker** ✅ **COMPLETE**
+- **Purpose:** Physical trading floor display with MQTT feed
+- **Hardware:** ESP32-WROOM + 1.8" TFT LCD (ST7735)
+- **Protocol:** MQTT v3.1.1 (optimized for IoT/low power)
+- **Features:** Real-time BBO display, color-coded bid/ask/spread, WiFi connectivity
+- **Technologies:** Arduino IDE (not ESP-IDF - simpler for demonstration), PubSubClient (MQTT), TFT_eSPI, ArduinoJson
+- **Design Decision:** Arduino chosen over ESP-IDF for simplicity (project demonstrates MQTT usage, not ESP-IDF capabilities)
+- **Status:** Fully functional, displays all 8 symbols in real-time
+
+**Project 11: .NET MAUI Mobile App** ✅ **COMPLETE**
+- **Purpose:** Cross-platform mobile BBO terminal (Android/iOS/Windows)
+- **Protocol:** MQTT v3.1.1 (perfect for mobile - handles unreliable networks)
+- **Architecture:** MVVM pattern with CommunityToolkit.Mvvm
+- **Features:** Real-time BBO updates, symbol selector, connection management
+- **Technologies:** .NET 10 MAUI, MQTTnet 5.x, System.Text.Json
+- **Status:** Fully functional on Android, iOS, Windows
+
+**Project 12: Java Desktop Trading Terminal** ✅ **COMPLETE**
+- **Purpose:** High-performance desktop trading terminal with charts
+- **Protocol:** TCP (optimal for localhost desktop - < 10ms latency)
+- **Architecture:** JavaFX GUI, TCP client, real-time charting
+- **Features:** Live BBO table, spread charts, multi-symbol tracking
+- **Technologies:** Java 21, JavaFX, Gson, Maven
+- **Status:** Production ready, 100% test pass rate
 
 ### Foundation Projects (Projects 1-5)
 
@@ -101,28 +124,54 @@ Each project includes:
 
 ## Architecture Highlights
 
+**Visual System Architecture:**
+
+![System Architecture](docs/system_architecture.png)
+
+*Complete end-to-end trading system showing FPGA → C++ Gateway → Multi-Protocol Distribution (TCP/MQTT/Kafka) → Applications (Desktop/Mobile/IoT)*
+
+---
+
 **End-to-End Trading System Pipeline:**
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                              FPGA Layer (VHDL)                                           │
-│  Ethernet PHY → UDP/IP Parser → ITCH Decoder → Order Book → BBO Tracker → UART Output  │
-│     25 MHz         100 MHz        100 MHz        100 MHz       100 MHz      115200 baud │
-│                └── Gray Code CDC ──┘                                                     │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
-                                            │
-                                            │ UART (ASCII BBO)
-                                            ▼
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                          C++ Gateway Layer (Project 9)                                   │
-│  UART Reader → BBO Parser (hex→decimal) → TCP Server (JSON) → CSV Logger                │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
-                                            │
-                                            │ TCP localhost:9999 (JSON)
-                                            ▼
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                       Java Application Layer (Project 10)                                │
-│  TCP Client → Order Book → Market Analytics → JavaFX Dashboard → Chronicle Queue        │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                            FPGA Layer (VHDL - Projects 6-8)                           │
+│  Ethernet PHY → UDP/IP → ITCH 5.0 → Order Book → BBO Tracker → UART Output           │
+│     25 MHz      100 MHz   100 MHz     100 MHz       100 MHz      115200 baud          │
+│             └── Gray Code CDC ──┘                                                     │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+                                          │
+                                          │ UART (ASCII hex BBO)
+                                          ▼
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                    C++ Gateway Layer (Project 9) - Multi-Protocol Distribution       │
+│  UART Reader → BBO Parser (hex→decimal) → Multi-Protocol Publisher                   │
+└─────────┬───────────────┬──────────────────┬──────────────────────────────────────┘
+          │               │                  │
+          │ TCP :9999     │ MQTT             │ Kafka (Future)
+          │               │ 192.168.0.2:1883 │ 192.168.0.203:9092
+          ▼               ▼                  ▼
+┌──────────────────┐  ┌─────────────────┐  ┌────────────────────────┐
+│  Java Desktop    │  │  ESP32 IoT      │  │  Future Analytics      │
+│  (Project 12)    │  │  (Project 10)   │  │  - Time-series DB      │
+│                  │  │                 │  │  - Historical replay   │
+│  • Live BBO      │  │  • TFT Display  │  │  - ML pipelines        │
+│  • Charts        │  │  • WiFi         │  │  - Data archival       │
+│  • TCP Client    │  │  • MQTT Client  │  │                        │
+└──────────────────┘  └─────────────────┘  └────────────────────────┘
+                      ┌─────────────────┐
+                      │  Mobile App     │
+                      │  (Project 11)   │
+                      │                 │
+                      │  • Android/iOS  │
+                      │  • .NET MAUI    │
+                      │  • MQTT Client  │
+                      └─────────────────┘
+
+Protocol Selection Strategy:
+  TCP    → Desktop apps (low latency, localhost)
+  MQTT   → IoT/Mobile (lightweight, unreliable networks, low power)
+  Kafka  → Backend services (data persistence, analytics, replay)
 ```
 
 **Performance Characteristics:**

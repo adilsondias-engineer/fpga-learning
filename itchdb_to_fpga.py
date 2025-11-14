@@ -3,7 +3,7 @@
 itch_replay.py - Replay ITCH messages from database to FPGA via UDP
 Updated to support FPGA-implemented message types: A, E, X, S, R, D, U, P, Q
 
-Usage: python itch_replay.py database.db --fpga-ip 192.168.0.201 --symbol AAPL
+Usage: python itch_replay.py database.db --fpga-ip 192.168.0.212 --symbol AAPL
 """
 
 import sqlite3

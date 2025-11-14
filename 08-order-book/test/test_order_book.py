@@ -188,6 +188,49 @@ def test_order_deletion(iface, target_ip, target_port):
     time.sleep(0.5)
 
 
+def test_multi_symbol(iface, target_ip, target_port):
+    """Test 5: Multi-Symbol Order Book"""
+    gen = ITCHMessageGenerator()
+
+    print("=" * 70)
+    print("TEST 5: MULTI-SYMBOL ORDER BOOK")
+    print("=" * 70)
+    print("\nTesting all 8 symbols: AAPL, TSLA, SPY, QQQ, GOOGL, MSFT, AMZN, NVDA")
+    time.sleep(1)
+
+    # Symbol list with realistic prices
+    symbols = [
+        ('AAPL    ', 150.00, 150.50),  # Apple
+        ('TSLA    ', 250.00, 251.00),  # Tesla
+        ('SPY     ', 445.00, 445.10),  # S&P 500 ETF
+        ('QQQ     ', 380.00, 380.25),  # NASDAQ ETF
+        ('GOOGL   ', 140.00, 140.75),  # Google
+        ('MSFT    ', 375.00, 376.00),  # Microsoft
+        ('AMZN    ', 145.00, 145.50),  # Amazon
+        ('NVDA    ', 495.00, 496.00),  # NVIDIA
+    ]
+
+    print("\n--- Adding orders for all symbols ---")
+    for symbol, bid_price, ask_price in symbols:
+        print(f"\n{symbol.strip()}: Bid ${bid_price:.2f}, Ask ${ask_price:.2f}")
+
+        # Add one bid order
+        msg = gen.add_order(symbol, 'B', 100, bid_price)
+        send_udp_packet(iface, target_ip, target_port, msg)
+        time.sleep(0.3)
+
+        # Add one ask order
+        msg = gen.add_order(symbol, 'S', 100, ask_price)
+        send_udp_packet(iface, target_ip, target_port, msg)
+        time.sleep(0.3)
+
+    print("\n" + "=" * 70)
+    print("Multi-symbol test complete!")
+    print("Check UART output - should see BBO updates for all 8 symbols")
+    print("Round-robin arbiter cycles through symbols every ~40µs")
+    print("=" * 70)
+
+
 def test_all(iface, target_ip, target_port):
     """Run all tests"""
     print("\nHARDWARE ORDER BOOK TEST - AAPL")
@@ -215,9 +258,9 @@ def test_all(iface, target_ip, target_port):
 
 def main():
     parser = argparse.ArgumentParser(description='Order Book Test - Project 8')
-    parser.add_argument('--target', default='192.168.0.201', help='FPGA IP')
+    parser.add_argument('--target', default='192.168.0.212', help='FPGA IP')
     parser.add_argument('--port', type=int, default=12345, help='UDP port')
-    parser.add_argument('--test', choices=['all', 'build', 'execute', 'cancel', 'delete'],
+    parser.add_argument('--test', choices=['all', 'build', 'execute', 'cancel', 'delete', 'multi'],
                        default='all', help='Test to run')
     args = parser.parse_args()
 
@@ -239,6 +282,8 @@ def main():
         test_order_cancellation(iface, args.target, args.port)
     elif args.test == 'delete':
         test_order_deletion(iface, args.target, args.port)
+    elif args.test == 'multi':
+        test_multi_symbol(iface, args.target, args.port)
 
     return 0
 
