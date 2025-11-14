@@ -8,7 +8,7 @@
 
 ## Overview
 
-A simple, clean mobile BBO (Best Bid/Offer) trading terminal that connects to your FPGA trading system via MQTT. Displays real-time market data for all 8 symbols with an ESP32-inspired clean UI.
+A simple, clean mobile BBO (Best Bid/Offer) trading terminal that connects to the FPGA trading system via MQTT. Displays real-time market data for all 8 symbols with an ESP32-inspired clean UI.
 
 ### Key Features
 
@@ -104,7 +104,7 @@ dotnet build -t:Run -f net9.0-ios
 
 ## Usage
 
-1. **Launch the app** on your device/emulator
+1. **Launch the app** on device/emulator
 
 2. **Connect to MQTT Broker:**
    - Default broker: `192.168.0.203`
@@ -131,14 +131,14 @@ dotnet build -t:Run -f net9.0-ios
 
 **Perfect Architecture Choice!** ✅
 
-Your C++ gateway publishes to both MQTT and Kafka:
+The C++ gateway publishes to both MQTT and Kafka:
 - **MQTT → Mobile & ESP32** (lightweight, mobile-friendly, low power)
 - **Kafka → Backend Services** (analytics, data pipelines, microservices)
 
 This is the **industry best practice**:
 - ✅ Mobile apps should use MQTT or WebSocket (not Kafka directly)
 - ✅ Kafka is for high-throughput backend services
-- ✅ Your C++ gateway acts as the perfect bridge between both worlds
+- ✅ The C++ gateway acts as the perfect bridge between both worlds
 
 ```
 FPGA → C++ Gateway ─┬→ MQTT → ESP32 ✅
@@ -243,7 +243,7 @@ _mqttService.BboReceived += (sender, bbo) =>
 
 ## Features Intentionally Simple
 
-Following your guidance to keep it basic (like ESP32):
+Following the design principle to keep it basic (like ESP32):
 - ❌ No order entry (not needed for skill demonstration)
 - ❌ No push notifications (keep it simple)
 - ❌ No portfolio tracking (just BBO display)
@@ -270,7 +270,7 @@ This shows:
    python itch_live_feed.py --fpga-ip 192.168.0.212 --max-per-symbol 500
    ```
 3. Launch mobile app and connect to MQTT broker (192.168.0.203:1883)
-4. Watch real-time BBO updates alongside your ESP32!
+4. Watch real-time BBO updates alongside the ESP32 display!
 
 ### Expected Behavior
 
@@ -338,7 +338,7 @@ All 3 client applications now complete!
 
 ## Next Steps (Optional)
 
-If you want to enhance:
+Potential enhancements:
 1. Add symbol filtering (show only selected symbols)
 2. Add spread alerts (visual indicator for wide spreads)
 3. Add dark mode support
