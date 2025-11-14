@@ -14,20 +14,20 @@ Universal TCL scripts for building and programming any FPGA project in this repo
 From the repository root directory:
 
 ```bash
-"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source build.tcl -tclargs <project_dir>
+"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source scripts/build.tcl -tclargs <project_dir>
 ```
 
 **Examples:**
 
 ```bash
 # Build project 01
-"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source build.tcl -tclargs 01-led-blink
+"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source scripts/build.tcl -tclargs 01-led-blink
 
 # Build project 05
-"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source build.tcl -tclargs 05-uart-transmitter
+"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source scripts/build.tcl -tclargs 05-uart-transmitter
 
 # Build any numbered project
-"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source build.tcl -tclargs 06-next-project
+"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source scripts/build.tcl -tclargs 06-next-project
 ```
 
 ### Programming FPGA
@@ -35,17 +35,17 @@ From the repository root directory:
 From the repository root directory:
 
 ```bash
-"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source program.tcl -tclargs <project_dir>
+"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source scripts/program.tcl -tclargs <project_dir>
 ```
 
 **Examples:**
 
 ```bash
 # Program with project 01 bitstream
-"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source program.tcl -tclargs 01-led-blink
+"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source scripts/program.tcl -tclargs 01-led-blink
 
 # Program with project 05 bitstream
-"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source program.tcl -tclargs 05-uart-transmitter
+"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source scripts/program.tcl -tclargs 05-uart-transmitter
 ```
 
 ## How It Works
@@ -96,10 +96,10 @@ Both scripts include comprehensive error checking:
 # Full workflow for any project:
 
 # 1. Build
-"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source build.tcl -tclargs <project_dir>
+"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source scripts/build.tcl -tclargs <project_dir>
 
 # 2. Program
-"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source program.tcl -tclargs <project_dir>
+"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source scripts/program.tcl -tclargs <project_dir>
 ```
 
 Replace `<project_dir>` with:

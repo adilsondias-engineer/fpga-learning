@@ -344,7 +344,7 @@ fpga-trading-systems/
 **Portfolio Highlights to Review:**
 
 **FPGA Hardware Layer:**
-1. UDP/IP Stack: [06-mii-ethernet-udp/README.md](../06-mii-ethernet-udp/README.md) - Production CDC, 100% reliability
+1. UDP/IP Stack: [06-udp-parser-mii-v5/README.md](../06-udp-parser-mii-v5/README.md) - Production CDC, 100% reliability
 2. ITCH Parser: [07-itch-parser/README.md](../07-itch-parser/README.md) - Async FIFO, gray code synchronization
 3. Order Book: [08-order-book/README.md](../08-order-book/README.md) - BRAM inference, sub-μs latency
 
