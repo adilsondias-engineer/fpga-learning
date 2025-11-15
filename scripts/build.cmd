@@ -1,1 +1,1 @@
-"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source build.tcl -tclargs %1
+"C:\Xilinx\2025.1\Vivado\bin\vivado.bat" -mode batch -source scripts\build.tcl -tclargs %1
