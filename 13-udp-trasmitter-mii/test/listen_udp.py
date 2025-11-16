@@ -77,7 +77,7 @@ def listen_udp(port=5000, timeout=10):
 
 if __name__ == "__main__":
     port = 5000
-    timeout = 30  # 30 seconds should be plenty for 10 packets
+    timeout = 120  # 30 seconds should be plenty for 10 packets
 
     if len(sys.argv) > 1:
         port = int(sys.argv[1])

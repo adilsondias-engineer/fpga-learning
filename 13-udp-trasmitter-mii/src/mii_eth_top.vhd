@@ -413,6 +413,19 @@ architecture structural of mii_eth_top is
     signal encoder_overflow_sync2 : std_logic := '0';
     signal encoder_overflow_latch : std_logic := '0';  -- Latched until reset
 
+    -- ========================================================================
+    -- UDP TX Signals (SystemVerilog eth_udp_send module)
+    -- ========================================================================
+    -- BBO UDP formatter signals
+    signal udp_wr_en   : std_logic;
+    signal udp_wr_d    : std_logic_vector(3 downto 0);
+    signal udp_wr_busy : std_logic;
+    signal udp_packets_sent : std_logic_vector(31 downto 0);
+
+    -- eth_udp_send module signals
+    signal udp_tx_busy : std_logic;  -- mac_busy from eth_udp_send
+    signal udp_tx_rdy  : std_logic;  -- rdy from eth_udp_send
+
 begin
 
     -- =========================================================================
@@ -712,11 +725,9 @@ begin
     eth_rstn <= phy_reset_n;
     
     ----------------------------------------------------------------------------------
-    -- Transmit Interface (Not implemented - receive only)
+    -- Transmit Interface - Controlled by eth_udp_send module (SystemVerilog)
     ----------------------------------------------------------------------------------
-
-    eth_txd   <= (others => '0');
-    eth_tx_en <= '0';
+    -- eth_txd and eth_tx_en are connected to eth_udp_send module below
     
     ----------------------------------------------------------------------------------
     -- Reset Synchronizer for 25 MHz domain (eth_rx_clk)
@@ -1420,6 +1431,67 @@ begin
             end if;
         end if;
     end process;
+
+    --------------------------------------------------------------------------------
+    -- UDP TX for BBO Data (replaces UART for BBO messages in Project 9)
+    --------------------------------------------------------------------------------
+    -- Instantiate BBO-to-UDP formatter
+    -- Converts BBO struct to 256-byte UDP payload, writes nibbles to eth_udp_send
+    bbo_udp_formatter_inst: entity work.bbo_udp_formatter
+        port map (
+            clk => clk,
+            rst => reset,
+            -- BBO input (synchronized from 25 MHz)
+            bbo => ob_bbo_sync,
+            bbo_update => ob_bbo_update_sync2,
+            bbo_symbol => ob_bbo_symbol_sync,
+            -- UDP TX FIFO interface
+            wr_en => udp_wr_en,
+            wr_d => udp_wr_d,
+            wr_busy => udp_wr_busy,
+            -- Status
+            packets_sent => udp_packets_sent
+        );
+
+    -- Instantiate eth_udp_send wrapper (SystemVerilog with flattened interfaces)
+    -- Sends UDP packets with BBO data to 192.168.0.93:5000
+    eth_udp_send_inst: entity work.eth_udp_send_wrapper
+        generic map (
+            CLK_RATIO => 4,              -- 100 MHz / 25 MHz = 4
+            MIN_DATA_BYTES => 256,       -- Match bbo_udp_formatter packet size
+            MAX_DATA_BYTES => 256,
+            POWER_UP_CYCLES => 5_000_000,  -- 50ms @ 100MHz
+            WORD_SIZE_BYTES => 1
+        )
+        port map (
+            -- Standard clocks
+            clk => clk,
+            rst => reset,
+            clk25 => clk_25mhz,
+            -- Writing data from formatter
+            wr_en => udp_wr_en,
+            wr_d => udp_wr_d,
+            wr_rst_busy => open,  -- Not used
+            wr_full => udp_wr_busy,
+            -- Ethernet PHY interface
+            eth_ref_clk => open,  -- Drives eth_ref_clk separately from PLL
+            eth_rstn => open,     -- Drives eth_rstn from PHY reset logic
+            eth_tx_clk => eth_tx_clk,
+            eth_tx_en => eth_tx_en,
+            eth_txd => eth_txd,
+            -- IP/MAC configuration (fixed for BBO transmission)
+            ip_src => x"C0A800D4",        -- 192.168.0.212
+            ip_dst => x"C0A8005D",        -- 192.168.0.93
+            mac_src => MY_MAC_ADDR,       -- Arty A7-100T MAC
+            mac_dst => x"FFFFFFFFFFFF",   -- Broadcast
+            udp_src_port => x"1388",      -- 5000
+            udp_dst_port => x"1388",      -- 5000
+            -- Control
+            flush => '0',
+            -- Status
+            mac_busy => udp_tx_busy,
+            rdy => udp_tx_rdy
+        );
 
     ----------------------------------------------------------------------------------
     -- Clock Domain Crossing: 25 MHz -> 100 MHz

@@ -139,35 +139,64 @@ create_generated_clock -name eth_ref_clk \
     -divide_by 1 \
     [get_ports eth_ref_clk]
 
+## Generated 25MHz clock (used internally and for eth_udp_send TX)
+## CRITICAL: eth_udp_send uses clk25 (from clk_25mhz net) for TX state machine
+## This is the actual clock domain for TX outputs (eth_txd, eth_tx_en)
+## clk_25mhz is buffered from PLL via BUFG (instance: ref_clk_bufg)
+## Note: clk_25mhz and eth_ref_clk are the same net after synthesis
+create_generated_clock -name clk_25mhz \
+    -source [get_pins -hierarchical -filter {NAME =~ "*ref_clock_gen/CLKOUT0"}] \
+    -divide_by 1 \
+    [get_pins -hierarchical -filter {NAME =~ "*ref_clk_bufg/O"}]
+
 ## RX clock from PHY (25 MHz for 100 Mbps mode)
 create_clock -period 40.000 -name eth_rx_clk [get_ports eth_rx_clk]
 
 ## TX clock from PHY (25 MHz for 100 Mbps mode)
-create_clock -period 40.000 -name eth_tx_clk [get_ports eth_tx_clk]
+## NOTE: eth_udp_send doesn't use eth_tx_clk - it uses clk25 (clk_25mhz) instead
+## Mark as asynchronous since it is not used for timing
+create_clock -period 40.000 -waveform {0 20} -name eth_tx_clk [get_ports eth_tx_clk]
 
 ## Input delays for MII RX data (relative to eth_rx_clk)
 ## MII spec: setup/hold window is approximately 10ns
 set_input_delay -clock eth_rx_clk -max 10.0 [get_ports {eth_rxd[*] eth_rx_dv eth_rx_er}]
 set_input_delay -clock eth_rx_clk -min 0.0 [get_ports {eth_rxd[*] eth_rx_dv eth_rx_er}]
 
-## Output delays for MII TX data (relative to eth_tx_clk)
-## MII spec: PHY samples on rising edge with ~10ns setup/hold window
-## We drive on falling edge, so we have half cycle (20ns) to meet setup
-## Being conservative, allow 5ns for output delay (15ns margin)
-set_output_delay -clock eth_tx_clk -max 5.0 [get_ports {eth_txd[*] eth_tx_en}]
-set_output_delay -clock eth_tx_clk -min -2.0 [get_ports {eth_txd[*] eth_tx_en}]
+## Output delays for MII TX data
+## CRITICAL: Constrain relative to clk_25mhz (the actual clock domain used by eth_udp_send)
+## clk_25mhz and eth_ref_clk are the same net, but constraining relative to clk_25mhz
+## ensures Vivado uses the correct clock domain for timing analysis
+## PHY samples on rising edge of its internal clock (derived from eth_ref_clk)
+## eth_udp_send drives on falling edge of clk25, PHY samples on next rising edge
+## This provides ~20ns setup time, well within the 10ns requirement
+## Use relaxed constraints (8ns max, -2ns min) to help meet timing
+set_output_delay -clock clk_25mhz -max 8.0 [get_ports {eth_txd[*] eth_tx_en}]
+set_output_delay -clock clk_25mhz -min -2.0 [get_ports {eth_txd[*] eth_tx_en}]
 
 ## Clock domain crossing constraints
 ## eth_rx_clk (25 MHz) -> sys_clk (100 MHz) via 2FF synchronizer
 set_max_delay -from [get_clocks eth_rx_clk] -to [get_clocks sys_clk] 40.0
 set_max_delay -from [get_clocks sys_clk] -to [get_clocks eth_rx_clk] 10.0
 
+## sys_clk (100 MHz) -> clk_25mhz (25 MHz) CDC
+## BBO formatter writes data from sys_clk to eth_udp_send running on clk25
+set_max_delay -from [get_clocks sys_clk] -to [get_clocks clk_25mhz] 40.0
+set_max_delay -from [get_clocks clk_25mhz] -to [get_clocks sys_clk] 10.0
+
 ## Mark asynchronous clock domains
+## CRITICAL: clk_25mhz and eth_ref_clk are the same net, so they're in the same group
+## eth_tx_clk is not used by eth_udp_send, so mark as asynchronous
 set_clock_groups -asynchronous \
     -group [get_clocks sys_clk] \
     -group [get_clocks eth_rx_clk] \
     -group [get_clocks eth_tx_clk] \
-    -group [get_clocks eth_ref_clk]
+    -group [get_clocks {clk_25mhz eth_ref_clk}]
+
+## CRITICAL: Mark eth_tx_clk as false path since eth_udp_send doesn't use it
+## The design uses clk25 (clk_25mhz) which is related to eth_ref_clk
+## Mark all paths to/from eth_tx_clk as false paths
+set_false_path -from [get_clocks eth_tx_clk]
+set_false_path -to [get_clocks eth_tx_clk]
 
 ## CDC Synchronizer Constraints
 ## Mark synchronizer flip-flops to prevent optimization and guide placement

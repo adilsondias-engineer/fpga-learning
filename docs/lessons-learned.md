@@ -1057,7 +1057,7 @@ mii_eth_top
 
 ## Project 06 Phase 1F: Bug #13 - Critical CDC Issues & Real-Time Architecture
 
-### ⭐ The Most Important Lesson: Clock Domain Crossing Can Break Working Designs
+###  The Most Important Lesson: Clock Domain Crossing Can Break Working Designs
 
 **Context:** IP parser worked perfectly (ip=1, proto=11), but UDP parser consistently failed (udp=0). This was Bug #13 - a race condition caused by CDC violations that took significant debugging to identify and resolve.
 
@@ -1357,7 +1357,7 @@ Based on Bug #13 resolution, use this checklist for ALL multi-clock designs:
 
 ### Key Architectural Lessons from Bug #13
 
-#### ⭐ Lesson 1: Real-Time Architecture for Streaming Data
+####  Lesson 1: Real-Time Architecture for Streaming Data
 **Problem:** Event-driven parsers waiting for signals create race conditions.
 
 **Solution:** Trigger state machines directly on byte position, not on derived signals.
@@ -1380,7 +1380,7 @@ end if;
 - Fixed-position headers (MAC, IP, UDP, ITCH)
 - Deterministic timing requirements
 
-#### ⭐ Lesson 2: CDC Cannot Be Partial
+####  Lesson 2: CDC Cannot Be Partial
 **Problem:** Missing even one CDC signal causes random failures.
 
 **Solution:** Systematic approach - synchronize EVERY signal crossing clock domains.
@@ -1394,7 +1394,7 @@ end if;
 
 **One missed signal = production failure.**
 
-#### ⭐ Lesson 3: Debug Outputs Are Investments
+####  Lesson 3: Debug Outputs Are Investments
 **Problem:** "It doesn't work" provides no actionable information.
 
 **Solution:** Add strategic debug outputs showing signal relationships.
@@ -1407,7 +1407,7 @@ end if;
 
 **Example:** `proto=11 upok=0 ulok=0 frm=1` instantly showed timing mismatch.
 
-#### ⭐ Lesson 4: XDC Constraints Are Not Optional
+####  Lesson 4: XDC Constraints Are Not Optional
 **Problem:** Design works in simulation, fails in hardware.
 
 **Solution:** CDC constraints guide tools to preserve synchronizer integrity.
@@ -1462,7 +1462,7 @@ end if;
 
 ## Project 07: ITCH 5.0 Protocol Parser - MII Timing Discovery
 
-### ⭐ Critical Discovery: MII Byte Timing and Off-by-One Errors
+###  Critical Discovery: MII Byte Timing and Off-by-One Errors
 
 **Context:** ITCH parser implemented for Nasdaq market data feeds. Initial implementation used even byte_counter values (0,2,4,6...) for field extraction, resulting in all fields showing incorrect values (StockLoc=0000, Symbol garbled).
 
@@ -1730,7 +1730,7 @@ end if;
 
 ## Project 07 v3: Race Conditions and Async FIFO Architecture
 
-### ⭐ The Ultimate Multi-Process Lesson: Sometimes You Must Redesign
+###  The Ultimate Multi-Process Lesson: Sometimes You Must Redesign
 
 **Context:** After successfully implementing 5 ITCH message types (A, E, X, S, R) in v2, encountered persistent race conditions causing message loss and duplication. 20+ debugging attempts failed to fix the fundamental architectural problem.
 
@@ -1913,7 +1913,7 @@ end process;
 
 ### Key Architectural Lessons from v2→v3 Refactor
 
-#### ⭐ Lesson 1: Know When to Redesign vs Debug
+####  Lesson 1: Know When to Redesign vs Debug
 
 **Problem Indicators:**
 - Same category of bug reappears with different fix attempts (race conditions)
@@ -1931,7 +1931,7 @@ end process;
 
 **Lesson:** Sometimes debugging is the wrong approach. Recognize architectural problems early and redesign.
 
-#### ⭐ Lesson 2: Async FIFO Eliminates CDC Race Conditions
+####  Lesson 2: Async FIFO Eliminates CDC Race Conditions
 
 **When to Use:**
 - Crossing clock domains with multi-bit data
@@ -1964,7 +1964,7 @@ async_fifo: entity work.async_fifo
     );
 ```
 
-#### ⭐ Lesson 3: Message Serialization for FIFO Transfer
+####  Lesson 3: Message Serialization for FIFO Transfer
 
 **Challenge:** ITCH messages have variable fields (Order ref, symbol, price, etc.). How to pass through fixed-width FIFO?
 
@@ -2000,7 +2000,7 @@ end function;
 - Decoder extracts fields based on type
 - Easy to extend (add new message types to package)
 
-#### ⭐ Lesson 4: Build Version Tracking is Essential
+####  Lesson 4: Build Version Tracking is Essential
 
 **Challenge:** Programming wrong bitstream causes confusion about which features are implemented.
 
@@ -2166,10 +2166,10 @@ Build v048: 17 messages tested - banner + all types working
 - ✅ **A (Add Order):** Multiple orders, symbols, prices decoded correctly
 - ✅ **E (Order Executed):** Exec shares, match numbers correct
 - ✅ **X (Order Cancel):** Cancel shares parsed
-- ✅ **D (Order Delete):** Order refs extracted correctly ⭐ NEW
-- ✅ **U (Order Replace):** Old/new refs, shares, prices all decoded ⭐ NEW
-- ✅ **P (Trade):** All fields including 64-bit match number correct ⭐ NEW
-- ✅ **Q (Cross Trade):** 64-bit shares, prices, cross types perfect ⭐ NEW
+- ✅ **D (Order Delete):** Order refs extracted correctly  NEW
+- ✅ **U (Order Replace):** Old/new refs, shares, prices all decoded  NEW
+- ✅ **P (Trade):** All fields including 64-bit match number correct  NEW
+- ✅ **Q (Cross Trade):** 64-bit shares, prices, cross types perfect  NEW
 
 **Data Integrity Verification:**
 - Prices: `0x0016ED24` = $150.25 ✅
@@ -2205,7 +2205,7 @@ Build v048: 17 messages tested - banner + all types working
 
 ### Key Lessons from v4 Extension
 
-#### ⭐ Lesson 1: Scalability Validation Through Extension
+####  Lesson 1: Scalability Validation Through Extension
 
 **How to Test Architecture:**
 - If adding features requires architectural changes → architecture is brittle
@@ -2219,7 +2219,7 @@ Build v048: 17 messages tested - banner + all types working
 
 **Lesson:** v3 architecture validated through successful v4 extension.
 
-#### ⭐ Lesson 2: User Experience in Hardware Systems
+####  Lesson 2: User Experience in Hardware Systems
 
 **Common Mistake:** Assume operator knows system state through telepathy.
 
@@ -2236,7 +2236,7 @@ Build v048: 17 messages tested - banner + all types working
 
 **Lesson:** Hardware systems need UX too. Communicate with your operator.
 
-#### ⭐ Lesson 3: Incremental Validation Strategy
+####  Lesson 3: Incremental Validation Strategy
 
 **v4 Test Progression:**
 1. Individual message types (D, U, P, Q separately)
@@ -2296,7 +2296,7 @@ v4 provides complete ITCH message coverage for simulating a simple order book wi
 
 ## Project 08: Hardware Order Book - BRAM Inference Mastery
 
-### ⭐ Critical Discovery: BRAM Inference Requires Exact Template Patterns
+###  Critical Discovery: BRAM Inference Requires Exact Template Patterns
 
 **Context:** Order book implementation required BRAM-based storage for orders and price levels. Initial implementation inferred LUTRAM (Distributed RAM) instead of Block RAM, causing resource waste and incorrect bid price values.
 
@@ -2494,7 +2494,7 @@ when UPDATE_PRICE_ADD =>
 
 ### Key Architectural Lessons
 
-#### ⭐ Lesson 1: BRAM Templates Are Not Suggestions
+####  Lesson 1: BRAM Templates Are Not Suggestions
 
 **Problem:** "Close enough" code doesn't infer BRAM. Synthesis tools are pattern-matching, not intelligent.
 
@@ -2506,7 +2506,7 @@ when UPDATE_PRICE_ADD =>
 
 **Lesson:** Don't try to be clever. Follow the template exactly.
 
-#### ⭐ Lesson 2: Read-Modify-Write Needs Architecture Changes
+####  Lesson 2: Read-Modify-Write Needs Architecture Changes
 
 **Problem:** Can't read and write BRAM in same cycle (single-port) or same process (breaks template).
 
@@ -2517,7 +2517,7 @@ when UPDATE_PRICE_ADD =>
 
 **Lesson:** Complex operations require architectural changes, not just code fixes.
 
-#### ⭐ Lesson 3: Debug Infrastructure Enables Rapid Diagnosis
+####  Lesson 3: Debug Infrastructure Enables Rapid Diagnosis
 
 **Problem:** "Bid prices are zero" provides no actionable information.
 
@@ -2548,9 +2548,249 @@ when UPDATE_PRICE_ADD =>
 
 ---
 
+## Project 13: UDP BBO Transmitter - Mixed-Language Integration & Timing Closure
+
+###  Critical Lesson 1: SystemVerilog/VHDL Mixed-Language Wrapper Pattern
+
+**The Challenge:** Integration of SystemVerilog module (`eth_udp_send`) using interfaces (`IEthPhy`, `IIpInfo`) into VHDL top-level design.
+
+**Wrong Approach:** Direct instantiation of SystemVerilog interfaces in VHDL
+```vhdl
+-- This DOES NOT WORK - interfaces are not entities
+IEthPhy_inst: entity work.IEthPhy port map (...);
+IIpInfo_inst: entity work.IIpInfo port map (...);
+```
+
+**Right Approach:** SystemVerilog wrapper that flattens interfaces to individual ports
+
+```systemverilog
+module eth_udp_send_wrapper (
+    // Flattened IEthPhy signals
+    output logic eth_ref_clk,
+    output logic eth_rstn,
+    input logic eth_tx_clk,
+    output logic eth_tx_en,
+    output logic [3:0] eth_txd,
+
+    // Flattened IIpInfo signals
+    input logic [31:0] ip_src,
+    input logic [47:0] mac_src,
+    // ...
+);
+    // Instantiate interfaces internally
+    IEthPhy eth();
+    IIpInfo ip_info();
+
+    // Connect flat ports to interface
+    assign eth.ref_clk = clk25;
+    assign eth_ref_clk = eth.ref_clk;
+    // ...
+
+    // Instantiate actual module with interfaces
+    eth_udp_send eth_udp_send_inst (
+        .eth(eth),
+        .ip_info(ip_info),
+        // ...
+    );
+endmodule
+```
+
+**VHDL Instantiation:**
+```vhdl
+eth_udp_send_inst: entity work.eth_udp_send_wrapper
+    port map (
+        eth_ref_clk => open,  -- Generated internally
+        eth_rstn => open,     -- Generated internally
+        eth_tx_clk => eth_tx_clk,
+        eth_tx_en => eth_tx_en,
+        eth_txd => eth_txd,
+        ip_src => x"C0A800D4",  -- Individual signals, not interface
+        mac_src => MY_MAC_ADDR,
+        -- ...
+    );
+```
+
+**Lesson:** SystemVerilog interfaces cannot cross language boundaries. Wrapper pattern flattens interfaces for VHDL compatibility while preserving interface-based design internally.
+
+---
+
+###  Critical Lesson 2: XDC Timing Constraints for Generated vs PHY Clocks
+
+**The Challenge:** Timing violations (WNS=-0.863ns) on TX path even with correct design.
+
+**Root Cause:** TX outputs constrained to wrong clock domain (`eth_tx_clk` from PHY instead of `clk_25mhz` generated clock).
+
+**Wrong XDC:**
+```tcl
+## eth_tx_clk is from PHY, but eth_udp_send doesn't use it!
+set_output_delay -clock eth_tx_clk -max 10.0 [get_ports {eth_txd[*] eth_tx_en}]
+```
+
+**Right XDC:**
+```tcl
+## CRITICAL: eth_udp_send uses clk25 (clk_25mhz) not eth_tx_clk
+## Define clk_25mhz as generated clock
+create_generated_clock -name clk_25mhz \
+    -source [get_pins -hierarchical -filter {NAME =~ "*ref_clock_gen/CLKOUT0"}] \
+    -divide_by 1 \
+    [get_pins -hierarchical -filter {NAME =~ "*ref_clk_bufg/O"}]
+
+## Constrain TX outputs to actual clock domain used
+set_output_delay -clock clk_25mhz -max 8.0 [get_ports {eth_txd[*] eth_tx_en}]
+set_output_delay -clock clk_25mhz -min -2.0 [get_ports {eth_txd[*] eth_tx_en}]
+
+## Mark eth_tx_clk as false path since it's not used
+set_false_path -from [get_clocks eth_tx_clk]
+set_false_path -to [get_clocks eth_tx_clk]
+```
+
+**Lesson:** Always constrain outputs to the actual clock domain driving them. Generated clocks must be explicitly defined in XDC with correct source pin. Unused clocks from PHY should be marked as false paths.
+
+**Why This Matters:**
+- eth_udp_send internally uses `clk25` (generated from PLL) for TX state machine
+- PHY's `eth_tx_clk` is not used by the design (design is clock-source mode, not slave mode)
+- Constraining to wrong clock causes Vivado to analyze impossible timing paths
+- Result: False violations or missed real violations
+
+---
+
+###  Critical Lesson 3: Pipeline State Machine for Timing Closure
+
+**The Challenge:** Combinational arithmetic in nibble extraction violated timing (complex index calculations).
+
+**Initial Implementation (Failed Timing):**
+```vhdl
+when WRITE_NIBBLES =>
+    if wr_busy = '0' then
+        -- Complex arithmetic in single cycle
+        byte_index := nibble_index / 2;
+        if (nibble_index mod 2) = 1 then
+            wr_d <= packet_data(byte_index)(3 downto 0);  -- Lower nibble
+        else
+            wr_d <= packet_data(byte_index)(7 downto 4);  -- Upper nibble
+        end if;
+        wr_en <= '1';
+        nibble_index <= nibble_index - 1;
+    end if;
+```
+
+**Timing-Optimized Implementation:**
+```vhdl
+-- Separate calculation and write into 2 states
+signal nibble_to_write : std_logic_vector(3 downto 0);
+
+when CALC_NIBBLE =>
+    -- Pipeline stage 1: Calculate and register nibble
+    byte_index := wr_i / 2;
+    is_lower_nibble := (wr_i mod 2) = 1;
+
+    if is_lower_nibble then
+        nibble_to_write <= packet_vector(8*byte_index + 3 downto 8*byte_index);
+    else
+        nibble_to_write <= packet_vector(8*byte_index + 7 downto 8*byte_index + 4);
+    end if;
+
+    state <= WRITE_NIBBLE;
+
+when WRITE_NIBBLE =>
+    -- Pipeline stage 2: Write pre-registered nibble
+    if wr_busy = '0' then
+        wr_d <= nibble_to_write;  -- No arithmetic here!
+        wr_en <= '1';
+        wr_i <= wr_i - 1;
+        state <= CALC_NIBBLE;
+    end if;
+```
+
+**Lesson:** Separate complex arithmetic from registered outputs. Pre-register computed values to reduce combinational delay.
+
+**Additional Optimization:** Changed from `packet_data` byte array to `packet_vector` single vector for simpler nibble extraction (slice indexing vs array+bit indexing).
+
+---
+
+###  Lesson 4: UDP Packet Format and Nibble Write Order
+
+**Nibble Write Pattern (from fpga-ethernet-udp reference):**
+```systemverilog
+// Lower nibble first (odd index), then upper nibble (even index)
+wr_d <= eth_d[8 * (wr_i >> 1) + 4 * ((~wr_i) & 1)+:4];
+```
+
+**Translation to VHDL:**
+```vhdl
+byte_index := wr_i / 2;
+is_lower_nibble := (wr_i mod 2) = 1;
+
+if is_lower_nibble then
+    nibble_to_write <= packet_vector(8*byte_index + 3 downto 8*byte_index);
+else
+    nibble_to_write <= packet_vector(8*byte_index + 7 downto 8*byte_index + 4);
+end if;
+```
+
+**Result:** BBO data appears at bytes 228-255 of 256-byte payload (due to nibble reversal).
+
+**Packet Structure:**
+- Bytes 0-227: Padding (zeros)
+- Bytes 228-255: BBO data (Symbol + Bid/Ask/Spread)
+- Big-endian format for multi-byte integers
+- Fixed-point prices (4 decimal places: `1,495,000 = $149.50`)
+
+**Lesson:** Understanding reference nibble write order critical for correct data placement. Binary protocol requires careful byte order documentation for client parsers.
+
+---
+
+###  Lesson 5: Production Trading System UDP Architecture
+
+**Why UDP for BBO Distribution:**
+- **Low Latency:** No TCP handshake/ACK overhead
+- **Multicast Capable:** Single packet → multiple receivers
+- **Fire-and-Forget:** Order book updates are snapshots, not state transitions
+- **Trading Standard:** Exchange market data feeds use UDP multicast
+
+**Architecture Pattern:**
+```
+FPGA Order Book (100 MHz)
+    ↓
+BBO UDP Formatter (100 MHz)
+    ↓ (nibble writes)
+eth_udp_send (clk25 = 25 MHz)
+    ↓
+MII TX (25 MHz, 4-bit nibbles)
+    ↓
+Ethernet PHY
+    ↓
+UDP/IP Packet (192.168.0.212:5000 → 192.168.0.93:5000)
+```
+
+**Key Decisions:**
+- **UART for Debug Only:** Frees UART for debug messages, UDP handles market data
+- **256-Byte Payload:** Matches eth_udp_send MIN_DATA_BYTES (padding acceptable for low-frequency BBO updates)
+- **Broadcast MAC:** Allows any receiver on LAN to capture BBO updates
+- **Binary Format:** More efficient than ASCII/JSON for high-frequency updates
+
+**Lesson:** Separate data plane (UDP market data) from control plane (UART debug). Binary protocols with fixed-size payloads simplify FPGA formatting logic.
+
+---
+
+**Key Achievements:**
+1. **Mixed-Language Integration** - SystemVerilog wrapper pattern for VHDL interoperability
+2. **Timing Closure** - Correct XDC constraints for generated clocks, pipelined state machine
+3. **UDP Transmission** - Real-time BBO distribution with < 5 μs wire-to-UDP latency
+4. **Production Pattern** - Standard trading system architecture (UDP market data, UART debug)
+5. **Binary Protocol** - Efficient packet format with Python/C++ parsing support
+
+**Why This Matters for Trading:**
+- **Standard Architecture:** Production trading systems use UDP for market data distribution
+- **Language Flexibility:** Ability to integrate existing IP (SystemVerilog eth_udp_send) into VHDL system
+- **Timing Discipline:** XDC constraint mastery essential for meeting strict latency requirements
+- **Protocol Design:** Binary format design and documentation skills directly applicable to exchange feeds
+
+---
+
 ## Projects 9-12: Application Layer - Multi-Protocol Distribution Architecture
 
-### ⭐ Critical Decision: Protocol Selection for Different Client Types
+###  Critical Decision: Protocol Selection for Different Client Types
 
 **The Challenge:** How to distribute FPGA BBO data to diverse application types (desktop, mobile, IoT)?
 
@@ -2576,7 +2816,7 @@ FPGA → C++ Gateway ─┬→ TCP (localhost:9999) → Java Desktop
 
 ### Project 09: C++ Order Gateway - Multi-Protocol Publisher
 
-#### ⭐ Lesson 1: Protocol Independence Through Gateway Pattern
+####  Lesson 1: Protocol Independence Through Gateway Pattern
 
 **Architecture:**
 ```cpp
@@ -2601,7 +2841,7 @@ class OrderGateway {
 
 ---
 
-#### ⭐ Lesson 2: MQTT v3.1.1 vs v5.0 Compatibility
+####  Lesson 2: MQTT v3.1.1 vs v5.0 Compatibility
 
 **Problem:** MQTTnet 5.x defaults to MQTT v5.0, but ESP32/mobile need v3.1.1
 
@@ -2635,7 +2875,7 @@ mqtt.connect(CLIENT_ID, MQTT_USER, MQTT_PASS);
 
 ---
 
-#### ⭐ Lesson 3: Kafka for Future vs Active Use
+####  Lesson 3: Kafka for Future vs Active Use
 
 **Decision:** Implement Kafka producer, but no consumers yet
 
@@ -2657,7 +2897,7 @@ mqtt.connect(CLIENT_ID, MQTT_USER, MQTT_PASS);
 
 ### Project 10: ESP32 IoT Ticker - MQTT for Low Power
 
-#### ⭐ Lesson 1: Why MQTT is Perfect for IoT
+####  Lesson 1: Why MQTT is Perfect for IoT
 
 **ESP32 Constraints:**
 - 520KB RAM (no room for Kafka client)
@@ -2684,7 +2924,7 @@ mqtt.connect(CLIENT_ID, MQTT_USER, MQTT_PASS);
 
 ---
 
-#### ⭐ Lesson 2: TFT Display Update Throttling
+####  Lesson 2: TFT Display Update Throttling
 
 **Problem:** MQTT messages arrive faster than TFT can refresh (50-100ms per update)
 
@@ -2719,7 +2959,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 ### Project 11: .NET MAUI Mobile App - MQTT for Cross-Platform
 
-#### ⭐ Lesson 1: Why NOT Kafka for Mobile
+####  Lesson 1: Why NOT Kafka for Mobile
 
 **Android Compatibility Issues:**
 - Confluent.Kafka → Native librdkafka.so (x86/ARM builds required)
@@ -2738,7 +2978,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 ---
 
-#### ⭐ Lesson 2: MQTTnet 5.x Breaking Changes
+####  Lesson 2: MQTTnet 5.x Breaking Changes
 
 **Problem:** Upgrading .NET 8 → .NET 10 required MQTTnet 4.x → 5.x
 
@@ -2764,7 +3004,7 @@ var reason = e.Reason.ToString();  // Enum is non-nullable now
 
 ---
 
-#### ⭐ Lesson 3: MVVM Toolkit Property Generation
+####  Lesson 3: MVVM Toolkit Property Generation
 
 **Problem:** Compiler warnings when accessing private fields directly
 
@@ -2797,7 +3037,7 @@ private void Connect() {
 
 ### Project 12: Java Desktop Terminal - TCP for Low Latency
 
-#### ⭐ Lesson 1: Why TCP for Desktop Applications
+####  Lesson 1: Why TCP for Desktop Applications
 
 **Desktop Advantages:**
 - localhost = < 1ms latency (no network hops)
@@ -2822,7 +3062,7 @@ private void Connect() {
 
 ---
 
-#### ⭐ Lesson 2: JavaFX Thread Confinement
+####  Lesson 2: JavaFX Thread Confinement
 
 **Problem:** Network I/O updates UI from background thread → crash
 
@@ -2850,7 +3090,7 @@ private void onBboReceived(BboUpdate bbo) {
 
 ---
 
-#### ⭐ Lesson 3: JSON Streaming with Newline Delimiters
+####  Lesson 3: JSON Streaming with Newline Delimiters
 
 **Problem:** TCP is byte stream, not message stream. How to separate JSON objects?
 
@@ -2888,7 +3128,7 @@ while ((line = reader.readLine()) != null) {  // ← Read until '\n'
 
 ### Key Architectural Lessons: Projects 9-12
 
-#### ⭐ Lesson 1: Protocol Selection is a System Design Decision
+####  Lesson 1: Protocol Selection is a System Design Decision
 
 **Trade-offs:**
 
@@ -2903,7 +3143,7 @@ while ((line = reader.readLine()) != null) {  // ← Read until '\n'
 
 ---
 
-#### ⭐ Lesson 2: Gateway Pattern Enables Protocol Diversity
+####  Lesson 2: Gateway Pattern Enables Protocol Diversity
 
 **Without Gateway (Tightly Coupled):**
 ```
@@ -2924,7 +3164,7 @@ FPGA → C++ Gateway ─┬→ TCP → Java Desktop ✅
 
 ---
 
-#### ⭐ Lesson 3: Cross-Platform Development Has Hidden Costs
+####  Lesson 3: Cross-Platform Development Has Hidden Costs
 
 **Challenges Encountered:**
 

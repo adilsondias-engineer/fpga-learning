@@ -119,9 +119,32 @@ A complete **low-latency market data processing and distribution system** combin
   - BBO update: ~2.6 µs per symbol
   - Full scan: ~30 µs for all 256 levels
 - **Resources:** 32 RAMB36 tiles (24% utilization)
-- **Output:** UART @ 115200 baud
+- **Output:** UART @ 115200 baud (debug only)
   ```
   [BBO:AAPL    ]Bid:0x002C46CC (0x0000001E) | Ask:0x002CE55C (0x0000001E) | Spr:0x00001F90
+  ```
+
+#### Project 13: UDP BBO Transmitter (MII TX)
+- **Purpose:** Real-time BBO distribution via UDP (frees UART for debug)
+- **Architecture:**
+  - BBO UDP formatter (VHDL)
+  - eth_udp_send_wrapper.sv (SystemVerilog/VHDL bridge)
+  - MII TX interface (25 MHz, 4-bit nibbles)
+- **Protocol:** UDP/IP broadcast to 192.168.0.93:5000
+- **Packet Format:**
+  - 256-byte payload (28 bytes BBO data + 228 bytes padding)
+  - Big-endian fixed-point (4 decimal places: 1,495,000 = $149.50)
+  - Symbol (8B) + Bid Price/Shares (8B) + Ask Price/Shares (8B) + Spread (4B)
+- **Key Innovation:**
+  - SystemVerilog wrapper flattens interfaces for VHDL instantiation
+  - Pipelined nibble formatter (CALC_NIBBLE → WRITE_NIBBLE) for timing closure
+  - XDC constraints for generated clk_25mhz (not eth_tx_clk)
+- **Latency:** < 5 µs wire-to-UDP
+- **Output:** UDP packets
+  ```
+  Destination: 192.168.0.93:5000
+  Source: 192.168.0.212:5000 (FPGA MAC: 00:18:3E:04:5D:E7)
+  Payload: 256 bytes binary (BBO data at bytes 228-255)
   ```
 
 ---

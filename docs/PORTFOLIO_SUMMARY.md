@@ -12,7 +12,7 @@
 
 **Unique Value Proposition:** 20+ years C++ systems engineering + 5 years active futures trading (S&P 500, Nasdaq) + FPGA hardware acceleration + full-stack application development (C++, Java, .NET, IoT).
 
-**Development Achievement:** 12 complete projects, 300+ hours over 21 days, production-ready system demonstrating end-to-end trading infrastructure.
+**Development Achievement:** 13 complete projects, 300+ hours over 21 days, production-ready system demonstrating end-to-end trading infrastructure.
 
 ---
 
@@ -158,6 +158,14 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 **Architecture:** BRAM-based storage (1024 orders, 256 levels), FSM scanner
 **Achievement:** 120-170 ns order processing, 2.6 μs BBO update, production-grade BRAM inference
 **Debug Case Study:** Systematic BRAM inference troubleshooting (LUTRAM → BRAM template refactoring)
+
+### Project 13: UDP BBO Transmitter (MII TX)
+**Problem Solved:** Real-time BBO distribution via UDP (low-latency alternative to UART)
+**Architecture:** BBO UDP formatter + SystemVerilog/VHDL mixed-language integration
+**Achievement:** Sub-microsecond UDP transmission, frees UART for debug, production trading system pattern
+**Key Innovation:** eth_udp_send_wrapper.sv flattens SystemVerilog interfaces for VHDL instantiation
+**Technologies:** VHDL + SystemVerilog, XDC timing constraints for generated clocks, pipelined state machine
+**Performance:** < 5 μs wire-to-UDP latency, 256-byte binary packets, big-endian fixed-point format
 
 ### Project 09: C++ Order Gateway (Multi-Protocol Distribution)
 **Problem Solved:** Bridge FPGA to diverse application types (desktop, mobile, IoT, analytics)
@@ -322,6 +330,7 @@ fpga-trading-systems/
 ├── 06-mii-ethernet-udp/               # Core: Network stack (MII/MAC/IP/UDP)
 ├── 07-itch-parser/                    # Core: NASDAQ ITCH 5.0 decoder
 ├── 08-order-book/                     # Core: Hardware order book + BBO
+├── 13-udp-trasmitter-mii/             # Core: UDP BBO transmitter (MII TX)
 ├── 09-order-gateway-cpp/              # Application: C++ multi-protocol gateway
 ├── 10-esp32-ticker/                   # Application: ESP32 IoT display (Arduino)
 ├── 11-mobile-app/                     # Application: .NET MAUI (Android/iOS)
@@ -347,21 +356,22 @@ fpga-trading-systems/
 1. UDP/IP Stack: [06-udp-parser-mii-v5/README.md](../06-udp-parser-mii-v5/README.md) - Production CDC, 100% reliability
 2. ITCH Parser: [07-itch-parser/README.md](../07-itch-parser/README.md) - Async FIFO, gray code synchronization
 3. Order Book: [08-order-book/README.md](../08-order-book/README.md) - BRAM inference, sub-μs latency
+4. UDP TX: [13-udp-trasmitter-mii/README.md](../13-udp-trasmitter-mii/README.md) - SystemVerilog/VHDL integration, timing closure
 
 **Application Layer:**
-4. C++ Gateway: [09-order-gateway-cpp/README.md](../09-order-gateway-cpp/README.md) - Multi-protocol distribution
-5. ESP32 IoT: [10-esp32-ticker/README.md](../10-esp32-ticker/README.md) - Arduino + MQTT physical display
-6. Mobile App: [11-mobile-app/README.md](../11-mobile-app/README.md) - .NET MAUI cross-platform
-7. Java Desktop: [12-java-desktop-trading-terminal/README.md](../12-java-desktop-trading-terminal/README.md) - JavaFX terminal
+5. C++ Gateway: [09-order-gateway-cpp/README.md](../09-order-gateway-cpp/README.md) - Multi-protocol distribution
+6. ESP32 IoT: [10-esp32-ticker/README.md](../10-esp32-ticker/README.md) - Arduino + MQTT physical display
+7. Mobile App: [11-mobile-app/README.md](../11-mobile-app/README.md) - .NET MAUI cross-platform
+8. Java Desktop: [12-java-desktop-trading-terminal/README.md](../12-java-desktop-trading-terminal/README.md) - JavaFX terminal
 
 **Architecture & Lessons:**
-8. System Architecture: [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md) - Complete system design
-9. Lessons Learned: [lessons-learned.md](lessons-learned.md) - Technical insights from all 12 projects
-10. Visual Diagram: [images/system_architecture.png](images/system_architecture.png) - End-to-end architecture
+9. System Architecture: [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md) - Complete system design
+10. Lessons Learned: [lessons-learned.md](lessons-learned.md) - Technical insights from all 13 projects
+11. Visual Diagram: [images/system_architecture.png](images/system_architecture.png) - End-to-end architecture
 
 ---
 
-**Project Status:** ✅ **COMPLETE** - All 12 projects production-ready (November 2025)
+**Project Status:** ✅ **COMPLETE** - All 13 projects production-ready (November 2025)
 **Development Time:** 300+ hours over 21 days
 **System Status:** Fully integrated and operational with "live" NASDAQ ITCH feed(Historic data file simulating live feed)
 

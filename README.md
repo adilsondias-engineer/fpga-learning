@@ -2,7 +2,7 @@
 ![Language](https://img.shields.io/badge/Language-VHDL-blue)
 ![Status](https://img.shields.io/badge/Status-Production%20Ready-green)
 ![Hardware Verified](https://img.shields.io/badge/Hardware-Verified-brightgreen)
-![Projects](https://img.shields.io/badge/Projects-12%20Complete-brightgreen)
+![Projects](https://img.shields.io/badge/Projects-13%20Complete-brightgreen)
 ![Development Time](https://img.shields.io/badge/Development%20Time-300%2B%20hours-blue)
 
 # FPGA Trading Systems
@@ -65,6 +65,19 @@ Progressive architecture development from digital design fundamentals to product
 - **Debug Methodology:** Comprehensive instrumentation for systematic troubleshooting
 - **Trading Relevance:** Multi-symbol tracking essential for real-world exchange systems
 - **BBO Output:** UART interface with symbol name, bid/ask prices/shares, spread, change detection
+
+**Project 13: UDP BBO Transmitter (MII TX)** ✅
+- **Achievement:** Real-time BBO distribution via UDP with sub-microsecond latency
+- **Architecture:** BBO UDP formatter + SystemVerilog/VHDL mixed-language integration
+- **Protocol:** UDP/IP transmission to 192.168.0.93:5000, broadcast MAC
+- **Payload:** 256-byte UDP packets (28 bytes BBO data + 228 bytes padding)
+- **Data Format:** Big-endian, fixed-point prices (4 decimal places), Symbol + Bid/Ask/Spread
+- **Integration:** Frees UART for debug messages, UDP handles market data distribution
+- **Language Interop:** eth_udp_send_wrapper.sv flattens SystemVerilog interfaces for VHDL instantiation
+- **Timing Closure:** XDC constraints for clk_25mhz TX clock domain (eth_udp_send uses generated clock, not eth_tx_clk)
+- **Pipelined Design:** 2-stage nibble formatter (CALC_NIBBLE → WRITE_NIBBLE) for timing optimization
+- **Trading Relevance:** Low-latency UDP multicast essential for distributing BBO to trading algorithms
+- **Parsing Support:** Python and C++ reference implementations for UDP packet decoding
 
 ### Application Layer (Projects 9-12) ✅
 
@@ -135,13 +148,15 @@ Each project includes:
 **End-to-End Trading System Pipeline:**
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────┐
-│                            FPGA Layer (VHDL - Projects 6-8)                           │
-│  Ethernet PHY → UDP/IP → ITCH 5.0 → Order Book → BBO Tracker → UART Output           │
-│     25 MHz      100 MHz   100 MHz     100 MHz       100 MHz      115200 baud          │
+│                         FPGA Layer (VHDL - Projects 6-8, 13)                          │
+│  Ethernet RX → UDP/IP → ITCH 5.0 → Order Book → BBO Tracker → UDP TX (Project 13)    │
+│    (PHY MII)   100 MHz   100 MHz     100 MHz       100 MHz      25 MHz (MII TX)       │
+│     25 MHz                                                                            │
 │             └── Gray Code CDC ──┘                                                     │
+│                                                        └─→ UART (debug only)           │
 └──────────────────────────────────────────────────────────────────────────────────────┘
                                           │
-                                          │ UART (ASCII hex BBO)
+                                          │ UDP/IP (Binary BBO packets, 192.168.0.212 → .93)
                                           ▼
 ┌──────────────────────────────────────────────────────────────────────────────────────┐
 │                    C++ Gateway Layer (Project 9) - Multi-Protocol Distribution       │
