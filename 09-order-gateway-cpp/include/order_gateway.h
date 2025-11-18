@@ -5,7 +5,7 @@
 #include "tcp_server.h"
 #include "csv_logger.h"
 #include "mqtt.h"
-//#include "kafka_producer.h"
+#include "kafka_producer.h"
 #include "common/perf_monitor.h"
 
 #include <string>
@@ -95,7 +95,7 @@ namespace gateway
         std::unique_ptr<UartReader> uart_;
         std::unique_ptr<TCPServer> tcp_server_;
         std::unique_ptr<MQTT> mqtt_;
-        //std::unique_ptr<KafkaProducer> kafka_;
+        std::unique_ptr<KafkaProducer> kafka_;
         std::unique_ptr<CSVLogger> csv_logger_;
 
         // Thread-safe queue for BBO updates

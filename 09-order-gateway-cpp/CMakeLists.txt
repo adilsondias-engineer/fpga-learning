@@ -3,21 +3,15 @@ project(OrderGateway CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(VCPKG_HOST_TRIPLET x64-linux)
-set(VCPKG_TARGET_TRIPLET x64-linux)
-set(VCPKG_BUILD_TYPE release)
-set(VCPKG_BUILD_TYPE_DEBUG debug)
-set(VCPKG_BUILD_TYPE_RELEASE release)
-set(VCPKG_BUILD_TYPE_MINSIZEREL minsizerel)
-set(VCPKG_BUILD_TYPE_RELWITHDEBINFO relwithdebinfo) 
-#find_package(VCPKG REQUIRED)
-#vcpkg_find_package(Boost REQUIRED)
+
+# Add vcpkg installed directory to CMAKE_PREFIX_PATH if it exists
+if(EXISTS "${CMAKE_SOURCE_DIR}/vcpkg_installed/x64-linux/share")
+    list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/vcpkg_installed/x64-linux/share")
+    message(STATUS "Added vcpkg_installed to CMAKE_PREFIX_PATH")
+endif()
+
 find_package(eclipse-paho-mqtt-c CONFIG REQUIRED)
-
-
-#find_package(librdkafka CONFIG REQUIRED)
-#find_package(RdKafka CONFIG REQUIRED)
-#arget_link_libraries(order_gateway PRIVATE RdKafka::rdkafka RdKafka::rdkafka++)
+find_package(RdKafka CONFIG REQUIRED)
 
 # Define _WIN32_WINNT for Windows
 if(WIN32)
@@ -46,7 +40,7 @@ set(SOURCES
     src/tcp_server.cpp
     src/csv_logger.cpp
     src/mqtt.cpp
-    #src/kafka_producer.cpp
+    src/kafka_producer.cpp
 )
 
 # Executable
@@ -57,7 +51,7 @@ target_link_libraries(order_gateway PRIVATE eclipse-paho-mqtt-c::paho-mqtt3a-sta
 
 # Link Kafka libraries (using librdkafka C++ API)
 # rdkafka::rdkafka++ target links C++ API and pulls C core transitively
-#target_link_libraries(order_gateway PRIVATE RdKafka::rdkafka++)
+target_link_libraries(order_gateway PRIVATE RdKafka::rdkafka++)
 
 # Boost.Asio integration
 # Try to find Boost (works with vcpkg if vcpkg toolchain is set)

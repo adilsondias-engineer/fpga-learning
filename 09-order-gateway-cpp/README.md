@@ -295,23 +295,46 @@ order_gateway.exe COM3 --tcp-port 9999 --csv-file bbo_log.csv --mqtt-broker mqtt
 
 ## Performance Characteristics
 
-### Latency Measurements
+### Latency Measurements (Baseline - No RT Optimizations)
 
 | Stage | Latency | Notes |
 |-------|---------|-------|
-| UART Read | ~1-2 ms | Async I/O |
-| BBO Parse | ~1-5 µs | Hex → decimal conversion |
+| UART Read | ~1-2 ms | Async I/O @ 115200 baud |
+| BBO Parse | **10.67 µs avg** | Hex → decimal (measured) |
 | TCP Publish | ~10-50 µs | localhost |
 | MQTT Publish | ~50-100 µs | LAN |
 | Kafka Publish | ~100-200 µs | LAN |
 | **Total: FPGA → TCP** | **~2-3 ms** | End-to-end |
 | **Total: FPGA → MQTT** | **~3-5 ms** | End-to-end |
 
+**Measured Performance:**
+```
+=== Project 9 (UART) Performance Metrics ===
+Samples:  1,292
+Avg:      10.67 μs
+Min:      1.42 μs
+Max:      86.14 μs
+P50:      6.32 μs
+P95:      26.33 μs
+P99:      50.92 μs
+StdDev:   9.82 μs
+```
+
+**Test Conditions:**
+- Duration: 16.9 seconds
+- Total messages: 7,000
+- Average rate: 415 messages/second
+- Errors: 0
+
 ### Throughput
 
 - **Max BBO rate:** > 10,000 updates/sec
-- **Tested:** 100 updates/sec (typical NASDAQ ITCH rate for 8 symbols)
+- **Tested:** 415 updates/sec (7,000 messages in 16.9 seconds)
 - **CPU usage:** < 5% on modern CPU
+
+### Performance Notes
+
+The measured parse latency (10.67 µs avg) is consistent across both Project 9 (UART) and Project 14 (UDP), indicating that the parsing algorithm itself is the primary latency component, not the transport layer. The UART transport adds ~1-2ms overhead compared to UDP's ~10-50µs overhead, making UDP significantly faster for end-to-end latency.
 
 ---
 
