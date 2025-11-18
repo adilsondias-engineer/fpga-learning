@@ -42,7 +42,7 @@ namespace gateway
             int udp_port = 5000;
             int tcp_port = 9999;
             std::string csv_file;
-          
+
 
             // MQTT configuration
             std::string mqtt_broker_url;
@@ -59,6 +59,9 @@ namespace gateway
             bool disable_mqtt = false;
             bool disable_tcp = false;
             bool disable_logger = false;
+
+            // Real-time optimization
+            bool enable_rt = false;
         };
 
         /**

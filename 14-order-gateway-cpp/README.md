@@ -232,6 +232,11 @@ order_gateway.exe 0.0.0.0 5000 --tcp-port 9999 --csv-file bbo_log.csv --mqtt-bro
 | `--mqtt-topic` | MQTT topic name | bbo_messages |
 | `--kafka-broker` | Kafka broker URL | 192.168.0.203:9092 |
 | `--kafka-topic` | Kafka topic name | bbo_messages |
+| `--disable-tcp` | Disable TCP server | false |
+| `--disable-mqtt` | Disable MQTT publisher | false |
+| `--disable-kafka` | Disable Kafka producer | false |
+| `--disable-logger` | Disable CSV logger | false |
+| `--enable-rt` | Enable RT scheduling + CPU pinning | false |
 
 ---
 
@@ -346,6 +351,63 @@ StdDev:   2.51 μs
 
 **Key Insight:** UDP provides **~5x average latency improvement** over UART, with the P50 latency showing the most dramatic improvement at **6.1x faster**. The UDP transport layer eliminates the serial bottleneck, allowing the binary BBO parser to operate at its maximum efficiency.
 
+### Real-Time Optimizations
+
+The gateway supports optional real-time optimizations for ultra-low latency applications:
+
+#### CPU Isolation (System-Level)
+
+Isolated CPU cores prevent OS scheduling interference:
+
+```bash
+# Add to /etc/default/grub
+GRUB_CMDLINE_LINUX="isolcpus=2,3,4,5 nohz_full=2,3,4,5 rcu_nocbs=2,3,4,5"
+
+# Update GRUB and reboot
+sudo update-grub
+sudo reboot
+
+# Verify isolation
+cat /proc/cmdline | grep isolcpus
+```
+
+**Impact:** Running on isolated core 2 via `taskset -c 2` achieved **26% latency reduction** (2.09 μs → 1.54 μs avg).
+
+#### RT Scheduling and CPU Pinning (Code-Level)
+
+Enable real-time scheduling with the `--enable-rt` flag:
+
+```bash
+# Grant CAP_SYS_NICE capability (required for SCHED_FIFO)
+sudo setcap cap_sys_nice=eip ./order_gateway
+
+# Run with RT optimizations
+./order_gateway 192.168.0.99 5000 --enable-rt
+```
+
+**What `--enable-rt` does:**
+- Applies `SCHED_FIFO` real-time scheduling to critical threads
+- Pins UDP thread to isolated core 2 (priority 80)
+- Pins publish thread to isolated core 3 (priority 70)
+- Reduces context switches and scheduler jitter
+
+**Thread Configuration:**
+
+| Thread | Priority (1-99) | CPU Core | Purpose |
+|--------|-----------------|----------|---------|
+| UDP Listener | 80 (highest) | Core 2 | Critical path: UDP receive + parse |
+| Publish Thread | 70 (high) | Core 3 | TCP/MQTT/Kafka distribution |
+
+**Implementation:** See [include/common/rt_config.h](include/common/rt_config.h) for `RTConfig` utilities.
+
+**Expected Impact:**
+- Further reduction in average latency (target: < 1.5 μs)
+- Lower tail latencies (P95, P99)
+- Reduced jitter (standard deviation)
+- More deterministic performance
+
+**Performance Results:** See [docs/performance_benchmark.md](../docs/performance_benchmark.md) for detailed RT optimization results.
+
 ---
 
 ## Code Structure
@@ -370,7 +432,8 @@ StdDev:   2.51 μs
 │   ├── kafka_producer.h
 │   ├── csv_logger.h
 │   └── common/
-│       └── perf_monitor.h    # Performance monitoring
+│       ├── perf_monitor.h    # Performance monitoring
+│       └── rt_config.h        # RT scheduling utilities
 ├── vcpkg.json                # Dependency manifest
 └── CMakeLists.txt            # Build configuration
 ```

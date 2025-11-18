@@ -49,6 +49,7 @@ void print_usage(const char *program_name)
     std::cout << "  --disable-mqtt     - Disable MQTT (default: false)" << std::endl;
     std::cout << "  --disable-tcp      - Disable TCP (default: false)" << std::endl;
     std::cout << "  --disable-logger   - Disable logger (default: false)" << std::endl;
+    std::cout << "  --enable-rt        - Enable real-time optimizations (SCHED_FIFO + CPU pinning)" << std::endl;
     std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
     std::cout << "  " << program_name << " 0.0.0.0 5000" << std::endl;
@@ -60,6 +61,7 @@ void print_usage(const char *program_name)
     std::cout << "  " << program_name << " 0.0.0.0 5000 --disable-mqtt" << std::endl;
     std::cout << "  " << program_name << " 0.0.0.0 5000 --disable-tcp" << std::endl;
     std::cout << "  " << program_name << " 0.0.0.0 5000 --disable-logger" << std::endl;
+    std::cout << "  " << program_name << " 192.168.0.99 5000 --enable-rt  # RT optimizations" << std::endl;
 }
 
 int main(int argc, char **argv)
@@ -79,6 +81,7 @@ int main(int argc, char **argv)
     bool disable_mqtt = false;
     bool disable_tcp = false;
     bool disable_logger = false;
+    bool enable_rt = false;
     std::string csv_file;
     std::string mqtt_broker;
     std::string mqtt_topic;
@@ -142,6 +145,10 @@ int main(int argc, char **argv)
         {
             disable_logger = true;
         }
+        else if (arg == "--enable-rt")
+        {
+            enable_rt = true;
+        }
     }
 
     // Install signal handler for graceful shutdown
@@ -168,7 +175,8 @@ int main(int argc, char **argv)
         config.disable_mqtt = disable_mqtt;
         config.disable_tcp = disable_tcp;
         config.disable_logger = disable_logger;
-        
+        config.enable_rt = enable_rt;
+
         // Create and start gateway
         g_gateway = std::make_unique<OrderGateway>(config);
         g_gateway->start();

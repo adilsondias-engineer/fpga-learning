@@ -53,6 +53,10 @@ target_link_libraries(order_gateway PRIVATE eclipse-paho-mqtt-c::paho-mqtt3a-sta
 # rdkafka::rdkafka++ target links C++ API and pulls C core transitively
 target_link_libraries(order_gateway PRIVATE RdKafka::rdkafka++)
 
+# Link pthread library (required for RT scheduling and CPU pinning)
+find_package(Threads REQUIRED)
+target_link_libraries(order_gateway PRIVATE Threads::Threads)
+
 # Boost.Asio integration
 # Try to find Boost (works with vcpkg if vcpkg toolchain is set)
 find_package(Boost REQUIRED COMPONENTS system thread)

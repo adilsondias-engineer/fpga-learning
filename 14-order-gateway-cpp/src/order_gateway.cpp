@@ -1,4 +1,5 @@
 #include "order_gateway.h"
+#include "common/rt_config.h"
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -70,6 +71,16 @@ namespace gateway
         running_ = true;
         stopped_ = false;
 
+        // Verify RT capabilities if enabled
+        if (config_.enable_rt)
+        {
+            std::cout << "[RT] Real-time optimizations enabled" << std::endl;
+            if (!RTConfig::verifyRTCapabilities())
+            {
+                std::cerr << "[RT] Warning: RT capabilities verification failed" << std::endl;
+            }
+        }
+
         // Start UDP listener and reading thread
         if (udp_listener_ && !udp_listener_->isRunning())
         {
@@ -80,6 +91,32 @@ namespace gateway
 
         // Start publishing thread
         publish_thread_ = std::thread(&OrderGateway::publishThreadFunc, this);
+
+        // Apply RT optimizations if enabled
+        if (config_.enable_rt)
+        {
+            std::cout << "[RT] Applying real-time optimizations..." << std::endl;
+
+            // UDP thread: highest priority, pinned to core 2
+            if (!RTConfig::applyRTOptimization(
+                    udp_thread_.native_handle(),
+                    ThreadConfig::UDP_LISTENER_PRIORITY,
+                    ThreadConfig::UDP_LISTENER_CPU))
+            {
+                std::cerr << "[RT] Warning: Failed to optimize UDP thread" << std::endl;
+            }
+
+            // Publish thread: high priority, pinned to core 3
+            if (!RTConfig::applyRTOptimization(
+                    publish_thread_.native_handle(),
+                    ThreadConfig::TCP_SERVER_PRIORITY,
+                    ThreadConfig::TCP_SERVER_CPU))
+            {
+                std::cerr << "[RT] Warning: Failed to optimize publish thread" << std::endl;
+            }
+
+            std::cout << "[RT] Real-time optimizations applied" << std::endl;
+        }
 
         std::cout << "Order Gateway started" << std::endl;
         std::cout << "  UDP IP: " << config_.udp_ip << " @ " << config_.udp_port << " port" << std::endl;
