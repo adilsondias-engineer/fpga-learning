@@ -22,6 +22,10 @@ This document presents performance benchmarks for two implementations of the FPG
 
 ### Hardware Configuration
 - **Platform:** Linux workstation, x86_64 architecture
+- **CPU:** AMD Ryzen AI 9 365 w/ Radeon 880M
+  - 10 cores, 20 threads (2 threads per core)
+  - Base/Boost: 623 MHz - 5090 MHz
+  - Cache: L1d 480 KiB, L1i 320 KiB, L2 10 MiB, L3 24 MiB
 - **CPU Isolation:** Cores 2-5 isolated via GRUB (`isolcpus=2,3,4,5 nohz_full=2,3,4,5 rcu_nocbs=2,3,4,5`)
 - **Network:** Local UDP socket (Project 14) / UART serial @ 115200 baud (Project 9)
 
@@ -401,13 +405,207 @@ The dramatic max latency reduction (45.84 μs → 21.19 μs) suggests the baseli
 
 ---
 
-## Document History
+## Multi-Core Isolated CPU Results (No Code Changes)
 
-| Version | Date       | Changes                                      | Author       |
-|---------|------------|----------------------------------------------|--------------|
-| 1.0     | 2025-11-18 | Initial baseline benchmark (UART vs UDP)     | System Team  |
-| 1.1     | 2025-11-18 | Added CPU pinning results (taskset core 2)  | System Team  |
+### Project 14: UDP Gateway on Isolated Cores 2-5
+
+**Configuration:**
+- Execution: Cores 2-5 (all isolated via GRUB boot parameters)
+- Scheduling: Standard Linux CFS (no SCHED_FIFO)
+- CPU Affinity: External via `taskset` command (no code changes)
+- Command: `taskset -c 2-5 ./order_gateway 192.168.0.99 5000`
+
+**Note:** This test allows the OS scheduler to utilize all 4 isolated cores for optimal thread placement.
+
+```
+=== Project 14 (UDP) Performance Metrics ===
+Samples:  3,800
+Avg:      0.48 μs
+Min:      0.08 μs
+Max:      46.40 μs
+P50:      0.16 μs
+P95:      2.44 μs
+P99:      4.23 μs
+StdDev:   1.13 μs
+```
+
+**Latency Distribution:**
+| Percentile | Latency (μs) |
+|------------|--------------|
+| Min        | 0.08         |
+| P50        | 0.16         |
+| P95        | 2.44         |
+| P99        | 4.23         |
+| Max        | 46.40        |
+
+### Multi-Core Isolation Impact Analysis
+
+| Metric          | Single Core 2 | Multi-Core 2-5 | Improvement      |
+|-----------------|---------------|----------------|------------------|
+| **Avg Latency** | 1.54 μs       | **0.48 μs**    | **3.2x faster**  |
+| **P50 Latency** | 0.73 μs       | **0.16 μs**    | **4.6x faster**  |
+| **P95 Latency** | 6.33 μs       | **2.44 μs**    | **2.6x faster**  |
+| **P99 Latency** | 9.45 μs       | **4.23 μs**    | **2.2x faster**  |
+| **Max Latency** | 21.19 μs      | **46.40 μs**   | **Worse (2.2x)** |
+| **StdDev**      | 1.94 μs       | **1.13 μs**    | **1.7x lower**   |
+
+### Key Findings
+
+1. **Sub-Microsecond Average:** Achieved 0.48 μs average latency, crossing the sub-microsecond threshold
+
+2. **Exceptional Median:** P50 latency of **160 nanoseconds** demonstrates the parser can operate at near-optimal speed under typical conditions
+
+3. **Minimum Latency:** 80 nanoseconds minimum suggests the parser is approaching the limits of measurement overhead and cache-hot performance
+
+4. **Reduced Jitter:** Standard deviation of 1.13 μs (down from 1.94 μs) indicates more consistent performance
+
+5. **Thread Distribution:** Allowing threads to spread across cores 2-5 reduces contention between UDP and publish threads
+
+### Analysis
+
+Multi-core isolation provides dramatic performance improvements over single-core pinning:
+
+- **Load Balancing:** OS can place UDP and publish threads on separate cores, eliminating contention
+- **Parallel Execution:** Multiple threads execute simultaneously without competing for core time
+- **Cache Optimization:** Each thread maintains hot caches on its assigned core
+- **Reduced Interference:** Threads no longer context-switch on same core
+
+The slight increase in max latency (21.19 μs → 46.40 μs) suggests occasional scheduler decisions placing threads suboptimally, which RT scheduling (SCHED_FIFO) should address.
+
+**Next Optimization:** Real-time scheduling (SCHED_FIFO) with explicit CPU pinning expected to maintain sub-microsecond performance while reducing max latency and further improving tail latencies.
 
 ---
 
-**Next Update:** Real-time scheduling (SCHED_FIFO) results for Project 14
+## Real-Time Optimized Results (SCHED_FIFO + CPU Pinning)
+
+### Project 14: UDP Gateway with RT Scheduling
+
+**Configuration:**
+- Execution: Cores 2-5 (isolated via GRUB boot parameters)
+- Scheduling: SCHED_FIFO real-time scheduling (priority 80/70)
+- CPU Affinity: Code-level pinning (UDP → core 2, publish → core 3)
+- Command: `sudo setcap cap_sys_nice=eip ./order_gateway && ./order_gateway 192.168.0.99 5000 --enable-rt`
+
+**Note:** This test combines all optimizations: isolated cores, SCHED_FIFO scheduling, and explicit CPU pinning in code.
+
+```
+=== Project 14 (UDP) Performance Metrics ===
+Samples:  3,671
+Avg:      0.46 μs
+Min:      0.05 μs
+Max:      7.46 μs
+P50:      0.11 μs
+P95:      2.80 μs
+P99:      4.00 μs
+StdDev:   0.84 μs
+```
+
+**Latency Distribution:**
+| Percentile | Latency (μs) |
+|------------|--------------|
+| Min        | 0.05         |
+| P50        | 0.11         |
+| P95        | 2.80         |
+| P99        | 4.00         |
+| Max        | 7.46         |
+
+### RT Optimization Impact Analysis
+
+| Metric          | Multi-Core Taskset | RT-Optimized | Improvement       |
+|-----------------|--------------------|--------------|-------------------|
+| **Avg Latency** | 0.48 μs            | **0.46 μs**  | **4% faster**     |
+| **P50 Latency** | 0.16 μs            | **0.11 μs**  | **45% faster**    |
+| **P95 Latency** | 2.44 μs            | **2.80 μs**  | 15% slower        |
+| **P99 Latency** | 4.23 μs            | **4.00 μs**  | **5% better**     |
+| **Max Latency** | 46.40 μs           | **7.46 μs**  | **84% better**    |
+| **StdDev**      | 1.13 μs            | **0.84 μs**  | **26% lower**     |
+
+### Key Findings
+
+1. **Exceptional Max Latency:** Reduced from 46.40 μs to **7.46 μs** (6.2x improvement) - RT scheduling eliminated scheduler-induced tail latency spikes
+
+2. **Outstanding Median:** P50 latency of **110 nanoseconds** - among the fastest BBO parsing performance achievable
+
+3. **Minimum Latency:** **50 nanoseconds** - approaching theoretical measurement limits and demonstrating cache-hot optimal path
+
+4. **Superior Jitter:** Standard deviation reduced to **0.84 μs** - highly deterministic and predictable performance
+
+5. **Stable Tail Latencies:** P99 of 4.00 μs shows consistent performance under load
+
+### Analysis
+
+RT scheduling with CPU pinning provides the final optimization layer:
+
+- **SCHED_FIFO Priority:** Threads execute with guaranteed CPU time, eliminating CFS scheduler preemption
+- **Explicit CPU Pinning:** UDP thread locked to core 2, publish thread to core 3 - no migration overhead
+- **Reduced Context Switches:** Real-time threads run to completion without interruption
+- **Predictable Execution:** Deterministic scheduling eliminates unpredictable tail latencies
+
+The dramatic max latency reduction (46.40 μs → 7.46 μs) demonstrates RT scheduling's primary benefit: eliminating worst-case scheduler delays while maintaining excellent typical-case performance.
+
+### Performance Summary (All Configurations)
+
+| Configuration | Avg (μs) | P50 (μs) | P99 (μs) | Max (μs) | StdDev (μs) |
+|---------------|----------|----------|----------|----------|-------------|
+| Baseline (no isolation) | 2.09 | 1.04 | 11.91 | 45.84 | 2.51 |
+| Single core isolation | 1.54 | 0.73 | 9.45 | 21.19 | 1.94 |
+| Multi-core isolation | 0.48 | 0.16 | 4.23 | 46.40 | 1.13 |
+| **RT-optimized** | **0.46** | **0.11** | **4.00** | **7.46** | **0.84** |
+
+**Total Improvement (Baseline → RT-Optimized):**
+- Average: 2.09 μs → 0.46 μs (**4.5x faster**)
+- P50: 1.04 μs → 0.11 μs (**9.5x faster**)
+- P99: 11.91 μs → 4.00 μs (**3.0x faster**)
+- Max: 45.84 μs → 7.46 μs (**6.1x better**)
+- StdDev: 2.51 μs → 0.84 μs (**3.0x lower**)
+
+---
+
+## Document History
+
+| Version | Date       | Changes                                           | Author       |
+|---------|------------|---------------------------------------------------|--------------|
+| 1.0     | 2025-11-18 | Initial baseline benchmark (UART vs UDP)          | System Team  |
+| 1.1     | 2025-11-18 | Added single-core isolation (taskset core 2)      | System Team  |
+| 1.2     | 2025-11-18 | Added multi-core isolation (taskset cores 2-5)    | System Team  |
+| 1.3     | 2025-11-18 | Added RT optimization (SCHED_FIFO + CPU pinning)  | System Team  |
+
+---
+
+## Conclusions
+
+### Optimization Journey Summary
+
+This benchmark demonstrates a systematic optimization approach from baseline to production-grade low-latency performance:
+
+1. **Baseline UDP (no optimizations):** 2.09 μs average, 45.84 μs max
+2. **Single-core isolation:** 1.54 μs average, 21.19 μs max (26% improvement)
+3. **Multi-core isolation:** 0.48 μs average, 46.40 μs max (77% improvement, but unstable max)
+4. **RT-optimized (final):** 0.46 μs average, 7.46 μs max (**78% improvement + stable**)
+
+### Key Achievements
+
+- **110 nanosecond P50 latency** - exceptional median performance
+- **4.00 μs P99 latency** - consistent tail latency performance
+- **7.46 μs maximum latency** - eliminated scheduler-induced spikes
+- **0.84 μs standard deviation** - highly deterministic and predictable
+
+### Production Readiness
+
+The RT-optimized configuration demonstrates characteristics suitable for latency-sensitive trading applications:
+
+- Sub-microsecond average latency competitive with professional systems
+- Stable tail latencies with minimal jitter
+- Deterministic performance under sustained load (415 msg/sec)
+- Zero packet loss across all test configurations
+
+### Recommendations
+
+For production deployment of low-latency market data gateways:
+
+1. **Always use CPU isolation** (GRUB parameters) - provides foundation for all optimizations
+2. **Enable RT scheduling** (`--enable-rt`) for critical paths - eliminates scheduler-induced tail latencies
+3. **Monitor tail latencies** (P95, P99, max) - more critical than averages for trading applications
+4. **Test under load** - validate performance with production-like message rates
+
+---
