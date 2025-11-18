@@ -122,11 +122,11 @@ FPGA Order Book (UART) → C++ Gateway → TCP/MQTT/Kafka → Applications
 - **Status:** Gateway publishes to Kafka, but **no consumers implemented yet**
 
 **Kafka Reserved for Future Use:**
-- 📊 Time-series database integration
-- 🔄 Historical replay for backtesting
-- 📈 Analytics pipelines (Spark, Flink)
-- 🤖 Machine learning feature generation
-- 🔗 Microservices integration
+- Time-series database integration
+- Historical replay for backtesting
+- Analytics pipelines (Spark, Flink)
+- Machine learning feature generation
+- Microservices integration
 
 **Why NOT Kafka for mobile/IoT?**
 - ❌ Heavy protocol overhead (battery drain)
