@@ -1,7 +1,10 @@
 {
   "dependencies": [
     "boost",
+    "librdkafka",
     "paho-mqtt",
-    "librdkafka"
+    "boost-asio",
+    "boost-system",
+    "boost-thread"
   ]
 }

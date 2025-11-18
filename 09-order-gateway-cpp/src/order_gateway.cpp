@@ -26,13 +26,13 @@ namespace gateway
                 mqtt_->connect();
             }
 
-            // Initialize Kafka if broker URL is provided
-            if (!config_.kafka_broker_url.empty())
-            {
-                kafka_ = std::make_unique<KafkaProducer>(
-                    config_.kafka_broker_url,
-                    config_.kafka_client_id);
-            }
+            // // Initialize Kafka if broker URL is provided
+            // if (!config_.kafka_broker_url.empty())
+            // {
+            //     kafka_ = std::make_unique<KafkaProducer>(
+            //         config_.kafka_broker_url,
+            //         config_.kafka_client_id);
+            // }
 
             // Initialize CSV logger if file is provided
             if (!config_.csv_file.empty())
@@ -79,11 +79,11 @@ namespace gateway
             std::cout << "  MQTT Broker: " << config_.mqtt_broker_url << std::endl;
             std::cout << "  MQTT Topic: " << config_.mqtt_topic << std::endl;
         }
-        if (kafka_)
-        {
-            std::cout << "  Kafka Broker: " << config_.kafka_broker_url << std::endl;
-            std::cout << "  Kafka Topic: " << config_.kafka_topic << std::endl;
-        }
+        // if (kafka_)
+        // {
+        //     std::cout << "  Kafka Broker: " << config_.kafka_broker_url << std::endl;
+        //     std::cout << "  Kafka Topic: " << config_.kafka_topic << std::endl;
+        // }
         if (csv_logger_)
         {
             std::cout << "  CSV Log: " << config_.csv_file << std::endl;
@@ -96,6 +96,12 @@ namespace gateway
         if (!running_)
         {
             return; // Already stopped
+        }
+
+        // Print performance statistics BEFORE joining threads
+        if (parse_latency_.count() > 0) {
+            parse_latency_.printSummary("Project 9 (UART)");
+            parse_latency_.saveToFile("project9_latency.csv");
         }
 
         std::cout << "\nStopping Order Gateway..." << std::endl;
@@ -122,12 +128,11 @@ namespace gateway
             std::cout << "MQTT disconnected" << std::endl;
         }
 
-        if (kafka_)
-        {
-            kafka_->flush();
-            std::cout << "Kafka flushed" << std::endl;
-        }
-
+        // if (kafka_)
+        // {
+        //     kafka_->flush();
+        //     std::cout << "Kafka flushed" << std::endl;
+        // }
         stopped_ = true;
         std::cout << "Order Gateway stopped" << std::endl;
     }
@@ -156,27 +161,29 @@ namespace gateway
                 // Read line from UART (blocking)
                 std::string line = uart_->read_line();
 
-                // Parse BBO
-                BBOData bbo = BBOParser::parse(line);
-
-                if (bbo.valid)
+                // Measure parse latency
                 {
-                    // Add to queue (thread-safe)
-                    {
-                        std::unique_lock<std::mutex> lock(queue_mutex_);
+                    gateway::LatencyMeasurement measure(parse_latency_);
+                    BBOData bbo = BBOParser::parse(line);
 
-                        // Check queue size to prevent memory issues
-                        if (bbo_queue_.size() >= MAX_QUEUE_SIZE)
+                    if (bbo.valid)
+                    {
+                        // Add to queue (thread-safe)
                         {
-                            std::cerr << "Warning: BBO queue full, dropping oldest message" << std::endl;
-                            bbo_queue_.pop();
+                            std::unique_lock<std::mutex> lock(queue_mutex_);
+
+                            if (bbo_queue_.size() >= MAX_QUEUE_SIZE)
+                            {
+                                std::cerr << "Warning: BBO queue full, dropping oldest message" << std::endl;
+                                bbo_queue_.pop();
+                            }
+
+                            bbo_queue_.push(bbo);
                         }
 
-                        bbo_queue_.push(bbo);
+                        // Notify publish thread
+                        queue_cv_.notify_one();
                     }
-
-                    // Notify publish thread
-                    queue_cv_.notify_one();
                 }
             }
             catch (const std::exception &e)
@@ -274,17 +281,17 @@ namespace gateway
         }
 
         // Publish to Kafka
-        if (kafka_ && kafka_->isConnected())
-        {
-            try
-            {
-                kafka_->publish(config_.kafka_topic, json);
-            }
-            catch (const std::exception &e)
-            {
-                std::cerr << "Kafka publish error: " << e.what() << std::endl;
-            }
-        }
+        // if (kafka_ && kafka_->isConnected())
+        // {
+        //     try
+        //     {
+        //         kafka_->publish(config_.kafka_topic, json);
+        //     }
+        //     catch (const std::exception &e)
+        //     {
+        //         std::cerr << "Kafka publish error: " << e.what() << std::endl;
+        //     }
+        // }
     }
 
     void OrderGateway::logBBO(const BBOData &bbo)

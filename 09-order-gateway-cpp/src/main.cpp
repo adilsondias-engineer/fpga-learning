@@ -1,4 +1,5 @@
 #include "order_gateway.h"
+#include "common/perf_monitor.h"
 
 #include <iostream>
 #include <stdexcept>

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <boost/asio.hpp>
+#include "common/perf_monitor.h"
 
 namespace gateway {
 

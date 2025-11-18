@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.20)
 project(OrderGateway CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(VCPKG_HOST_TRIPLET x64-windows)
-set(VCPKG_TARGET_TRIPLET x64-windows)
+set(VCPKG_HOST_TRIPLET x64-linux)
+set(VCPKG_TARGET_TRIPLET x64-linux)
 set(VCPKG_BUILD_TYPE release)
 set(VCPKG_BUILD_TYPE_DEBUG debug)
 set(VCPKG_BUILD_TYPE_RELEASE release)
@@ -13,8 +13,10 @@ set(VCPKG_BUILD_TYPE_RELWITHDEBINFO relwithdebinfo)
 #find_package(VCPKG REQUIRED)
 #vcpkg_find_package(Boost REQUIRED)
 find_package(eclipse-paho-mqtt-c CONFIG REQUIRED)
+
+
 #find_package(librdkafka CONFIG REQUIRED)
-find_package(RdKafka CONFIG REQUIRED)
+#find_package(RdKafka CONFIG REQUIRED)
 #arget_link_libraries(order_gateway PRIVATE RdKafka::rdkafka RdKafka::rdkafka++)
 
 # Define _WIN32_WINNT for Windows
@@ -44,32 +46,32 @@ set(SOURCES
     src/tcp_server.cpp
     src/csv_logger.cpp
     src/mqtt.cpp
-    src/kafka_producer.cpp
+    #src/kafka_producer.cpp
 )
 
 # Executable
 add_executable(order_gateway ${SOURCES})
 
 # Link Paho MQTT C library (synchronous client)
-target_link_libraries(order_gateway PRIVATE eclipse-paho-mqtt-c::paho-mqtt3c)
+target_link_libraries(order_gateway PRIVATE eclipse-paho-mqtt-c::paho-mqtt3a-static eclipse-paho-mqtt-c::paho-mqtt3c-static eclipse-paho-mqtt-c::paho-mqtt3as-static eclipse-paho-mqtt-c::paho-mqtt3cs-static)
 
 # Link Kafka libraries (using librdkafka C++ API)
-# RdKafka::rdkafka++ automatically sets up include directories
-target_link_libraries(order_gateway PRIVATE RdKafka::rdkafka++)
+# rdkafka::rdkafka++ target links C++ API and pulls C core transitively
+#target_link_libraries(order_gateway PRIVATE RdKafka::rdkafka++)
 
 # Boost.Asio integration
 # Try to find Boost (works with vcpkg if vcpkg toolchain is set)
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system thread)
 
 if(Boost_FOUND)
     message(STATUS "Boost found: ${Boost_VERSION}")
     message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
     
     # Link Boost.System (required for Boost.Asio error codes)
-    if(TARGET Boost::system)
-        target_link_libraries(order_gateway PRIVATE Boost::system)
-    elseif(TARGET boost_system)
-        target_link_libraries(order_gateway PRIVATE boost_system)
+    if(TARGET Boost::system AND TARGET Boost::thread)
+        target_link_libraries(order_gateway PRIVATE Boost::system Boost::thread)
+    elseif(TARGET boost_system AND TARGET boost_thread)
+        target_link_libraries(order_gateway PRIVATE boost_system boost_thread)
     else()
         # Fallback: link the library directly
         find_library(BOOST_SYSTEM_LIB 
@@ -77,8 +79,8 @@ if(Boost_FOUND)
                   libboost_system
             PATHS ${Boost_LIBRARY_DIRS}
         )
-        if(BOOST_SYSTEM_LIB)
-            target_link_libraries(order_gateway PRIVATE ${BOOST_SYSTEM_LIB})
+        if(BOOST_SYSTEM_LIB AND BOOST_THREAD_LIB    )
+            target_link_libraries(order_gateway PRIVATE ${BOOST_SYSTEM_LIB} ${BOOST_THREAD_LIB})
         else()
             message(WARNING "Boost.System library not found, but headers should still work")
         endif()
