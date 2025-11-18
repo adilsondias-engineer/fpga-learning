@@ -565,10 +565,10 @@ The dramatic max latency reduction (46.40 μs → 7.46 μs) demonstrates RT sche
 
 | Version | Date       | Changes                                           | Author       |
 |---------|------------|---------------------------------------------------|--------------|
-| 1.0     | 2025-11-18 | Initial baseline benchmark (UART vs UDP)          | System Team  |
-| 1.1     | 2025-11-18 | Added single-core isolation (taskset core 2)      | System Team  |
-| 1.2     | 2025-11-18 | Added multi-core isolation (taskset cores 2-5)    | System Team  |
-| 1.3     | 2025-11-18 | Added RT optimization (SCHED_FIFO + CPU pinning)  | System Team  |
+| 1.0     | 2025-11-18 | Initial baseline benchmark (UART vs UDP)          | Adilson Dias |
+| 1.1     | 2025-11-18 | Added single-core isolation (taskset core 2)      | Adilson Dias |
+| 1.2     | 2025-11-18 | Added multi-core isolation (taskset cores 2-5)    | Adilson Dias |
+| 1.3     | 2025-11-18 | Added RT optimization (SCHED_FIFO + CPU pinning)  | Adilson Dias |
 
 ---
 
