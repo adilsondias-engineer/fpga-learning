@@ -136,6 +136,53 @@ Benefits: Clear structure, easy to extend, self-documenting
   - Avoid manual component declarations
 - **Lesson:** Use direct `entity work.module` instantiation
 
+### Software Performance Optimization
+
+**17. Real-Time Scheduling vs Multi-Core Isolation (Project 14)**
+- **Experiment:** Compared SCHED_FIFO RT scheduling vs CFS with CPU isolation
+- **Hardware:** AMD Ryzen AI 9 365 (10 cores, 20 threads)
+- **Workload:** ~400 UDP BBO messages/sec
+- **Results:**
+  - **CFS + taskset -c 2-5:** 0.51 µs avg, 0.16 µs P50 (OPTIMAL)
+  - **SCHED_FIFO + CPU pinning:** 0.64-0.93 µs avg (variable performance)
+- **Key Finding:** For moderate workload (~400 msg/sec), CFS scheduler with 4 isolated cores outperforms rigid RT pinning
+- **CPU Isolation Setup (GRUB):**
+  ```bash
+  isolcpus=2-5 nohz_full=2-5 rcu_nocbs=2-5
+  ```
+- **Lesson:** RT scheduling isn't always optimal. Multi-core isolation with CFS can provide better performance for workloads with moderate variability. Profile both approaches.
+
+**18. Database Query Optimization - Cursor Selection**
+- **Problem:** Python script processing MySQL data at 40 msg/sec (expected 400 msg/sec), using only 1% CPU
+- **Root Cause:** Server-side cursor (SSCursor) fetching rows one-by-one → 8,000+ network round-trips
+- **Solution:**
+  - Remove SSCursor (use default client-side cursor)
+  - Use `fetchall()` for bulk fetch
+  - Optimize heap construction: `heapify()` O(n) vs `heappush()` loop O(n log n)
+- **Expected Result:** 10× speedup (40 → 400 msg/sec)
+- **Lesson:** Network-bound operations disguise as low CPU usage. Client-side cursors for bulk queries, server-side only for streaming large result sets.
+
+**19. Binary Protocols vs ASCII/Hex (Projects 9 vs 14)**
+- **ASCII/Hex (Project 9 UART):** 10.67 µs avg parse latency, hex-to-decimal conversion overhead
+- **Binary (Project 14 UDP):** 2.09 µs avg parse latency (5.1× faster)
+- **Additional Benefits:**
+  - Smaller packet size (256 bytes fixed vs variable ASCII)
+  - No string parsing, direct memory access
+  - Deterministic parsing time
+- **Lesson:** Binary protocols critical for low-latency systems. ASCII/hex suitable for debugging, not production.
+
+**20. Interface Selection Impact (UART vs UDP)**
+- **UART @ 115200 baud (Project 9):**
+  - Throughput: ~96 BBO msg/sec
+  - Latency: 3 ms FPGA → Gateway
+  - Bottleneck: Serial bandwidth
+- **UDP @ 100 Mbps (Project 14):**
+  - Throughput: ~400 BBO msg/sec sustained
+  - Latency: ~1 µs FPGA → Gateway
+  - No bandwidth bottleneck for this workload
+- **Improvement:** 21× E2E latency reduction (3.2 ms → 150 µs)
+- **Lesson:** Interface choice dominates system performance. UART acceptable for debugging, UDP/Ethernet essential for production trading systems.
+
 ---
 
 ## Detailed Project History

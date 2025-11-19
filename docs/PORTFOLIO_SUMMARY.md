@@ -12,7 +12,7 @@
 
 **Unique Value Proposition:** 20+ years C++ systems engineering + 5 years active futures trading (S&P 500, Nasdaq) + FPGA hardware acceleration + full-stack application development (C++, Java, .NET, IoT).
 
-**Development Achievement:** 13 complete projects, 300+ hours of development, demonstrating end-to-end trading infrastructure with ongoing performance optimization and testing.
+**Development Achievement:** 14 complete projects, 300+ hours of development, demonstrating end-to-end trading infrastructure with ongoing performance optimization and testing.
 
 ---
 
@@ -167,12 +167,13 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 **Technologies:** VHDL + SystemVerilog, XDC timing constraints for generated clocks, pipelined state machine
 **Performance:** < 5 μs wire-to-UDP latency, 256-byte binary packets, big-endian fixed-point format
 
-### Project 09: C++ Order Gateway (Multi-Protocol Distribution)
+### Project 09: C++ Order Gateway (UART-based Multi-Protocol Distribution)
 **Problem Solved:** Bridge FPGA to diverse application types (desktop, mobile, IoT, analytics)
-**Architecture:** Multi-threaded gateway with UART reader, BBO parser, three protocol publishers
+**Architecture:** Multi-threaded gateway with UART reader, BBO parser (hex→decimal), three protocol publishers
 **Key Innovation:** Single gateway publishes simultaneously to TCP, MQTT, and Kafka—matching protocol to client requirements
 **Technologies:** C++17, Boost.Asio, libmosquitto (MQTT), librdkafka, nlohmann/json
-**Performance:** < 100 μs UART → protocol latency, handles > 10,000 BBO updates/sec
+**Performance:** 10.67 μs avg parse latency, 6.32 μs P50 (UART → protocol)
+**Status:** Functional, performance testing in progress
 
 ### Project 10: ESP32 IoT Live Ticker (Physical Display)
 **Problem Solved:** Trading floor ticker display with real-time BBO updates
@@ -195,6 +196,19 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 **Technologies:** Java 21, JavaFX, Gson, Maven
 **Features:** Live BBO table, spread charts, multi-symbol tracking
 
+### Project 14: C++ Order Gateway (UDP-based High-Performance)
+**Problem Solved:** Replace UART bottleneck with UDP for sub-microsecond FPGA-to-gateway latency
+**Architecture:** UDP listener (Boost.Asio), binary BBO parser, multi-protocol publisher (TCP/MQTT/Kafka)
+**Key Innovation:** Real-time scheduling (SCHED_FIFO) + CPU isolation experiments reveal CFS scheduler superiority
+**Performance:** 2.09 μs avg parse latency, 1.04 μs P50 (5.1x faster than UART Project 09)
+**RT Optimization Results:**
+  - **Optimal:** Multi-core isolation (taskset -c 2-5): 0.51 μs avg, 0.16 μs P50
+  - **RT Scheduling:** SCHED_FIFO with CPU pinning: 0.64-0.93 μs avg (variable performance)
+  - **Finding:** CFS with 4 isolated cores outperforms rigid RT pinning at ~400 msg/sec workload
+**Technologies:** C++17, Boost.Asio, pthread (RT scheduling), libmosquitto, librdkafka
+**CPU Isolation:** GRUB parameters (isolcpus, nohz_full, rcu_nocbs) for cores 2-5 on AMD Ryzen AI 9 365
+**Status:** Functional, performance optimization in progress
+
 ---
 
 ## Complete System Architecture
@@ -210,7 +224,11 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 | Mobile App | MQTT | Cross-platform, handles network switching, no native dependencies |
 | Future Analytics | Kafka | Data persistence, historical replay, analytics pipelines |
 
-**Key Architectural Lesson:** Match protocol to client requirements—don't force one protocol for everything. Gateway pattern enables protocol diversity without coupling FPGA to applications.
+**Gateway Evolution:**
+- **Project 09 (UART):** Initial implementation, 10.67 μs avg latency, hex parsing overhead
+- **Project 14 (UDP):** High-performance evolution, 2.09 μs avg latency (5.1x faster), binary protocol
+
+**Key Architectural Lesson:** Match protocol to client requirements—don't force one protocol for everything. Gateway pattern enables protocol diversity without coupling FPGA to applications. UDP vs UART demonstrates importance of interface choice for low-latency systems.
 
 ---
 
@@ -281,8 +299,9 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 
 **Complete Trading System (Not Just FPGA):**
 - End-to-end pipeline: FPGA hardware → C++ gateway → Multi-platform applications
-- Comprehensive: All 12 projects complete, documented, tested, and integrated
+- Comprehensive: All 14 projects complete, documented, tested, and integrated
 - Real-world architecture: Multi-protocol distribution (TCP/MQTT/Kafka) matching protocol to use case
+- Performance evolution: UART gateway → UDP gateway (5.1x latency improvement)
 
 **Technical Depth:**
 - **FPGA:** Production patterns (CDC, BRAM inference, timing closure), systematic debug methodology
@@ -359,19 +378,20 @@ fpga-trading-systems/
 4. UDP TX: [13-udp-trasmitter-mii/README.md](../13-udp-trasmitter-mii/README.md) - SystemVerilog/VHDL integration, timing closure
 
 **Application Layer:**
-5. C++ Gateway: [09-order-gateway-cpp/README.md](../09-order-gateway-cpp/README.md) - Multi-protocol distribution
-6. ESP32 IoT: [10-esp32-ticker/README.md](../10-esp32-ticker/README.md) - Arduino + MQTT physical display
-7. Mobile App: [11-mobile-app/README.md](../11-mobile-app/README.md) - .NET MAUI cross-platform
-8. Java Desktop: [12-java-desktop-trading-terminal/README.md](../12-java-desktop-trading-terminal/README.md) - JavaFX terminal
+5. C++ Gateway (UART): [09-order-gateway-cpp/README.md](../09-order-gateway-cpp/README.md) - Multi-protocol distribution (10.67 μs)
+6. C++ Gateway (UDP): [14-order-gateway-cpp/README.md](../14-order-gateway-cpp/README.md) - High-performance evolution (2.09 μs)
+7. ESP32 IoT: [10-esp32-ticker/README.md](../10-esp32-ticker/README.md) - Arduino + MQTT physical display
+8. Mobile App: [11-mobile-app/README.md](../11-mobile-app/README.md) - .NET MAUI cross-platform
+9. Java Desktop: [12-java-desktop-trading-terminal/README.md](../12-java-desktop-trading-terminal/README.md) - JavaFX terminal
 
 **Architecture & Lessons:**
-9. System Architecture: [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md) - Complete system design
-10. Lessons Learned: [lessons-learned.md](lessons-learned.md) - Technical insights from all 13 projects
-11. Visual Diagram: [images/system_architecture.png](images/system_architecture.png) - End-to-end architecture
+10. System Architecture: [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md) - Complete system design
+11. Lessons Learned: [lessons-learned.md](lessons-learned.md) - Technical insights from all 14 projects
+12. Visual Diagram: [images/system_architecture.png](images/system_architecture.png) - End-to-end architecture
 
 ---
 
-**Project Status:** 🔧 **FUNCTIONAL** - All 13 projects implemented and tested, performance optimization ongoing (November 2025)
+**Project Status:** 🔧 **FUNCTIONAL** - All 14 projects implemented and tested, performance optimization ongoing (November 2025)
 **Development Time:** 300+ hours
 **System Status:** Fully integrated and operational with "live" NASDAQ ITCH feed (Historic data file simulating live feed)
 

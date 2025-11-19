@@ -2,7 +2,7 @@
 ![Language](https://img.shields.io/badge/Language-VHDL-blue)
 ![Status](https://img.shields.io/badge/Status-In%20Development-yellow)
 ![Hardware Verified](https://img.shields.io/badge/Hardware-Verified-brightgreen)
-![Projects](https://img.shields.io/badge/Projects-13%20Complete-brightgreen)
+![Projects](https://img.shields.io/badge/Projects-14%20Complete-brightgreen)
 ![Development Time](https://img.shields.io/badge/Development%20Time-300%2B%20hours-blue)
 
 # FPGA Trading Systems
@@ -79,9 +79,9 @@ Progressive architecture development from digital design fundamentals to product
 - **Trading Relevance:** Low-latency UDP multicast essential for distributing BBO to trading algorithms
 - **Parsing Support:** Python and C++ reference implementations for UDP packet decoding
 
-### Application Layer (Projects 9-12) ✅
+### Application Layer (Projects 9-12, 14) ✅
 
-**Project 09: C++ Order Gateway** ✅ **COMPLETE**
+**Project 09: C++ Order Gateway (UART)** ✅
 - **Purpose:** Multi-protocol data distribution bridge (FPGA → Applications)
 - **Architecture:** UART reader, BBO parser (hex→decimal), multi-protocol publisher
 - **Protocols:** TCP Server (9999), MQTT Publisher (Mosquitto), Kafka Producer
@@ -90,7 +90,8 @@ Progressive architecture development from digital design fundamentals to product
   - **MQTT → ESP32 IoT + Mobile App** (lightweight, mobile-friendly)
   - **Kafka → Future Analytics** (data persistence, replay, ML pipelines)
 - **Technologies:** C++17, Boost.Asio, libmosquitto, librdkafka, nlohmann/json
-- **Status:** Complete, running 24/7 with live NASDAQ ITCH feed
+- **Performance:** 10.67 μs avg parse latency, 6.32 μs P50
+- **Status:** Functional, performance testing in progress
 
 **Project 10: ESP32 IoT Live Ticker** ✅ **COMPLETE**
 - **Purpose:** Physical trading floor display with MQTT feed
@@ -116,6 +117,19 @@ Progressive architecture development from digital design fundamentals to product
 - **Features:** Live BBO table, spread charts, multi-symbol tracking
 - **Technologies:** Java 21, JavaFX, Gson, Maven
 - **Status:** Complete, 100% test pass rate
+
+**Project 14: C++ Order Gateway (UDP) - High-Performance** 🔧
+- **Purpose:** UDP-based gateway replacing UART for lower latency
+- **Architecture:** UDP listener (Boost.Asio), BBO parser (binary), multi-protocol publisher
+- **Protocols:** TCP Server (9999), MQTT Publisher (Mosquitto), Kafka Producer
+- **Performance:** 2.09 μs avg parse latency, 1.04 μs P50 (5.1x faster than UART)
+- **RT Optimization:** SCHED_FIFO + CPU pinning support (--enable-rt flag)
+- **Benchmark Results:**
+  - Multi-core isolation (taskset -c 2-5): 0.51 μs avg, 0.16 μs P50 (optimal)
+  - RT scheduling: 0.64-0.93 μs avg (mixed results, depends on workload)
+- **CPU Isolation:** GRUB parameters for cores 2-5, tested on AMD Ryzen AI 9 365
+- **Technologies:** C++17, Boost.Asio, pthread (RT scheduling), libmosquitto, librdkafka
+- **Status:** Functional, performance optimization in progress
 
 ### Foundation Projects (Projects 1-5)
 
