@@ -5,7 +5,7 @@
             "name": "default",
             "inherits": "vcpkg",
             "environment": {
-                "VCPKG_ROOT": "/work/vcpkg"
+                "VCPKG_ROOT": "/tools/vcpkg"
             }
         }
     ]

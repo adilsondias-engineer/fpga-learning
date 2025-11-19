@@ -2,7 +2,7 @@
 
 **Platform:** Windows/Linux
 **Technology:** C++17, Boost.Asio, MQTT (libmosquitto), Kafka (librdkafka)
-**Status:** Complete - Hardware Tested
+**Status:** Functional - Performance Optimization in Progress
 
 ---
 
