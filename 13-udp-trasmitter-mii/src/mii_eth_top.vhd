@@ -48,7 +48,7 @@ entity mii_eth_top is
         led_rgb     : out std_logic_vector(8 downto 0);  -- RGB LEDs for status
 
         -- UART
-        -- uart_txd_in : in STD_LOGIC;              -- RX: PC -> FPGA (confusing naming!)
+        uart_txd_in : in STD_LOGIC;              -- RX: PC -> FPGA (confusing naming!)
         uart_rxd_out : out STD_LOGIC             -- TX: FPGA -> PC
     );
 end mii_eth_top;
@@ -426,6 +426,18 @@ architecture structural of mii_eth_top is
     signal udp_tx_busy : std_logic;  -- mac_busy from eth_udp_send
     signal udp_tx_rdy  : std_logic;  -- rdy from eth_udp_send
 
+    -- ========================================================================
+    -- UART RX and Configuration Signals
+    -- ========================================================================
+    signal uart_rx_data  : std_logic_vector(7 downto 0);
+    signal uart_rx_valid : std_logic;
+
+    -- Dynamic UDP configuration (from UART commands)
+    signal cfg_dst_ip   : std_logic_vector(31 downto 0);
+    signal cfg_dst_mac  : std_logic_vector(47 downto 0);
+    signal cfg_dst_port : std_logic_vector(15 downto 0);
+    signal cfg_updated  : std_logic;
+
 begin
 
     -- =========================================================================
@@ -441,7 +453,39 @@ begin
             tx_busy   => uart_fmt_tx_busy,    -- TO both formatters
             tx_serial => uart_rxd_out          -- Note: confusing Xilinx naming!
         );
-    
+
+    -- Instantiate UART receiver
+    uart_rx_inst : entity work.uart_rx
+        generic map (
+            CLK_FREQ => 100_000_000,
+            BAUD_RATE => 115_200
+        )
+        port map (
+            clk => clk,
+            reset => reset,
+            rx_serial => uart_txd_in,      -- Note: confusing Xilinx naming!
+            rx_data => uart_rx_data,
+            rx_valid => uart_rx_valid
+        );
+
+    -- Instantiate UART configuration module
+    uart_config_inst : entity work.uart_config
+        generic map (
+            DEFAULT_IP   => x"C0A8005D",        -- 192.168.0.93
+            DEFAULT_MAC  => x"FFFFFFFFFFFF",    -- Broadcast
+            DEFAULT_PORT => x"1388"             -- 5000
+        )
+        port map (
+            clk => clk,
+            rst => reset,
+            rx_data  => uart_rx_data,
+            rx_valid => uart_rx_valid,
+            dst_ip   => cfg_dst_ip,
+            dst_mac  => cfg_dst_mac,
+            dst_port => cfg_dst_port,
+            config_updated => cfg_updated
+        );
+
     -- =========================================================================
     -- UART Multiplexer: Switch between BBO, Debug, and ITCH formatters
     -- =========================================================================
@@ -1479,13 +1523,13 @@ begin
             eth_tx_clk => eth_tx_clk,
             eth_tx_en => eth_tx_en,
             eth_txd => eth_txd,
-            -- IP/MAC configuration (fixed for BBO transmission)
-            ip_src => x"C0A800D4",        -- 192.168.0.212
-            ip_dst => x"C0A8005D",        -- 192.168.0.93
-            mac_src => MY_MAC_ADDR,       -- Arty A7-100T MAC
-            mac_dst => x"FFFFFFFFFFFF",   -- Broadcast
-            udp_src_port => x"1388",      -- 5000
-            udp_dst_port => x"1388",      -- 5000
+            -- IP/MAC configuration (dynamically configurable via UART)
+            ip_src => x"C0A800D4",        -- 192.168.0.212 (fixed source)
+            ip_dst => cfg_dst_ip,         -- Configured via UART
+            mac_src => MY_MAC_ADDR,       -- Arty A7-100T MAC (fixed source)
+            mac_dst => cfg_dst_mac,       -- Configured via UART
+            udp_src_port => x"1388",      -- 5000 (fixed source)
+            udp_dst_port => cfg_dst_port, -- Configured via UART
             -- Control
             flush => '0',
             -- Status

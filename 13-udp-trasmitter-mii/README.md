@@ -36,11 +36,35 @@ Hardware-accelerated order book implementation for high-frequency trading system
 
 **Real-time BBO Distribution** (`bbo_udp_formatter.vhd` + `eth_udp_send_wrapper.sv`):
 - Transmits BBO updates via UDP when order book changes
-- Destination: 192.168.0.93:5000 (configurable in `mii_eth_top.vhd`)
+- **Dynamic Configuration:** Destination IP, MAC, and port configurable via UART commands (see [UART_CONFIG_GUIDE.md](UART_CONFIG_GUIDE.md))
+- Default Destination: 192.168.0.93:5000 (broadcast MAC: FF:FF:FF:FF:FF:FF)
 - Source: 192.168.0.212:5000 (FPGA MAC: 00:18:3E:04:5D:E7)
 - Payload: 256 bytes (28 bytes BBO data + 228 bytes padding)
-- Broadcast MAC: FF:FF:FF:FF:FF:FF
-- UART now dedicated to debug messages only
+- UART used for dynamic configuration and debug messages
+
+### UART Configuration Commands
+
+**Dynamic Destination Setup** (`uart_config.vhd` + `uart_rx.vhd`):
+- Configure UDP destination without reprogramming FPGA
+- ASCII command protocol via UART (115200 baud, 8N1)
+- Commands take effect immediately
+
+**Supported Commands:**
+```
+IP:192.168.0.93\n       - Set destination IP address
+MAC:FF:FF:FF:FF:FF:FF\n - Set destination MAC address
+PORT:5000\n             - Set destination UDP port
+```
+
+**Example Usage:**
+```bash
+# Configure for C++ gateway on 192.168.0.100
+IP:192.168.0.100
+MAC:FF:FF:FF:FF:FF:FF
+PORT:5000
+```
+
+**Complete Documentation:** See [UART_CONFIG_GUIDE.md](UART_CONFIG_GUIDE.md) for detailed usage, testing procedures, and troubleshooting.
 
 **UDP Packet Format:**
 

@@ -102,6 +102,7 @@ set_property -dict { PACKAGE_PIN J3 IOSTANDARD LVCMOS33 } [get_ports { led_rgb[8
 ## Note: Xilinx uses confusing naming!
 ## uart_txd_in is actually RX (PC -> FPGA)
 ## uart_rxd_out is actually TX (FPGA -> PC)
+set_property -dict {PACKAGE_PIN A9  IOSTANDARD LVCMOS33} [get_ports uart_txd_in]
 set_property -dict {PACKAGE_PIN D10 IOSTANDARD LVCMOS33} [get_ports uart_rxd_out]
 
 
@@ -220,6 +221,16 @@ set_false_path -to [get_cells -hier *ip_ihl_err_sync1*]
 set_false_path -to [get_cells -hier *ip_checksum_err_sync1*]
 set_false_path -to [get_cells -hier *udp_length_err_sync1*]
 set_false_path -to [get_cells -hier *mdio_rst_rxclk_sync1*]
+
+## UART Configuration Parser Timing Relaxation
+## The uart_config module parses ASCII commands which is not timing-critical
+## Configuration happens infrequently (only when user changes settings)
+## Allow 5 clock cycles for the complex parsing logic (IP/MAC/PORT parsing)
+## This relaxes timing for the shift-and-add arithmetic and character parsing
+set_multicycle_path -setup 5 -from [get_cells -hier -filter {NAME =~ *uart_config_inst/*state*}]
+set_multicycle_path -hold 4 -from [get_cells -hier -filter {NAME =~ *uart_config_inst/*state*}]
+set_multicycle_path -setup 5 -to [get_cells -hier -filter {NAME =~ *uart_config_inst/dst_*_reg*}]
+set_multicycle_path -hold 4 -to [get_cells -hier -filter {NAME =~ *uart_config_inst/dst_*_reg*}]
 
 ####################################################################################
 ## Configuration
