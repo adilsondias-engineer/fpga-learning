@@ -91,7 +91,8 @@ Progressive architecture development from digital design fundamentals to product
   - **Kafka → Future Analytics** (data persistence, replay, ML pipelines)
 - **Technologies:** C++17, Boost.Asio, libmosquitto, librdkafka, nlohmann/json
 - **Performance:** 10.67 μs avg parse latency, 6.32 μs P50
-- **Status:** Functional, performance testing in progress
+- **Limitation:** UART @ 115200 baud (replaced by UDP in Project 14)
+- **Status:** Complete, superseded by Project 14 for production use
 
 **Project 10: ESP32 IoT Live Ticker** ✅ **COMPLETE**
 - **Purpose:** Physical trading floor display with MQTT feed
@@ -122,14 +123,16 @@ Progressive architecture development from digital design fundamentals to product
 - **Purpose:** UDP-based gateway replacing UART for lower latency
 - **Architecture:** UDP listener (Boost.Asio), BBO parser (binary), multi-protocol publisher
 - **Protocols:** TCP Server (9999), MQTT Publisher (Mosquitto), Kafka Producer
-- **Performance:** 2.09 μs avg parse latency, 1.04 μs P50 (5.1x faster than UART)
+- **Performance (Validated):** 0.20 μs avg, 0.19 μs P50, 0.38 μs P99 (10,000 samples @ 400 Hz)
 - **RT Optimization:** SCHED_FIFO + CPU pinning support (--enable-rt flag)
 - **Benchmark Results:**
-  - Multi-core isolation (taskset -c 2-5): 0.51 μs avg, 0.16 μs P50 (optimal)
-  - RT scheduling: 0.64-0.93 μs avg (mixed results, depends on workload)
-- **CPU Isolation:** GRUB parameters for cores 2-5, tested on AMD Ryzen AI 9 365
+  - Standard deviation: 0.06 μs (highly consistent)
+  - P95: 0.32 μs (95% of messages under 0.32 μs)
+  - 5× faster than UART Project 09 (10.67 μs → 0.20 μs avg)
+- **CPU Isolation:** GRUB parameters (isolcpus, nohz_full, rcu_nocbs) for cores 2-5
+- **Hardware:** AMD Ryzen AI 9 365 w/ Radeon 880M
 - **Technologies:** C++17, Boost.Asio, pthread (RT scheduling), libmosquitto, librdkafka
-- **Status:** Functional, performance optimization in progress
+- **Status:** Complete, performance validated under realistic load
 
 ### Foundation Projects (Projects 1-5)
 

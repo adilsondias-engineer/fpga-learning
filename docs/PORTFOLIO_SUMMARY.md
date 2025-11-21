@@ -199,15 +199,20 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 ### Project 14: C++ Order Gateway (UDP-based High-Performance)
 **Problem Solved:** Replace UART bottleneck with UDP for sub-microsecond FPGA-to-gateway latency
 **Architecture:** UDP listener (Boost.Asio), binary BBO parser, multi-protocol publisher (TCP/MQTT/Kafka)
-**Key Innovation:** Real-time scheduling (SCHED_FIFO) + CPU isolation experiments reveal CFS scheduler superiority
-**Performance:** 2.09 μs avg parse latency, 1.04 μs P50 (5.1x faster than UART Project 09)
+**Key Innovation:** Real-time scheduling + CPU isolation achieves sub-microsecond parsing with 53× improvement over UART
+**Performance (Validated):** 0.20 μs avg, 0.19 μs P50, 0.38 μs P99 (10,000 samples @ 400 Hz)
 **RT Optimization Results:**
-  - **Optimal:** Multi-core isolation (taskset -c 2-5): 0.51 μs avg, 0.16 μs P50
-  - **RT Scheduling:** SCHED_FIFO with CPU pinning: 0.64-0.93 μs avg (variable performance)
-  - **Finding:** CFS with 4 isolated cores outperforms rigid RT pinning at ~400 msg/sec workload
+  - **Test load:** 25 seconds sustained, 400 msg/sec (realistic FPGA BBO rate)
+  - **Consistency:** 0.06 μs standard deviation (highly predictable)
+  - **Configuration:** taskset -c 2-5 + SCHED_FIFO RT scheduling
+  - **Hardware:** AMD Ryzen AI 9 365 w/ Radeon 880M
+**Performance vs Project 09:**
+  - **53× faster average** (10.67 μs → 0.20 μs)
+  - **134× faster P99** (50.92 μs → 0.38 μs)
+  - **134× more consistent** (8.04 μs → 0.06 μs std dev)
 **Technologies:** C++17, Boost.Asio, pthread (RT scheduling), libmosquitto, librdkafka
-**CPU Isolation:** GRUB parameters (isolcpus, nohz_full, rcu_nocbs) for cores 2-5 on AMD Ryzen AI 9 365
-**Status:** Functional, performance optimization in progress
+**CPU Isolation:** GRUB parameters (isolcpus, nohz_full, rcu_nocbs) for cores 2-5
+**Status:** Complete, performance validated under realistic load
 
 ---
 
@@ -226,7 +231,7 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 
 **Gateway Evolution:**
 - **Project 09 (UART):** Initial implementation, 10.67 μs avg latency, hex parsing overhead
-- **Project 14 (UDP):** High-performance evolution, 2.09 μs avg latency (5.1x faster), binary protocol
+- **Project 14 (UDP):** High-performance evolution, 0.20 μs avg latency (53× faster), binary protocol + RT optimization
 
 **Key Architectural Lesson:** Match protocol to client requirements—don't force one protocol for everything. Gateway pattern enables protocol diversity without coupling FPGA to applications. UDP vs UART demonstrates importance of interface choice for low-latency systems.
 

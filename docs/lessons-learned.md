@@ -174,14 +174,41 @@ Benefits: Clear structure, easy to extend, self-documenting
 **20. Interface Selection Impact (UART vs UDP)**
 - **UART @ 115200 baud (Project 9):**
   - Throughput: ~96 BBO msg/sec
-  - Latency: 3 ms FPGA → Gateway
+  - Latency: 10.67 µs avg (gateway parsing)
   - Bottleneck: Serial bandwidth
 - **UDP @ 100 Mbps (Project 14):**
   - Throughput: ~400 BBO msg/sec sustained
-  - Latency: ~1 µs FPGA → Gateway
+  - Latency: 0.20 µs avg (gateway parsing) - **53× faster**
   - No bandwidth bottleneck for this workload
-- **Improvement:** 21× E2E latency reduction (3.2 ms → 150 µs)
+- **Improvement:** 53× parsing, 21× E2E latency reduction
 - **Lesson:** Interface choice dominates system performance. UART acceptable for debugging, UDP/Ethernet essential for production trading systems.
+
+**21. Scapy Performance on Linux (Testing Tools)**
+- **Problem:** Scapy's `sendp()` for raw Ethernet frames extremely slow on Linux (~100-200 pkt/sec)
+- **Root Cause:** Raw socket overhead, kernel path for Layer 2 sending
+- **Solution:** Use native UDP sockets instead
+  ```python
+  # Slow (Scapy)
+  sendp(Ether()/IP()/UDP()/Raw(payload), iface='eth0')  # ~100 pkt/sec
+
+  # Fast (Native Socket)
+  sock.sendto(payload, (ip, port))  # 10,000+ pkt/sec
+  ```
+- **Impact:** 100× throughput improvement for test scripts
+- **Lesson:** Scapy excellent for packet inspection/analysis, but use native sockets for high-throughput testing.
+
+**22. Mock Test Data Generators (Testing Without Hardware)**
+- **Challenge:** Testing Project 14 (UDP gateway) requires FPGA sending BBO packets
+- **Solution:** Created `mock_bbo_sender.py` to simulate FPGA UDP output
+  - Sends 256-byte binary BBO packets matching Project 13 format
+  - Configurable rate (100 Hz, 400 Hz, 1000 Hz, or max speed)
+  - Enables software-only testing without FPGA hardware
+- **Benefits:**
+  - Rapid iteration during development
+  - Consistent test load for benchmarking
+  - No hardware dependency for CI/CD
+- **Example:** 10,000 packets @ 400 Hz for Project 14 validation
+- **Lesson:** Mock data generators critical for validating parsing/processing logic independently from hardware. Enables faster development cycles and reproducible testing.
 
 ---
 
