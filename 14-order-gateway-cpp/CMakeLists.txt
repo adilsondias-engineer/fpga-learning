@@ -104,7 +104,10 @@ endif()
 
 # Installation
 install(TARGETS order_gateway DESTINATION bin)
-
+# Linux-specific optimizations
+if(UNIX AND NOT APPLE)
+    target_compile_options(order_gateway PRIVATE -march=native -O3)
+endif()
 # Print build information
 message(STATUS "Build configuration:")
 message(STATUS "  CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
