@@ -1,7 +1,7 @@
 # FPGA Trading System - Complete Architecture & Design
 
 **Date:** November 2025
-**Status:** 🔧 FUNCTIONAL - High-Performance Multi-Protocol Gateway + Full Application Suite
+**Status:** FUNCTIONAL - High-Performance Multi-Protocol Gateway + Full Application Suite
 **Projects:** 6-14 (Network Stack → Order Book → UDP TX → Gateway (UART/UDP) → Desktop/Mobile/IoT Applications)
 **Development Time:** 300+ hours
 
@@ -72,7 +72,7 @@ A complete **low-latency market data processing and distribution system** combin
 │  └──────────────┘      └──────────────┘      └──────────────────┘   │
 │                                                                      │
 │  ┌────────────────────────────────────────────────────────────────┐ │
-│  │ 📊 Kafka → Future Analytics (Data Persistence, Replay, ML)    │ │
+│  │  Kafka → Future Analytics (Data Persistence, Replay, ML)    │ │
 │  │    Reserved for backend services, time-series DB, pipelines   │ │
 │  └────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
@@ -271,14 +271,14 @@ Key: AAPL
 Value: {"bid": 150.75, "ask": 151.50, "spread": 0.75, "ts": 1699824000123456789}
 Partition: hash(symbol) % num_partitions
 
-🔮 Future Use Cases:
+ Future Use Cases:
    - Data persistence (time-series database)
    - Historical replay for backtesting
    - Analytics pipelines (Spark, Flink)
    - Machine learning feature generation
    - Microservices integration
 
-📝 Note: Gateway publishes to Kafka, but no consumers yet implemented
+ Note: Gateway publishes to Kafka, but no consumers yet implemented
 ```
 
 **Technologies:**
@@ -455,7 +455,7 @@ class LiveTicker {
 **Mode 3: Spread Alert**
 ```
 ┌────────────────────┐
-│ ⚠  WIDE SPREAD  ⚠  │
+│   WIDE SPREAD      │
 │                    │
 │ GOOGL              │
 │ Spread: $104.50    │
