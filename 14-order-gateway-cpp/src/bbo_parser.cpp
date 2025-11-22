@@ -103,18 +103,19 @@ Decoded:
                 bbo.spread = bbo.ask_price - bbo.bid_price;
             }
 
-            // Copy symbol (8 bytes) and trim spaces
+            // Copy symbol (8 bytes) and trim trailing spaces
             char symbol[9];
             std::memcpy(symbol, bbo_data + 20, 8);
             symbol[8] = '\0';
-            bbo.symbol = trim(symbol);
-            
-       /* // Trim trailing spaces
-        for (int i = 7; i >= 0; i--) {
-            if (bbo.symbol[i] == ' ') bbo.symbol[i] = '\0';
-            else break;
-        }*/
-        
+
+            // Trim trailing spaces efficiently
+            int last = 7;
+            while (last >= 0 && symbol[last] == ' ') {
+                last--;
+            }
+            symbol[last + 1] = '\0';
+
+            bbo.symbol = std::string(symbol);
             bbo.timestamp_ns = get_timestamp_ns();
             bbo.valid = true;
         }
@@ -176,25 +177,23 @@ Decoded:
 
     int64_t BBOParser::get_timestamp_ns()
     {
-        // get current time using std::chrono::system_clock::now()
-        auto now = std::chrono::system_clock::now();
-        
-        // convert to nanoseconds since Unix epoch
-        auto duration = now.time_since_epoch();
-        auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
-        
+        // Use high_resolution_clock for better performance (no syscall on modern systems)
+        auto now = std::chrono::high_resolution_clock::now();
+        auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
         return nanoseconds;
     }
 
     std::string bbo_to_json(const BBOData &bbo)
     {
-        // Format JSON according to SYSTEM_ARCHITECTURE.md specification
-        std::ostringstream oss;
-        
+        // Thread-local buffer to avoid repeated allocations
+        static thread_local std::ostringstream oss;
+        oss.str("");
+        oss.clear();
+
         // Calculate mid price for spread percent calculation
         double mid_price = (bbo.bid_price + bbo.ask_price) / 2.0;
         double spread_percent = (mid_price > 0.0) ? (bbo.spread / mid_price) * 100.0 : 0.0;
-        
+
         oss << "{";
         oss << "\"type\":\"bbo\",";
         oss << "\"symbol\":\"" << bbo.symbol << "\",";
@@ -212,7 +211,7 @@ Decoded:
         oss << "\"percent\":" << std::fixed << std::setprecision(3) << spread_percent;
         oss << "}";
         oss << "}";
-        
+
         return oss.str();
     }
 

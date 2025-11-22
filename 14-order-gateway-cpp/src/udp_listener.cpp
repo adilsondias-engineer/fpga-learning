@@ -103,6 +103,7 @@ namespace gateway {
             if (perf_monitor_) {
                 gateway::LatencyMeasurement measure(*perf_monitor_);
                 bbo = BBOParser::parseBBOData(buffer_.data(), bytes_transferred);
+                // Measurement ends here (destructor runs at end of scope)
             } else {
                 bbo = BBOParser::parseBBOData(buffer_.data(), bytes_transferred);
             }
@@ -155,11 +156,17 @@ namespace gateway {
 
     void UDPListener::process_bbo(const BBOData& bbo)
     {
+        // In benchmark mode, skip queue entirely (just measure parse latency)
+        if (benchmark_mode_)
+        {
+            return;
+        }
+
         std::unique_lock<std::mutex> lock(bbo_queue_mutex_);
         if (bbo_queue_.size() >= MAX_QUEUE_SIZE)
         {
             std::cerr << "Warning: BBO queue full, dropping oldest message" << std::endl;
-            bbo_queue_.pop();    // Drop oldest message 
+            bbo_queue_.pop();    // Drop oldest message
         }
         bbo_queue_.push(bbo);
         bbo_queue_condition_.notify_one();  // Notify any waiting threads

@@ -10,7 +10,7 @@ Requirements:
 
 MySQL Setup:
     CREATE DATABASE itch_data CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-    CREATE USER 'itch_user'@'localhost' IDENTIFIED BY 'your_password';
+    CREATE USER 'itch_user'@'localhost' IDENTIFIED BY 'password';
     GRANT ALL PRIVILEGES ON itch_data.* TO 'itch_user'@'localhost';
     FLUSH PRIVILEGES;
 
@@ -68,6 +68,7 @@ class MySQLITCHImporter:
             password=password,
             database=database,
             charset='utf8mb4',
+            #auth_plugin_map='caching_sha2_password',  # MySQL 8.0+ default authentication
             cursorclass=pymysql.cursors.DictCursor,
             autocommit=False  # Manual commit for batch optimization
         )
@@ -207,7 +208,9 @@ class MySQLITCHImporter:
                     # Progress display for large files
                     if message_count % 1000000 == 0:
                         print(f"  Read {message_count:,} messages...")
-
+                    if message_count > 100000000:
+                        print("100000000 messages reached, stopping import")
+                        break
         print(f"Read {message_count:,} messages from binary ITCH file")
         return messages
 
@@ -311,6 +314,9 @@ class MySQLITCHImporter:
 
                 print(f"  Progress: {total_count:,} messages "
                       f"({rate:.0f} msg/sec)")
+            if total_count > 100000000:
+                print("100000000 messages reached, stopping import")
+                break
 
         # Insert remaining batch
         if batch:

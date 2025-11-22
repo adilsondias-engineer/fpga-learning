@@ -85,15 +85,32 @@ namespace gateway
         if (udp_listener_ && !udp_listener_->isRunning())
         {
             udp_listener_->setPerfMonitor(&parse_latency_);
+
+            // Enable benchmark mode in UDPListener to skip queue operations
+            if (config_.benchmark_mode)
+            {
+                udp_listener_->setBenchmarkMode(true);
+            }
+
             udp_listener_->start();
         }
-        udp_thread_ = std::thread(&OrderGateway::udpThreadFunc, this);
 
-        // Start publishing thread
-        publish_thread_ = std::thread(&OrderGateway::publishThreadFunc, this);
+        // Benchmark mode: skip threads, process directly in UDP callback
+        if (config_.benchmark_mode)
+        {
+            std::cout << "[BENCHMARK] Single-threaded mode enabled (no queue overhead)" << std::endl;
+            // No threads needed - processing happens in UDP callback
+        }
+        else
+        {
+            udp_thread_ = std::thread(&OrderGateway::udpThreadFunc, this);
 
-        // Apply RT optimizations if enabled
-        if (config_.enable_rt)
+            // Start publishing thread
+            publish_thread_ = std::thread(&OrderGateway::publishThreadFunc, this);
+        }
+
+        // Apply RT optimizations if enabled (only in normal mode, not benchmark)
+        if (config_.enable_rt && !config_.benchmark_mode)
         {
             std::cout << "[RT] Applying real-time optimizations..." << std::endl;
 
@@ -154,22 +171,29 @@ namespace gateway
         std::cout << "\nStopping Order Gateway..." << std::endl;
         running_ = false;
 
-        // Notify threads to wake up
-        queue_cv_.notify_all();
+        if (!config_.benchmark_mode)
+        {
+            // Notify threads to wake up
+            queue_cv_.notify_all();
+        }
+
         if (udp_listener_)
         {
             udp_listener_->stop();
         }
 
-        // Wait for threads to finish
-        if (udp_thread_.joinable())
+        if (!config_.benchmark_mode)
         {
-            udp_thread_.join();
-        }
+            // Wait for threads to finish
+            if (udp_thread_.joinable())
+            {
+                udp_thread_.join();
+            }
 
-        if (publish_thread_.joinable())
-        {
-            publish_thread_.join();
+            if (publish_thread_.joinable())
+            {
+                publish_thread_.join();
+            }
         }
 
         // Cleanup connections
@@ -196,9 +220,22 @@ namespace gateway
 
     void OrderGateway::wait()
     {
-        while (running_)
+        if (config_.benchmark_mode)
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            // In benchmark mode, UDP listener runs in main thread via io_context
+            // Just sleep and let Boost.Asio handle everything
+            while (running_)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
+        else
+        {
+            // Normal mode: wait for worker threads
+            while (running_)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
         }
     }
 
@@ -212,7 +249,7 @@ namespace gateway
             {
                 // Read BBO from UDP listener (blocking)
                 BBOData bbo = udp_listener_->read_bbo();
-                
+
                 // Push to internal queue for publish thread to handle printing and fan-out
                 {
                     std::unique_lock<std::mutex> qlock(queue_mutex_);
@@ -270,22 +307,6 @@ namespace gateway
 
             if (has_data)
             {
-                // Suppress duplicate prints for the same symbol unless values changed
-                auto changed = [](const BBOData& prev, const BBOData& curr) {
-                    auto diff = [](double a, double b) { return std::fabs(a - b) > 0.00005; };
-                    return diff(prev.bid_price, curr.bid_price) ||
-                           diff(prev.ask_price, curr.ask_price) ||
-                           diff(prev.spread,    curr.spread)    ||
-                           prev.bid_shares != curr.bid_shares   ||
-                           prev.ask_shares != curr.ask_shares;
-                };
-                bool should_print = true;
-                auto it = last_printed_bbo_by_symbol_.find(bbo.symbol);
-                if (it != last_printed_bbo_by_symbol_.end() && !changed(it->second, bbo))
-                {
-                    should_print = false;
-                }
-                last_printed_bbo_by_symbol_[bbo.symbol] = bbo;
                 // Publish to all protocols
                 publishBBO(bbo);
 
@@ -295,23 +316,44 @@ namespace gateway
                     logBBO(bbo);
                 }
 
-                if (should_print)
+                // Console output (only if not in quiet mode)
+                if (!config_.quiet_mode)
                 {
-                    // Print to console (format prices to 4 decimals)
-                    std::cout << "[" << bbo.symbol << "] "
-                              << "Bid: " << std::fixed << std::setprecision(4) << bbo.bid_price
-                              << " (" << bbo.bid_shares << ") | ";
-                    if (bbo.ask_price > 0.0 && bbo.ask_shares > 0)
+                    // Suppress duplicate prints for the same symbol unless values changed
+                    auto changed = [](const BBOData& prev, const BBOData& curr) {
+                        auto diff = [](double a, double b) { return std::fabs(a - b) > 0.00005; };
+                        return diff(prev.bid_price, curr.bid_price) ||
+                               diff(prev.ask_price, curr.ask_price) ||
+                               diff(prev.spread,    curr.spread)    ||
+                               prev.bid_shares != curr.bid_shares   ||
+                               prev.ask_shares != curr.ask_shares;
+                    };
+                    bool should_print = true;
+                    auto it = last_printed_bbo_by_symbol_.find(bbo.symbol);
+                    if (it != last_printed_bbo_by_symbol_.end() && !changed(it->second, bbo))
                     {
-                        std::cout << "Ask: " << std::fixed << std::setprecision(4) << bbo.ask_price
-                                  << " (" << bbo.ask_shares << ") | ";
+                        should_print = false;
                     }
-                    else
+                    last_printed_bbo_by_symbol_[bbo.symbol] = bbo;
+
+                    if (should_print)
                     {
-                        std::cout << "Ask: -" << " (-) | ";
+                        // Print to console (format prices to 4 decimals)
+                        std::cout << "[" << bbo.symbol << "] "
+                                  << "Bid: " << std::fixed << std::setprecision(4) << bbo.bid_price
+                                  << " (" << bbo.bid_shares << ") | ";
+                        if (bbo.ask_price > 0.0 && bbo.ask_shares > 0)
+                        {
+                            std::cout << "Ask: " << std::fixed << std::setprecision(4) << bbo.ask_price
+                                      << " (" << bbo.ask_shares << ") | ";
+                        }
+                        else
+                        {
+                            std::cout << "Ask: -" << " (-) | ";
+                        }
+                        std::cout << "Spread: " << std::fixed << std::setprecision(4) << bbo.spread
+                                  << std::endl;
                     }
-                    std::cout << "Spread: " << std::fixed << std::setprecision(4) << bbo.spread
-                              << std::endl;
                 }
             }
         }
@@ -321,19 +363,25 @@ namespace gateway
 
     void OrderGateway::publishBBO(const BBOData &bbo)
     {
-        // Convert to JSON
+        // Early exit if all distribution is disabled
+        bool needs_json = !config_.disable_tcp ||
+                         (mqtt_ && mqtt_->isConnected()) ||
+                         (kafka_ && kafka_->isConnected());
+
+        if (!needs_json)
+        {
+            return;
+        }
+
+        // Convert to JSON only if needed
         std::string json = bbo_to_json(bbo);
 
         // Publish to TCP (broadcast to all connected clients)
         try
-        {   
+        {
             if (!config_.disable_tcp)
             {
                 tcp_server_->broadcast(json);
-            }
-            else
-            {
-                std::cout << "TCP disabled, skipping broadcast" << std::endl;
             }
         }
         catch (const std::exception &e)

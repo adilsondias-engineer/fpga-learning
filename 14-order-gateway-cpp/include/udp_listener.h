@@ -36,6 +36,9 @@ namespace gateway {
         // Method to set performance monitor
         void setPerfMonitor(PerfMonitor* monitor) { perf_monitor_ = monitor; }
 
+        // Method to enable benchmark mode (skip queue for pure parse measurement)
+        void setBenchmarkMode(bool enabled) { benchmark_mode_ = enabled; }
+
     private:
         static constexpr size_t MAX_QUEUE_SIZE = 1000;
         bool running_{false};
@@ -59,5 +62,8 @@ namespace gateway {
 
         // Performance monitoring
         PerfMonitor* perf_monitor_ = nullptr;
+
+        // Benchmark mode flag (skip queue operations)
+        bool benchmark_mode_ = false;
     };
 }

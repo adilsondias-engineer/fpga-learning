@@ -62,6 +62,12 @@ namespace gateway
 
             // Real-time optimization
             bool enable_rt = false;
+
+            // Quiet mode (suppress console BBO output)
+            bool quiet_mode = false;
+
+            // Benchmark mode (single-threaded, no queue, parse-only)
+            bool benchmark_mode = false;
         };
 
         /**

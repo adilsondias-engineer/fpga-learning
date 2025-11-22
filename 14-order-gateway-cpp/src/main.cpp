@@ -50,6 +50,8 @@ void print_usage(const char *program_name)
     std::cout << "  --disable-tcp      - Disable TCP (default: false)" << std::endl;
     std::cout << "  --disable-logger   - Disable logger (default: false)" << std::endl;
     std::cout << "  --enable-rt        - Enable real-time optimizations (SCHED_FIFO + CPU pinning)" << std::endl;
+    std::cout << "  --quiet            - Suppress console BBO output (improves latency)" << std::endl;
+    std::cout << "  --benchmark        - Benchmark mode (single-threaded, no queue, parse-only)" << std::endl;
     std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
     std::cout << "  " << program_name << " 0.0.0.0 5000" << std::endl;
@@ -82,6 +84,8 @@ int main(int argc, char **argv)
     bool disable_tcp = false;
     bool disable_logger = false;
     bool enable_rt = false;
+    bool quiet_mode = false;
+    bool benchmark_mode = false;
     std::string csv_file;
     std::string mqtt_broker;
     std::string mqtt_topic;
@@ -149,6 +153,14 @@ int main(int argc, char **argv)
         {
             enable_rt = true;
         }
+        else if (arg == "--quiet")
+        {
+            quiet_mode = true;
+        }
+        else if (arg == "--benchmark")
+        {
+            benchmark_mode = true;
+        }
     }
 
     // Install signal handler for graceful shutdown
@@ -176,6 +188,8 @@ int main(int argc, char **argv)
         config.disable_tcp = disable_tcp;
         config.disable_logger = disable_logger;
         config.enable_rt = enable_rt;
+        config.quiet_mode = quiet_mode;
+        config.benchmark_mode = benchmark_mode;
 
         // Create and start gateway
         g_gateway = std::make_unique<OrderGateway>(config);
