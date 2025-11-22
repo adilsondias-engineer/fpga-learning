@@ -1,0 +1,12 @@
+{
+  "min_spread_bps": 5.0,
+  "edge_bps": 2.0,
+  "max_position": 500,
+  "position_skew_bps": 1.0,
+  "quote_size": 100,
+  "max_notional": 100000.0,
+  "udp_ip": "0.0.0.0",
+  "udp_port": 5000,
+  "enable_rt": true,
+  "cpu_cores": [2, 3]
+}
