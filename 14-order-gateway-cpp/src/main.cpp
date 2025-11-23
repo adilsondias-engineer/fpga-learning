@@ -52,6 +52,12 @@ void print_usage(const char *program_name)
     std::cout << "  --enable-rt        - Enable real-time optimizations (SCHED_FIFO + CPU pinning)" << std::endl;
     std::cout << "  --quiet            - Suppress console BBO output (improves latency)" << std::endl;
     std::cout << "  --benchmark        - Benchmark mode (single-threaded, no queue, parse-only)" << std::endl;
+#ifdef USE_XDP
+    std::cout << "  --use-xdp          - Use AF_XDP for kernel bypass (requires XDP program loaded)" << std::endl;
+    std::cout << "  --xdp-interface IFACE - Network interface for XDP (default: eno2)" << std::endl;
+    std::cout << "  --xdp-queue-id ID  - XDP queue ID (default: 0)" << std::endl;
+    std::cout << "  --enable-xdp-debug - Enable XDP debug logging (default: disabled)" << std::endl;
+#endif
     std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
     std::cout << "  " << program_name << " 0.0.0.0 5000" << std::endl;
@@ -64,6 +70,9 @@ void print_usage(const char *program_name)
     std::cout << "  " << program_name << " 0.0.0.0 5000 --disable-tcp" << std::endl;
     std::cout << "  " << program_name << " 0.0.0.0 5000 --disable-logger" << std::endl;
     std::cout << "  " << program_name << " 192.168.0.99 5000 --enable-rt  # RT optimizations" << std::endl;
+#ifdef USE_XDP
+    std::cout << "  " << program_name << " 0.0.0.0 5000 --use-xdp --xdp-interface eno2  # XDP mode" << std::endl;
+#endif
 }
 
 int main(int argc, char **argv)
@@ -86,6 +95,10 @@ int main(int argc, char **argv)
     bool enable_rt = false;
     bool quiet_mode = false;
     bool benchmark_mode = false;
+    bool use_xdp = false;
+    std::string xdp_interface = "eno2";
+    int xdp_queue_id = 0;
+    bool enable_xdp_debug = false;
     std::string csv_file;
     std::string mqtt_broker;
     std::string mqtt_topic;
@@ -161,6 +174,24 @@ int main(int argc, char **argv)
         {
             benchmark_mode = true;
         }
+#ifdef USE_XDP
+        else if (arg == "--use-xdp")
+        {
+            use_xdp = true;
+        }
+        else if (arg == "--xdp-interface" && i + 1 < argc)
+        {
+            xdp_interface = argv[++i];
+        }
+        else if (arg == "--xdp-queue-id" && i + 1 < argc)
+        {
+            xdp_queue_id = std::stoi(argv[++i]);
+        }
+        else if (arg == "--enable-xdp-debug")
+        {
+            enable_xdp_debug = true;
+        }
+#endif
     }
 
     // Install signal handler for graceful shutdown
@@ -190,6 +221,12 @@ int main(int argc, char **argv)
         config.enable_rt = enable_rt;
         config.quiet_mode = quiet_mode;
         config.benchmark_mode = benchmark_mode;
+#ifdef USE_XDP
+        config.use_xdp = use_xdp;
+        config.xdp_interface = xdp_interface;
+        config.xdp_queue_id = xdp_queue_id;
+        config.enable_xdp_debug = enable_xdp_debug;
+#endif
 
         // Create and start gateway
         g_gateway = std::make_unique<OrderGateway>(config);

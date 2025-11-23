@@ -2,6 +2,9 @@
 
 #include "udp_listener.h"
 #include "bbo_parser.h"
+#ifdef USE_XDP
+#include "xdp_listener.h"
+#endif
 #include "tcp_server.h"
 #include "csv_logger.h"
 #include "mqtt.h"
@@ -42,6 +45,12 @@ namespace gateway
             int udp_port = 5000;
             int tcp_port = 9999;
             std::string csv_file;
+            
+            // XDP configuration
+            bool use_xdp = false;
+            std::string xdp_interface = "eno2";
+            int xdp_queue_id = 0;
+            bool enable_xdp_debug = false;
 
 
             // MQTT configuration
@@ -107,6 +116,9 @@ namespace gateway
 
         // Components
         std::unique_ptr<UDPListener> udp_listener_;
+#ifdef USE_XDP
+        std::unique_ptr<XDPListener> xdp_listener_;
+#endif
         std::unique_ptr<TCPServer> tcp_server_;
         std::unique_ptr<MQTT> mqtt_;
         std::unique_ptr<KafkaProducer> kafka_;

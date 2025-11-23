@@ -15,7 +15,32 @@ namespace gateway
         // Initialize components
         try
         {
-            udp_listener_ = std::make_unique<UDPListener>(config_.udp_ip, config_.udp_port);
+            // Create listener (XDP or UDP based on config)
+#ifdef USE_XDP
+            if (config_.use_xdp) {
+                try {
+                    if (config_.enable_xdp_debug) {
+                        std::cout << "[XDP] Creating XDP listener on interface: " << config_.xdp_interface << std::endl;
+                    }
+                    xdp_listener_ = std::make_unique<XDPListener>(config_.xdp_interface, config_.udp_port, config_.xdp_queue_id, config_.enable_xdp_debug);
+                    // Set perf monitor immediately after creation (before any auto-start in read_bbo)
+                    xdp_listener_->setPerfMonitor(&parse_latency_);
+                    if (config_.enable_xdp_debug) {
+                        std::cout << "[XDP] XDP listener created (interface: " << config_.xdp_interface << ", port: " << config_.udp_port << ")" << std::endl;
+                    }
+                } catch (const std::exception& e) {
+                    std::cout << "[XDP] Failed to create XDP listener: " << e.what() << ", falling back to UDP" << std::endl;
+                    config_.use_xdp = false;
+                }
+            }
+#endif
+
+            if (!config_.use_xdp) {
+                udp_listener_ = std::make_unique<UDPListener>(config_.udp_ip, config_.udp_port);
+                // Set perf monitor for UDP listener
+                udp_listener_->setPerfMonitor(&parse_latency_);
+            }
+            
             tcp_server_ = std::make_unique<TCPServer>(config_.tcp_port);
 
             // Initialize MQTT if broker URL is provided
@@ -81,10 +106,16 @@ namespace gateway
             }
         }
 
-        // Start UDP listener and reading thread
+        // Start UDP/XDP listener and reading thread
+#ifdef USE_XDP
+        if (config_.use_xdp && xdp_listener_ && !xdp_listener_->isRunning())
+        {
+            xdp_listener_->start();
+        }
+        else
+#endif
         if (udp_listener_ && !udp_listener_->isRunning())
         {
-            udp_listener_->setPerfMonitor(&parse_latency_);
 
             // Enable benchmark mode in UDPListener to skip queue operations
             if (config_.benchmark_mode)
@@ -162,9 +193,10 @@ namespace gateway
             return; // Already stopped
         }
 
-            // Print performance statistics BEFORE joining threads
+        // Print performance statistics BEFORE joining threads
         if (parse_latency_.count() > 0) {
-            parse_latency_.printSummary("Project 14 (UDP)");
+            std::string mode = config_.use_xdp ? "XDP" : "UDP";
+            parse_latency_.printSummary("Project 14 (" + mode + ")");
             parse_latency_.saveToFile("project14_latency.csv");
         }
 
@@ -177,9 +209,17 @@ namespace gateway
             queue_cv_.notify_all();
         }
 
+#ifdef USE_XDP
+        if (xdp_listener_)
+        {
+            xdp_listener_->stop();
+            std::cout << "XDP listener stopped" << std::endl;
+        }
+#endif
         if (udp_listener_)
         {
             udp_listener_->stop();
+            std::cout << "UDP listener stopped" << std::endl;
         }
 
         if (!config_.benchmark_mode)
@@ -241,20 +281,47 @@ namespace gateway
 
     void OrderGateway::udpThreadFunc()
     {
-        std::cout << "UDP thread started" << std::endl;
+        std::cout << "UDP/XDP thread started" << std::endl;
 
         while (running_)
         {
             try
             {
-                // Read BBO from UDP listener (blocking)
-                BBOData bbo = udp_listener_->read_bbo();
-
-                // Push to internal queue for publish thread to handle printing and fan-out
+                BBOData bbo;
+                
+#ifdef USE_XDP
+                // Use XDP listener if enabled
+                if (config_.use_xdp && xdp_listener_)
                 {
-                    std::unique_lock<std::mutex> qlock(queue_mutex_);
-                    if (bbo_queue_.size() < MAX_QUEUE_SIZE)
+                    bbo = xdp_listener_->read_bbo();
+                }
+                else
+#endif
+                {
+                    // Use UDP listener (fallback or default)
+                    if (!udp_listener_)
                     {
+                        break;
+                    }
+                    bbo = udp_listener_->read_bbo();
+                }
+                
+                // Process BBO (same for both XDP and UDP)
+                if (bbo.valid)
+                {
+                    if (config_.benchmark_mode)
+                    {
+                        // Benchmark mode: just parse, don't queue
+                        // Processing already done in callback
+                    }
+                    else
+                    {
+                        // Normal mode: add to queue
+                        std::unique_lock<std::mutex> lock(queue_mutex_);
+                        if (bbo_queue_.size() >= MAX_QUEUE_SIZE)
+                        {
+                            bbo_queue_.pop(); // Drop oldest
+                        }
                         bbo_queue_.push(bbo);
                         queue_cv_.notify_one();
                     }
@@ -262,12 +329,53 @@ namespace gateway
             }
             catch (const std::exception &e)
             {
-                std::cerr << "UDP thread error: " << e.what() << std::endl;
+                std::cerr << "[ERROR] UDP thread exception: " << e.what() << std::endl;
+                std::cerr << "[ERROR] Exception type: " << typeid(e).name() << std::endl;
 
-                // Check if UDP listener is still running
-                if (!udp_listener_->isRunning())
+                // Check if listener is still running
+#ifdef USE_XDP
+                if (config_.use_xdp && xdp_listener_)
                 {
-                    std::cerr << "UDP listener stopped, stopping gateway" << std::endl;
+                    if (!xdp_listener_->isRunning())
+                    {
+                        std::cerr << "[ERROR] XDP listener stopped, stopping gateway" << std::endl;
+                        running_ = false;
+                        break;
+                    }
+                }
+                else
+#endif
+                if (udp_listener_ && !udp_listener_->isRunning())
+                {
+                    std::cerr << "[ERROR] UDP listener stopped, stopping gateway" << std::endl;
+                    running_ = false;
+                    break;
+                }
+
+                // Small delay before retrying to avoid tight exception loop
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            catch (...)
+            {
+                // Catch any other exceptions (not derived from std::exception)
+                std::cerr << "[ERROR] UDP thread: Unknown exception caught (not std::exception)" << std::endl;
+                
+                // Check if listener is still running
+#ifdef USE_XDP
+                if (config_.use_xdp && xdp_listener_)
+                {
+                    if (!xdp_listener_->isRunning())
+                    {
+                        std::cerr << "[ERROR] XDP listener stopped after unknown exception, stopping gateway" << std::endl;
+                        running_ = false;
+                        break;
+                    }
+                }
+                else
+#endif
+                if (udp_listener_ && !udp_listener_->isRunning())
+                {
+                    std::cerr << "[ERROR] UDP listener stopped after unknown exception, stopping gateway" << std::endl;
                     running_ = false;
                     break;
                 }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(OrderGateway CXX)
+project(OrderGateway C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,6 +31,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
+# Option to enable XDP support
+option(USE_XDP "Enable AF_XDP support for kernel bypass" OFF)
+
 # Source files
 set(SOURCES
     src/main.cpp
@@ -42,6 +45,31 @@ set(SOURCES
     src/mqtt.cpp
     src/kafka_producer.cpp
 )
+
+# Add XDP listener source if enabled
+if(USE_XDP)
+    list(APPEND SOURCES src/xdp_listener.cpp)
+    message(STATUS "XDP support enabled")
+    
+    # Try to find libbpf and libxdp (required for proper XDP support)
+    find_path(LIBBPF_INCLUDE_DIR bpf/bpf.h)
+    find_library(LIBBPF_LIBRARY bpf)
+    
+    # Find libxdp (required for XSK map population)
+    find_path(LIBXDP_INCLUDE_DIR xdp/libxdp.h)
+    find_library(LIBXDP_LIBRARY xdp)
+    
+    if(LIBBPF_INCLUDE_DIR AND LIBBPF_LIBRARY AND LIBXDP_INCLUDE_DIR AND LIBXDP_LIBRARY)
+        message(STATUS "libbpf found: ${LIBBPF_LIBRARY}")
+        message(STATUS "libxdp found: ${LIBXDP_LIBRARY}")
+        set(HAVE_LIBXDP TRUE)
+    else()
+        message(WARNING "libxdp not found - XDP bind will fail. Install: sudo apt-get install libxdp-dev")
+        set(HAVE_LIBXDP FALSE)
+    endif()
+else()
+    message(STATUS "XDP support disabled (use -DUSE_XDP=ON to enable)")
+endif()
 
 # Executable
 add_executable(order_gateway ${SOURCES})
@@ -100,6 +128,161 @@ else()
         "  2. Download from: https://www.boost.org/\n"
         "  3. Set Boost_ROOT to your Boost installation directory"
     )
+endif()
+
+# Configure XDP support after target is created
+if(USE_XDP)
+    target_compile_definitions(order_gateway PRIVATE USE_XDP)
+    
+    # Link libbpf and libxdp if found
+    if(HAVE_LIBXDP)
+        target_include_directories(order_gateway PRIVATE ${LIBBPF_INCLUDE_DIR} ${LIBXDP_INCLUDE_DIR})
+        target_link_libraries(order_gateway PRIVATE ${LIBBPF_LIBRARY} ${LIBXDP_LIBRARY})
+        target_compile_definitions(order_gateway PRIVATE HAVE_LIBXDP)
+        message(STATUS "XDP support enabled with libxdp")
+    else()
+        message(WARNING "XDP enabled but libxdp not found - XDP bind will fail")
+    endif()
+    
+    # Build cleanup tool if libbpf is available (separate from HAVE_LIBXDP check)
+    if(LIBBPF_INCLUDE_DIR AND LIBBPF_LIBRARY)
+        add_executable(cleanup_xsk_map cleanup_xsk_map.c)
+        set_target_properties(cleanup_xsk_map PROPERTIES LINKER_LANGUAGE C)
+        target_include_directories(cleanup_xsk_map PRIVATE ${LIBBPF_INCLUDE_DIR})
+        target_link_libraries(cleanup_xsk_map PRIVATE ${LIBBPF_LIBRARY})
+        message(STATUS "XDP cleanup tool will be built")
+    endif()
+    
+    # Compile eBPF program
+    find_program(CLANG_EXECUTABLE clang)
+    if(CLANG_EXECUTABLE)
+        set(XDP_PROG_SRC "${CMAKE_SOURCE_DIR}/xdp/xdp_prog.c")
+        set(XDP_PROG_OBJ "${CMAKE_BINARY_DIR}/xdp_prog.o")
+        
+        # Find kernel headers
+        execute_process(
+            COMMAND uname -r
+            OUTPUT_VARIABLE KERNEL_VERSION
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        
+        execute_process(
+            COMMAND uname -m
+            OUTPUT_VARIABLE ARCH
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        
+        # Map architecture names (x86_64 -> x86)
+        if(ARCH STREQUAL "x86_64")
+            set(KERNEL_ARCH "x86")
+        else()
+            set(KERNEL_ARCH ${ARCH})
+        endif()
+        
+        # Find kernel source/build directory
+        set(KERNEL_BUILD "")
+        if(EXISTS "/lib/modules/${KERNEL_VERSION}/build")
+            set(KERNEL_BUILD "/lib/modules/${KERNEL_VERSION}/build")
+        elseif(EXISTS "/usr/src/linux-headers-${KERNEL_VERSION}")
+            set(KERNEL_BUILD "/usr/src/linux-headers-${KERNEL_VERSION}")
+        endif()
+        
+        # Build include flags - use kernel build directory as base
+        set(INCLUDE_FLAGS "")
+        
+        if(KERNEL_BUILD)
+            # Architecture-specific UAPI includes FIRST (for asm/ includes)
+            if(EXISTS "${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include/generated/uapi")
+                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include/generated/uapi")
+            endif()
+            if(EXISTS "${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include/uapi")
+                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include/uapi")
+            endif()
+            if(EXISTS "${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include/generated")
+                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include/generated")
+            endif()
+            if(EXISTS "${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include")
+                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include")
+            endif()
+            
+            # Main UAPI includes
+            if(EXISTS "${KERNEL_BUILD}/include/uapi")
+                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/include/uapi")
+            endif()
+            if(EXISTS "${KERNEL_BUILD}/include/generated/uapi")
+                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/include/generated/uapi")
+            endif()
+            
+            # Main include directory
+            if(EXISTS "${KERNEL_BUILD}/include")
+                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/include")
+            endif()
+            
+            # Tools/include (for bpf helpers)
+            if(EXISTS "${KERNEL_BUILD}/tools/include")
+                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/tools/include")
+            endif()
+            
+            # Tools/lib/bpf (for bpf helpers)
+            if(EXISTS "${KERNEL_BUILD}/tools/lib/bpf")
+                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/tools/lib/bpf")
+            endif()
+        endif()
+        
+        # Fallback to system includes
+        list(APPEND INCLUDE_FLAGS "-I/usr/include")
+        list(APPEND INCLUDE_FLAGS "-I/usr/include/x86_64-linux-gnu")
+        
+        # Also check for libbpf headers
+        if(LIBBPF_INCLUDE_DIR)
+            list(APPEND INCLUDE_FLAGS "-I${LIBBPF_INCLUDE_DIR}")
+        endif()
+        
+        # Check if kernel has BTF support
+        execute_process(
+            COMMAND test -f /sys/kernel/btf/vmlinux
+            RESULT_VARIABLE BTF_AVAILABLE
+        )
+        
+        if(BTF_AVAILABLE EQUAL 0)
+            message(STATUS "Kernel BTF support detected - compiling with BTF")
+            set(BPF_FLAGS "-g")  # Include debug info for BTF
+        else()
+            message(STATUS "Kernel BTF not available - compiling without BTF")
+            set(BPF_FLAGS "")
+        endif()
+        
+        add_custom_command(
+            OUTPUT ${XDP_PROG_OBJ}
+            COMMAND ${CLANG_EXECUTABLE}
+                -O2
+                -target bpf
+                ${BPF_FLAGS}
+                -c ${XDP_PROG_SRC}
+                -o ${XDP_PROG_OBJ}
+                ${INCLUDE_FLAGS}
+                -Wno-unused-value
+                -Wno-pointer-sign
+                -Wno-compare-distinct-pointer-types
+                -Wno-gnu-variable-sized-type-not-at-end
+                -Wno-address-of-packed-member
+                -Wno-tautological-compare
+                -Wno-unknown-warning-option
+            DEPENDS ${XDP_PROG_SRC}
+            COMMENT "Compiling eBPF/XDP program"
+            VERBATIM
+        )
+        
+        add_custom_target(xdp_prog ALL DEPENDS ${XDP_PROG_OBJ})
+        
+        # Install the eBPF object file
+        install(FILES ${XDP_PROG_OBJ} DESTINATION bin RENAME xdp_prog.o)
+        
+        message(STATUS "eBPF program will be compiled to: ${XDP_PROG_OBJ}")
+    else()
+        message(WARNING "clang not found - eBPF program will not be compiled automatically")
+        message(WARNING "Install clang: sudo apt-get install clang")
+    endif()
 endif()
 
 # Installation
