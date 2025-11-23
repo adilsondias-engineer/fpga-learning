@@ -2,8 +2,8 @@
 ![Language](https://img.shields.io/badge/Language-VHDL-blue)
 ![Status](https://img.shields.io/badge/Status-In%20Development-yellow)
 ![Hardware Verified](https://img.shields.io/badge/Hardware-Verified-brightgreen)
-![Projects](https://img.shields.io/badge/Projects-14%20Complete-brightgreen)
-![Development Time](https://img.shields.io/badge/Development%20Time-300%2B%20hours-blue)
+![Projects](https://img.shields.io/badge/Projects-15%20Complete-brightgreen)
+![Development Time](https://img.shields.io/badge/Development%20Time-320%2B%20hours-blue)
 
 # FPGA Trading Systems
 
@@ -119,20 +119,40 @@ Progressive architecture development from digital design fundamentals to product
 - **Technologies:** Java 21, JavaFX, Gson, Maven
 - **Status:** Complete, 100% test pass rate
 
-**Project 14: C++ Order Gateway (UDP) - High-Performance** ✅ **COMPLETE**
-- **Purpose:** UDP-based gateway replacing UART for lower latency
-- **Architecture:** UDP listener (Boost.Asio), BBO parser (binary), multi-protocol publisher
+**Project 14: C++ Order Gateway (UDP/XDP) - Kernel Bypass** ✅ **COMPLETE**
+- **Purpose:** UDP-based gateway with AF_XDP kernel bypass for minimal latency
+- **Architecture:** XDP listener (AF_XDP + eBPF), BBO parser (binary), multi-protocol publisher
 - **Protocols:** TCP Server (9999), MQTT Publisher (Mosquitto), Kafka Producer
-- **Performance (Validated):** 0.20 μs avg, 0.19 μs P50, 0.38 μs P99 (10,000 samples @ 400 Hz)
-- **RT Optimization:** SCHED_FIFO + CPU pinning support (--enable-rt flag)
+- **Performance (XDP Mode - Validated):** 0.04 μs avg, 0.03 μs P50, 0.14 μs P99 (78,606 samples)
+- **Performance (UDP Mode):** 0.20 μs avg, 0.19 μs P50, 0.38 μs P99 (10,000 samples)
+- **Kernel Bypass:** AF_XDP with eBPF program redirecting UDP packets to userspace
+- **RT Optimization:** SCHED_FIFO priority 99 + CPU core 5 pinning
 - **Benchmark Results:**
-  - Standard deviation: 0.06 μs (highly consistent)
-  - P95: 0.32 μs (95% of messages under 0.32 μs)
-  - 5× faster than UART Project 09 (10.67 μs → 0.20 μs avg)
+  - XDP mode: 5× faster than standard UDP (0.04 μs vs 0.20 μs avg)
+  - Standard deviation: 0.05 μs (highly consistent)
+  - P95: 0.09 μs (95% of messages under 0.09 μs)
+  - 267× faster than UART Project 09 (10.67 μs → 0.04 μs avg)
 - **CPU Isolation:** GRUB parameters (isolcpus, nohz_full, rcu_nocbs) for cores 2-5
 - **Hardware:** AMD Ryzen AI 9 365 w/ Radeon 880M
-- **Technologies:** C++17, Boost.Asio, pthread (RT scheduling), libmosquitto, librdkafka
-- **Status:** Complete, performance validated under realistic load
+- **Technologies:** C++17, Boost.Asio, libxdp, libbpf, pthread (RT scheduling), libmosquitto, librdkafka
+- **Status:** Complete, XDP mode validated with large dataset
+
+**Project 15: Market Maker FSM - Automated Quote Generation** ✅ **COMPLETE**
+- **Purpose:** Automated market making strategy with position management and risk controls
+- **Architecture:** TCP client connecting to Project 14, FSM-based quote generation, position tracker
+- **Data Flow:** Project 14 TCP Server → TCP Client → Market Maker FSM → Quote Generation
+- **Performance (Validated):** 12.73 μs avg, 11.76 μs P50, 21.53 μs P99 (78,606 samples)
+- **End-to-End Latency:** ~12.77 μs (Project 14 XDP: 0.04 μs + Project 15: 12.73 μs)
+- **Features:**
+  - Fair value calculation with size-weighted mid-price
+  - Position-based inventory skew adjustment
+  - Real-time PnL tracking (realized + unrealized)
+  - Pre-trade risk checks (position and notional limits)
+- **FSM States:** IDLE → CALCULATE → QUOTE → RISK_CHECK → ORDER_GEN → WAIT_FILL
+- **Risk Controls:** Max position (500 shares), max notional ($100k), spread enforcement (5 bps min)
+- **RT Optimization:** SCHED_FIFO priority 50 + CPU cores 2-3 pinning
+- **Technologies:** C++20, Boost.Asio (TCP), nlohmann/json, spdlog
+- **Status:** Complete, tested with 78,606 real market data samples
 
 ### Foundation Projects (Projects 1-5)
 
@@ -176,8 +196,9 @@ Each project includes:
                                           │ UDP/IP (Binary BBO packets, 192.168.0.212 → .93)
                                           ▼
 ┌──────────────────────────────────────────────────────────────────────────────────────┐
-│                    C++ Gateway Layer (Project 9) - Multi-Protocol Distribution       │
-│  UART Reader → BBO Parser (hex→decimal) → Multi-Protocol Publisher                   │
+│               C++ Gateway Layer (Project 14) - XDP Kernel Bypass (0.04 μs)           │
+│  XDP Listener (AF_XDP) → BBO Parser (binary) → Multi-Protocol Publisher              │
+│    ↑ eBPF redirect                                                                    │
 └─────────┬───────────────┬──────────────────┬──────────────────────────────────────┘
           │               │                  │
           │ TCP :9999     │ MQTT             │ Kafka (Future)
@@ -191,19 +212,34 @@ Each project includes:
 │  • Charts        │  │  • WiFi         │  │  - Data archival       │
 │  • TCP Client    │  │  • MQTT Client  │  │                        │
 └──────────────────┘  └─────────────────┘  └────────────────────────┘
-                      ┌─────────────────┐
-                      │  Mobile App     │
-                      │  (Project 11)   │
-                      │                 │
-                      │  • Android/iOS  │
-                      │  • .NET MAUI    │
-                      │  • MQTT Client  │
-                      └─────────────────┘
+          │           ┌─────────────────┐
+          │           │  Mobile App     │
+          │           │  (Project 11)   │
+          │           │                 │
+          │           │  • Android/iOS  │
+          │           │  • .NET MAUI    │
+          │           │  • MQTT Client  │
+          │           └─────────────────┘
+          │
+          │ TCP localhost:9999 (JSON BBO)
+          ▼
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                    Market Maker FSM (Project 15) - 12.73 μs                          │
+│  TCP Client → BBO Parser (JSON) → Fair Value → Quote Gen → Position Tracker          │
+│                                       ↓                                               │
+│                               FSM States (IDLE → CALCULATE → QUOTE →                 │
+│                                         RISK_CHECK → ORDER_GEN → WAIT_FILL)          │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 
 Protocol Selection Strategy:
-  TCP    → Desktop apps (low latency, localhost)
+  TCP    → Desktop apps + trading strategies (low latency, localhost)
   MQTT   → IoT/Mobile (lightweight, unreliable networks, low power)
   Kafka  → Backend services (data persistence, analytics, replay)
+
+Performance Chain (End-to-End):
+  FPGA → Project 14 (XDP): 0.04 μs
+  Project 14 → Project 15 (TCP): 12.73 μs
+  Total: ~12.77 μs (FPGA BBO → Trading Strategy Decision)
 ```
 
 **Performance Characteristics:**
@@ -307,6 +343,38 @@ All performance metrics and latency measurements in this documentation are based
 - Production techniques: CDC, BRAM inference, timing closure
 - Debug methodology: Systematic troubleshooting, performance analysis
 - Real-world validation: Hardware-verified with stress testing
+
+---
+
+## References and Further Reading
+
+### Kernel Bypass and High-Performance Networking
+- [AF_XDP - Linux Kernel Documentation](https://www.kernel.org/doc/html/latest/networking/af_xdp.html)
+- [XDP Tutorial - xdp-project](https://github.com/xdp-project/xdp-tutorial)
+- [Kernel Bypass Techniques in Linux for HFT](https://lambdafunc.medium.com/kernel-bypass-techniques-in-linux-for-high-frequency-trading-a-deep-dive-de347ccd5407)
+- [DPDK AF_XDP PMD](https://doc.dpdk.org/guides/nics/af_xdp.html)
+- [P51: High Performance Networking - University of Cambridge](https://www.cl.cam.ac.uk/teaching/1920/P51/Lecture6.pdf)
+- [Linux Kernel vs DPDK Performance](https://talawah.io/blog/linux-kernel-vs-dpdk-http-performance-showdown/)
+
+### Performance Analysis and Optimization
+- [Brendan Gregg - Performance Methodology](https://www.brendangregg.com/methodology.html)
+- [Brendan Gregg - perf Examples](https://www.brendangregg.com/perf.html)
+- [Brendan Gregg - CPU Flame Graphs](https://www.brendangregg.com/FlameGraphs/cpuflamegraphs.html)
+- [Ring Buffers - Design and Implementation](https://www.snellman.net/blog/archive/2016-12-13-ring-buffers/)
+
+### FPGA and Hardware Design
+- [Xilinx 7 Series FPGAs Documentation](https://www.xilinx.com/support/documentation/data_sheets/ds180_7Series_Overview.pdf)
+- [Xilinx UG473 - 7 Series Memory Resources](https://www.xilinx.com/support/documentation/user_guides/ug473_7Series_Memory_Resources.pdf)
+- [Xilinx UG901 - Vivado Design Suite User Guide](https://www.xilinx.com/support/documentation/sw_manuals/xilinx2020_1/ug901-vivado-synthesis.pdf)
+
+### Market Data Protocols and Trading Systems
+- [NASDAQ ITCH 5.0 Specification](docs/NQTVITCHspecification.pdf)
+- [Market Making Strategies and Inventory Management](https://quant.stackexchange.com/questions/tagged/market-making)
+
+### Documentation
+- Detailed project documentation: [docs/](docs/)
+- System architecture: [docs/SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md)
+- Portfolio summary: [docs/PORTFOLIO_SUMMARY.md](docs/PORTFOLIO_SUMMARY.md)
 
 ---
 

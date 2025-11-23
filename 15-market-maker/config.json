@@ -5,8 +5,8 @@
   "position_skew_bps": 1.0,
   "quote_size": 100,
   "max_notional": 100000.0,
-  "udp_ip": "0.0.0.0",
-  "udp_port": 5000,
+  "gateway_host": "localhost",
+  "gateway_port": 9999,
   "enable_rt": true,
   "cpu_cores": [2, 3]
 }

@@ -8,16 +8,18 @@
 
 ## Overview
 
-The Market Maker FSM is an automated trading strategy that consumes BBO (Best Bid/Offer) data directly from the FPGA via UDP and generates two-sided quotes with position management and risk controls.
+The Market Maker FSM is an automated trading strategy that consumes BBO (Best Bid/Offer) data from Project 14's TCP server and generates two-sided quotes with position management and risk controls.
 
 **Data Flow:**
 ```
-FPGA Order Book (Project 13) → UDP BBO Packets (Port 5000) → Market Maker FSM
-                                                                     ↓
-                                                       Quote Generation + Position Tracking
+FPGA Order Book (Project 13) → UDP (XDP Kernel Bypass) → Project 14 Order Gateway
+                                                               ↓ TCP :9999 (JSON)
+                                                          Market Maker FSM
+                                                               ↓
+                                                 Quote Generation + Position Tracking
 ```
 
-**Note:** This project receives UDP BBO data directly from the FPGA (Project 13), replacing the need for the Order Gateway (Project 14) in the data flow. Both projects listen on port 5000 for the same FPGA UDP stream, but serve different purposes - Project 14 for multi-protocol distribution, Project 15 for automated trading logic.
+**Architecture:** This project connects as a TCP client to Project 14's gateway server, receiving JSON-formatted BBO messages over localhost:9999. Project 14 handles the low-latency UDP/XDP reception from the FPGA (0.04 μs), while Project 15 focuses on trading strategy execution (12.73 μs).
 
 ---
 
@@ -30,9 +32,9 @@ FPGA Order Book (Project 13) → UDP BBO Packets (Port 5000) → Market Maker FS
 │                    Market Maker FSM                         │
 │                                                             │
 │  ┌────────────────┐     ┌──────────────────────────┐       │
-│  │  UDP Listener  │────→│     BBO Parser          │       │
-│  │  (From FPGA)   │     │  (Binary Protocol)       │       │
-│  │  Port 5000     │     │                          │       │
+│  │  TCP Client    │────→│     BBO Parser          │       │
+│  │  (From Proj 14)│     │  (JSON Protocol)         │       │
+│  │  localhost:9999│     │                          │       │
 │  └────────────────┘     └──────────┬───────────────┘       │
 │                                    │                        │
 │                                    ↓                        │
@@ -177,9 +179,9 @@ cmake --build . --config Release
   "position_skew_bps": 1.0,
   "quote_size": 100,
   "max_notional": 100000.0,
-  "udp_ip": "0.0.0.0",
-  "udp_port": 5000,
-  "enable_rt": false,
+  "gateway_host": "localhost",
+  "gateway_port": 9999,
+  "enable_rt": true,
   "cpu_cores": [2, 3]
 }
 ```
@@ -194,9 +196,9 @@ cmake --build . --config Release
 | `position_skew_bps` | double | Inventory skew adjustment (bps) | 1.0 |
 | `quote_size` | int | Quote size per side | 100 |
 | `max_notional` | double | Maximum notional exposure | 100000.0 |
-| `udp_ip` | string | UDP bind address | "0.0.0.0" |
-| `udp_port` | int | UDP listen port | 5000 |
-| `enable_rt` | bool | Enable RT scheduling | false |
+| `gateway_host` | string | Order Gateway TCP host | "localhost" |
+| `gateway_port` | int | Order Gateway TCP port | 9999 |
+| `enable_rt` | bool | Enable RT scheduling | true |
 | `cpu_cores` | array | CPU cores for affinity | [2, 3] |
 
 ### Real-Time Optimizations (Linux)
@@ -276,13 +278,13 @@ For current position:
 │   ├── main.cpp                # Entry point, config loading
 │   ├── market_maker_fsm.cpp    # FSM implementation
 │   ├── position_tracker.cpp    # Position and PnL tracking
-│   ├── udp_listener.cpp        # UDP listener (from Project 14)
-│   └── bbo_parser.cpp          # BBO parser (from Project 14)
+│   ├── tcp_client.cpp          # TCP client (connects to Project 14)
+│   └── bbo_parser.cpp          # BBO parser (JSON)
 ├── include/
 │   ├── market_maker_fsm.h      # FSM class definition
 │   ├── position_tracker.h      # Position tracker
 │   ├── order_types.h           # BBO, Quote, Order, Fill structs
-│   ├── udp_listener.h          # UDP listener interface
+│   ├── tcp_client.h            # TCP client interface
 │   └── bbo_parser.h            # BBO parser interface
 ├── config.json                 # Configuration file
 └── CMakeLists.txt             # Build configuration
@@ -295,7 +297,8 @@ For current position:
 ```
 [info] Loaded config from config.json
 [info] MarketMakerFSM initialized with config: spread=5 bps, edge=2 bps, max_pos=500, skew=1 bps
-[info] Market Maker FSM running (UDP 0.0.0.0:5000)
+[info] Connected to Order Gateway at localhost:9999
+[info] Market Maker FSM running (TCP Client)
 [info] Press Ctrl+C to stop
 
 [debug] CALCULATE: symbol=AAPL, fair_value=150.0000, spread=0.0500
@@ -320,23 +323,39 @@ For current position:
 
 ## Performance Characteristics
 
-### Latency
+### Latency (Validated with 78,606 samples)
 
-The market maker is designed for sub-microsecond decision-making:
+The market maker processes BBO messages from Project 14 with the following latency:
+
+| Metric | Latency | Notes |
+|--------|---------|-------|
+| **Average** | **12.73 μs** | Mean processing time |
+| **P50 (Median)** | **11.76 μs** | 50th percentile |
+| **P99** | **21.53 μs** | 99th percentile |
+| **Std Dev** | **3.58 μs** | Standard deviation |
+| **Min** | **10.08 μs** | Minimum latency |
+| **Max** | **67.82 μs** | Maximum latency |
+
+**End-to-End Performance Chain:**
+- FPGA → Project 14 (XDP): 0.04 μs
+- Project 14 → Project 15 (TCP + JSON Parse): 12.73 μs
+- **Total:** ~12.77 μs (FPGA BBO → Trading Decision)
+
+### Component Breakdown
 
 | Component | Latency | Notes |
 |-----------|---------|-------|
-| BBO Parse | 0.20 μs | From Project 14 |
+| TCP Read + JSON Parse | ~12 μs | Dominant factor |
 | Fair Value Calc | < 0.1 μs | Simple arithmetic |
 | Quote Generation | < 0.1 μs | Price calculation + skew |
 | Risk Check | < 0.05 μs | Position limit checks |
-| **Total Decision** | **< 0.5 μs** | BBO → Quote ready |
 
 ### Throughput
 
-- Handles 10,000+ BBO updates/second
+- Tested with 78,606 BBO messages
 - Single-threaded FSM processing
 - Lock-free position updates
+- Handles sustained message rates from FPGA order book
 
 ---
 
@@ -392,9 +411,13 @@ For detailed information about the ITCH 5.0 dataset, see [docs/database.md](../d
 
 ## Related Projects
 
-- **[13-udp-transmitter-mii/](../13-udp-transmitter-mii/)** - FPGA order book with UDP BBO transmission (data source)
-- **[14-order-gateway-cpp/](../14-order-gateway-cpp/)** - Multi-protocol gateway (alternative consumer of FPGA UDP)
-- **[16-order-execution/](../16-order-execution/)** - Order execution engine (future)
+- **[13-udp-transmitter-mii/](../13-udp-transmitter-mii/)** - FPGA order book with UDP BBO transmission (data source for Project 14)
+- **[14-order-gateway-cpp/](../14-order-gateway-cpp/)** - XDP kernel bypass gateway (TCP server for this project)
+- **[16-order-execution/](../16-order-execution/)** - Order execution engine (future integration)
+
+**Dependencies:**
+- Project 15 requires Project 14 to be running (TCP server on localhost:9999)
+- Project 14 requires Project 13 (FPGA) to be transmitting UDP BBO packets
 
 ---
 
@@ -416,11 +439,33 @@ For detailed information about the ITCH 5.0 dataset, see [docs/database.md](../d
    - Portfolio-level PnL tracking
 
 4. **Performance Optimizations**
-   - Lock-free data structures
-   - SIMD for calculations
-   - Zero-copy message passing
+   - Zero-copy message passing with Project 14
+   - SIMD for fair value calculations
+   - Lock-free data structures for position tracking
+
+---
+
+## References
+
+### Market Making and Trading Strategies
+- [Market Making Strategies - QuantStackExchange](https://quant.stackexchange.com/questions/tagged/market-making) - Discussion of market making techniques
+- [Inventory Risk and Market Making](https://www.investopedia.com/terms/m/marketmaker.asp) - Market maker role and inventory management
+
+### Position Management and Risk Controls
+- [Position Sizing and Risk Management](https://www.investopedia.com/terms/p/positionsize.asp) - Position sizing fundamentals
+- [Pre-Trade Risk Controls](https://www.finra.org/rules-guidance/key-topics/market-access-rule) - Regulatory perspective on risk controls
+
+### C++ High-Performance Programming
+- [Boost.Asio Documentation](https://www.boost.org/doc/libs/1_84_0/doc/html/boost_asio.html) - Async I/O library
+- [nlohmann/json](https://github.com/nlohmann/json) - Modern C++ JSON library
+- [spdlog](https://github.com/gabime/spdlog) - Fast C++ logging library
+
+### Related Project Documentation
+- [Project 14 - Order Gateway (XDP)](../14-order-gateway-cpp/README.md) - Data source for this project
+- [Project 13 - FPGA UDP Transmitter](../13-udp-transmitter-mii/README.md) - FPGA BBO source
+- [System Architecture](../docs/SYSTEM_ARCHITECTURE.md) - Complete system overview
 
 ---
 
 **Build Time:** ~10 seconds
-**Status:** Complete implementation with simulated fills
+**Status:** Complete and tested with 78,606 real market data samples

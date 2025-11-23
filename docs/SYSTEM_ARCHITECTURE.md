@@ -1,9 +1,9 @@
 # FPGA Trading System - Complete Architecture & Design
 
 **Date:** November 2025
-**Status:** FUNCTIONAL - High-Performance Multi-Protocol Gateway + Full Application Suite
-**Projects:** 6-14 (Network Stack → Order Book → UDP TX → Gateway (UART/UDP) → Desktop/Mobile/IoT Applications)
-**Development Time:** 300+ hours
+**Status:** FUNCTIONAL - XDP Kernel Bypass Gateway + Market Maker + Full Application Suite
+**Projects:** 6-15 (Network Stack → Order Book → UDP TX → XDP Gateway → Market Maker + Desktop/Mobile/IoT Applications)
+**Development Time:** 320+ hours
 
 ---
 
@@ -163,30 +163,38 @@ A complete **low-latency market data processing and distribution system** combin
 **Performance:** 10.67 μs avg parse latency, 6.32 μs P50
 **Status:** Functional, performance testing in progress
 
-#### Project 14: C++ Order Gateway (UDP-based - High-Performance Evolution)
+#### Project 14: C++ Order Gateway (UDP/XDP - Kernel Bypass)
 
 **Core Functions:**
-1. **UDP Listener:** Receive binary BBO packets from FPGA (192.168.0.93:5000)
+1. **XDP Listener:** AF_XDP kernel bypass with eBPF program redirecting UDP packets to userspace
 2. **Binary BBO Parser:** Parse big-endian fixed-point format directly (no hex conversion)
-3. **Multi-Protocol Publisher:** Fan-out to 3 protocols simultaneously (same as Project 9)
+3. **Multi-Protocol Publisher:** Fan-out to 3 protocols simultaneously (TCP/MQTT/Kafka)
 
-**Performance:** 2.09 μs avg parse latency, 1.04 μs P50 (5.1x faster than Project 9)
+**Performance (XDP Mode - Validated with 78,606 samples):**
+- **Average:** 0.04 μs (40 nanoseconds)
+- **P50:** 0.03 μs
+- **P99:** 0.14 μs
+- **Std Dev:** 0.05 μs
+- **Improvement:** 5× faster than standard UDP mode (0.04 μs vs 0.20 μs)
+- **267× faster than UART Project 9** (10.67 μs → 0.04 μs)
 
-**RT Optimization Results:**
-- **Optimal:** Multi-core isolation (taskset -c 2-5): 0.51 μs avg, 0.16 μs P50
-- **RT Scheduling:** SCHED_FIFO with CPU pinning: 0.64-0.93 μs avg (variable)
-- **Key Finding:** CFS scheduler with 4 isolated cores outperforms rigid RT pinning
+**Performance (Standard UDP Mode):**
+- **Average:** 0.20 μs
+- **P50:** 0.19 μs
+- **P99:** 0.38 μs
 
-**CPU Isolation Setup (AMD Ryzen AI 9 365):**
-```bash
-# GRUB parameters for cores 2-5 isolation
-isolcpus=2-5 nohz_full=2-5 rcu_nocbs=2-5
+**XDP Kernel Bypass Architecture:**
+- **eBPF Program:** Loaded on network interface, redirects UDP port 5000 to XSK map
+- **AF_XDP Socket:** Zero-copy packet reception via UMEM shared memory
+- **Queue Configuration:** Combined channel 4, queue_id 3 (hardware-specific)
+- **Ring Buffers:** RX ring, Fill ring, Completion ring (zero-copy operation)
 
-# Launch gateway with CPU affinity
-taskset -c 2-5 ./order_gateway_udp --enable-rt
-```
+**RT Optimization:**
+- **RT Scheduling:** SCHED_FIFO priority 99
+- **CPU Pinning:** Core 5 (isolated)
+- **CPU Isolation:** GRUB parameters (isolcpus=2-5, nohz_full=2-5, rcu_nocbs=2-5)
 
-**Status:** Functional, performance optimization in progress
+**Status:** Complete, XDP mode validated with large dataset
 
 **Architecture:**
 ```cpp
@@ -570,6 +578,94 @@ public class MqttConsumerService : IDisposable
 - Requires persistent TCP connections
 - Native library dependencies (Android compatibility issues)
 - Designed for backend services, not mobile clients
+
+---
+
+#### Project 15: Market Maker FSM - Automated Quote Generation - **IMPLEMENTED**
+
+**Purpose:** Automated market making strategy with position management and risk controls
+
+**Status:** ✅ Complete - See `15-market-maker/`
+
+**Architecture:**
+```cpp
+// TCP Client → Market Maker FSM → Quote Generation
+class MarketMakerFSM {
+    // TCP Connection to Project 14
+    TCPClient gateway;              // localhost:9999
+
+    // Core Components
+    MarketMakerFSM fsm;             // State machine
+    PositionTracker positions;      // Position & PnL tracking
+
+    // FSM States
+    enum State {
+        IDLE,           // Waiting for BBO
+        CALCULATE,      // Computing fair value
+        QUOTE,          // Generating quotes with skew
+        RISK_CHECK,     // Position/notional limits
+        ORDER_GEN,      // Sending orders
+        WAIT_FILL       // Waiting for fills
+    };
+
+    // Configuration
+    double min_spread_bps;          // Minimum spread (5 bps)
+    double edge_bps;                // Edge from fair value (2 bps)
+    int max_position;               // Max shares per symbol (500)
+    double position_skew_bps;       // Inventory adjustment (1 bps)
+    int quote_size;                 // Shares per side (100)
+    double max_notional;            // Max dollar exposure ($100k)
+};
+```
+
+**Features:**
+- **Fair Value Calculation:** Weighted mid-price using bid/ask sizes
+- **Quote Generation:** Two-sided markets with position-based inventory skew
+- **Position Management:** Real-time PnL tracking (realized + unrealized)
+- **Risk Controls:** Pre-trade position and notional limit checks
+- **FSM-based Logic:** Deterministic state transitions for quote generation
+
+**Performance (Validated with 78,606 samples):**
+- **Average:** 12.73 μs (TCP read + JSON parse + FSM processing)
+- **P50:** 11.76 μs
+- **P99:** 21.53 μs
+- **Std Dev:** 3.58 μs
+
+**End-to-End Latency Chain:**
+```
+FPGA Order Book (Project 13)
+    ↓ UDP (binary BBO)
+Project 14 XDP Gateway: 0.04 μs
+    ↓ TCP localhost:9999 (JSON BBO)
+Project 15 Market Maker: 12.73 μs
+    ↓
+Total: ~12.77 μs (FPGA → Trading Decision)
+```
+
+**Trading Algorithm:**
+```
+Fair Value = (bid_price + ask_price) / 2 + size-weighted adjustment
+Skew = (position / max_position) × position_skew_bps × fair_value
+Bid = fair_value - edge + skew
+Ask = fair_value + edge + skew
+```
+
+**Risk Management:**
+- Position limits enforced per symbol
+- Notional exposure limits (max dollar risk)
+- Position skew discourages inventory buildup (long → skew DOWN to sell, short → skew UP to buy)
+- Pre-trade risk checks before quote generation
+
+**Technologies:**
+- **C++20:** Modern C++ with concepts
+- **Boost.Asio:** TCP client for Project 14 connection
+- **nlohmann/json:** JSON BBO parsing
+- **spdlog:** High-performance logging
+- **RT Scheduling:** SCHED_FIFO priority 50, CPU cores 2-3
+
+**Dependencies:**
+- Requires Project 14 running (TCP server on localhost:9999)
+- Project 14 requires Project 13 (FPGA UDP transmitter)
 
 ---
 
@@ -1143,15 +1239,50 @@ This system demonstrates a **complete end-to-end low-latency trading infrastruct
 
 ---
 
-**Status:** Multi-protocol gateway operational, ready for application development
+**Status:** XDP kernel bypass gateway + market maker operational with 15 complete projects
 
 **Next Steps:**
-1. Fix FPGA BBO scan issue (in progress)
-2. Implement Java Desktop GUI
-3. Build ESP32 physical display
-4. Deploy Kafka infrastructure
-5. Develop mobile app
+1. Project 16: Order execution engine integration
+2. Multi-symbol support for market maker
+3. Advanced trading strategies (adverse selection detection, spread widening)
+4. Kafka infrastructure deployment for analytics
 
 ---
 
-*This architecture represents production-quality trading infrastructure suitable for professional financial technology environments.*
+## References
+
+### Kernel Bypass and High-Performance Networking
+- [AF_XDP - Linux Kernel Documentation](https://www.kernel.org/doc/html/latest/networking/af_xdp.html) - Official AF_XDP documentation
+- [AF_XDP - DRM/Networking Documentation](https://dri.freedesktop.org/docs/drm/networking/af_xdp.html) - Detailed AF_XDP architecture
+- [XDP Tutorial - xdp-project](https://github.com/xdp-project/xdp-tutorial) - Comprehensive XDP tutorial with examples
+- [AF_XDP Examples - xdp-project](https://github.com/xdp-project/bpf-examples/blob/main/AF_XDP-example/README.org) - Practical AF_XDP implementation
+- [DPDK AF_XDP PMD](https://doc.dpdk.org/guides/nics/af_xdp.html) - DPDK's AF_XDP poll mode driver
+- [Kernel Bypass Techniques for HFT](https://lambdafunc.medium.com/kernel-bypass-techniques-in-linux-for-high-frequency-trading-a-deep-dive-de347ccd5407) - Deep dive into kernel bypass
+- [Kernel Bypass: DPDK, SPDK, io_uring](https://anshadameenza.com/blog/technology/2025-01-15-kernel-bypass-networking-dpdk-spdk-io_uring/) - Comparison of approaches
+- [Linux Kernel vs DPDK Performance](https://talawah.io/blog/linux-kernel-vs-dpdk-http-performance-showdown/) - Performance study
+- [P51: High Performance Networking - Cambridge](https://www.cl.cam.ac.uk/teaching/1920/P51/Lecture6.pdf) - Academic perspective
+
+### Performance Analysis and Optimization
+- [Brendan Gregg - Performance Methodology](https://www.brendangregg.com/methodology.html) - Performance analysis methodology
+- [Brendan Gregg - perf Examples](https://www.brendangregg.com/perf.html) - Linux perf tool usage
+- [Brendan Gregg - CPU Flame Graphs](https://www.brendangregg.com/FlameGraphs/cpuflamegraphs.html) - CPU profiling visualization
+- [Ring Buffers - Design and Implementation](https://www.snellman.net/blog/archive/2016-12-13-ring-buffers/) - Ring buffer design
+- [eBPF Ring Buffer Optimization](https://ebpfchirp.substack.com/p/challenge-3-ebpf-ring-buffer-optimization) - eBPF ring buffer techniques
+
+### FPGA and Hardware Design
+- [Xilinx 7 Series FPGAs Overview](https://www.xilinx.com/support/documentation/data_sheets/ds180_7Series_Overview.pdf)
+- [Xilinx UG473 - 7 Series Memory Resources](https://www.xilinx.com/support/documentation/user_guides/ug473_7Series_Memory_Resources.pdf)
+- [Xilinx UG901 - Vivado Synthesis](https://www.xilinx.com/support/documentation/sw_manuals/xilinx2020_1/ug901-vivado-synthesis.pdf)
+
+### Market Data Protocols and Trading
+- [NASDAQ ITCH 5.0 Specification](NQTVITCHspecification.pdf) - Market data protocol
+- [Market Making Strategies](https://quant.stackexchange.com/questions/tagged/market-making) - Trading strategy discussion
+
+### Messaging and Communication Protocols
+- [MQTT v3.1.1 Specification](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html)
+- [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
+- [Boost.Asio Documentation](https://www.boost.org/doc/libs/1_84_0/doc/html/boost_asio.html)
+
+---
+
+*This architecture demonstrates complete end-to-end trading infrastructure from FPGA hardware acceleration to automated market making strategies.*

@@ -5,8 +5,9 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <nlohmann/json.hpp>
 #include "market_maker_fsm.h"
-#include "udp_listener.h"
+#include "tcp_client.h"
 #include "bbo_parser.h"
+#include "common/perf_monitor.h"
 
 #ifdef __linux__
 #include <sched.h>
@@ -44,7 +45,33 @@ void setCpuAffinity(const std::vector<int>& cores) {
 #endif
 
 volatile bool g_running = true;
-std::unique_ptr<gateway::UDPListener> g_listener;
+
+// Common listener interface (polymorphic)
+struct ListenerBase {
+    virtual ~ListenerBase() = default;
+    virtual void start() = 0;
+    virtual void stop() = 0;
+    virtual gateway::BBOData read_bbo() = 0;
+    virtual bool isRunning() const = 0;
+    virtual void setPerfMonitor(gateway::PerfMonitor* monitor) = 0;
+};
+
+// TCP client wrapper
+struct TCPClientWrapper : public ListenerBase {
+    std::unique_ptr<gateway::TCPClient> impl;
+
+    TCPClientWrapper(const std::string& host, int port)
+        : impl(std::make_unique<gateway::TCPClient>(host, port)) {}
+
+    void start() override { impl->connect(); }
+    void stop() override { impl->disconnect(); }
+    gateway::BBOData read_bbo() override { return impl->read_bbo(); }
+    bool isRunning() const override { return impl->isConnected(); }
+    void setPerfMonitor(gateway::PerfMonitor* monitor) override { impl->setPerfMonitor(monitor); }
+};
+
+std::unique_ptr<ListenerBase> g_listener;
+gateway::PerfMonitor g_parse_latency;  // Global performance monitor
 
 void signalHandler(int signal) {
     spdlog::info("Received signal {}, shutting down...", signal);
@@ -78,8 +105,8 @@ int main(int argc, char** argv) {
     }
 
     mm::MarketMakerFSM::Config mm_config;
-    std::string udp_ip = "0.0.0.0";
-    int udp_port = 5000;
+    std::string gateway_host = "localhost";
+    int gateway_port = 9999;
     bool enable_rt = false;
     std::vector<int> cpu_cores = {2, 3};
 
@@ -107,11 +134,11 @@ int main(int argc, char** argv) {
             if (config_json.contains("max_notional")) {
                 mm_config.max_notional = config_json["max_notional"];
             }
-            if (config_json.contains("udp_ip")) {
-                udp_ip = config_json["udp_ip"].get<std::string>();
+            if (config_json.contains("gateway_host")) {
+                gateway_host = config_json["gateway_host"].get<std::string>();
             }
-            if (config_json.contains("udp_port")) {
-                udp_port = config_json["udp_port"];
+            if (config_json.contains("gateway_port")) {
+                gateway_port = config_json["gateway_port"];
             }
             if (config_json.contains("enable_rt")) {
                 enable_rt = config_json["enable_rt"];
@@ -140,13 +167,17 @@ int main(int argc, char** argv) {
     mm::MarketMakerFSM fsm(mm_config);
 
     try {
-        g_listener = std::make_unique<gateway::UDPListener>(udp_ip, udp_port);
+        // Create TCP client to connect to Order Gateway (Project 14)
+        spdlog::info("Connecting to Order Gateway at {}:{}...", gateway_host, gateway_port);
+        g_listener = std::make_unique<TCPClientWrapper>(gateway_host, gateway_port);
+        g_listener->setPerfMonitor(&g_parse_latency);
         g_listener->start();
+        spdlog::info("Connected to Order Gateway");
 
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTERM, signalHandler);
 
-        spdlog::info("Market Maker FSM running (UDP {}:{})", udp_ip, udp_port);
+        spdlog::info("Market Maker FSM running");
         spdlog::info("Press Ctrl+C to stop");
 
         while (g_running) {
@@ -165,7 +196,16 @@ int main(int argc, char** argv) {
             }
         }
 
-        g_listener->stop();
+        if (g_listener) {
+            g_listener->stop();
+        }
+
+        // Print performance statistics
+        if (g_parse_latency.count() > 0) {
+            g_parse_latency.printSummary("Project 15 (TCP Client)");
+            g_parse_latency.saveToFile("project15_latency.csv");
+        }
+
         spdlog::info("Shutdown complete");
 
     } catch (const std::exception& e) {
