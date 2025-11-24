@@ -52,6 +52,7 @@ void print_usage(const char *program_name)
     std::cout << "  --enable-rt        - Enable real-time optimizations (SCHED_FIFO + CPU pinning)" << std::endl;
     std::cout << "  --quiet            - Suppress console BBO output (improves latency)" << std::endl;
     std::cout << "  --benchmark        - Benchmark mode (single-threaded, no queue, parse-only)" << std::endl;
+    std::cout << "  --enable-disruptor - Enable Disruptor (shared memory ring buffer for Project 15)" << std::endl;
 #ifdef USE_XDP
     std::cout << "  --use-xdp          - Use AF_XDP for kernel bypass (requires XDP program loaded)" << std::endl;
     std::cout << "  --xdp-interface IFACE - Network interface for XDP (default: eno2)" << std::endl;
@@ -95,6 +96,7 @@ int main(int argc, char **argv)
     bool enable_rt = false;
     bool quiet_mode = false;
     bool benchmark_mode = false;
+    bool enable_disruptor = false;
     bool use_xdp = false;
     std::string xdp_interface = "eno2";
     int xdp_queue_id = 0;
@@ -174,6 +176,10 @@ int main(int argc, char **argv)
         {
             benchmark_mode = true;
         }
+        else if (arg == "--enable-disruptor")
+        {
+            enable_disruptor = true;
+        }
 #ifdef USE_XDP
         else if (arg == "--use-xdp")
         {
@@ -221,6 +227,7 @@ int main(int argc, char **argv)
         config.enable_rt = enable_rt;
         config.quiet_mode = quiet_mode;
         config.benchmark_mode = benchmark_mode;
+        config.enable_disruptor = enable_disruptor;
 #ifdef USE_XDP
         config.use_xdp = use_xdp;
         config.xdp_interface = xdp_interface;

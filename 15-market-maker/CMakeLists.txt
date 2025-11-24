@@ -27,6 +27,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/../common)
 
 # Option to enable XDP support
 option(USE_XDP "Enable AF_XDP support for kernel bypass" OFF)

@@ -8,5 +8,6 @@
   "gateway_host": "localhost",
   "gateway_port": 9999,
   "enable_rt": true,
-  "cpu_cores": [2, 3]
+  "cpu_cores": [2, 3],
+  "enable_disruptor": true
 }

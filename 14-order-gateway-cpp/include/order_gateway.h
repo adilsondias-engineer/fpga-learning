@@ -10,6 +10,8 @@
 #include "mqtt.h"
 #include "kafka_producer.h"
 #include "common/perf_monitor.h"
+#include "disruptor/BboRingBuffer.h"
+#include "disruptor/SharedMemoryManager.h"
 
 #include <string>
 #include <queue>
@@ -77,6 +79,9 @@ namespace gateway
 
             // Benchmark mode (single-threaded, no queue, parse-only)
             bool benchmark_mode = false;
+
+            // Disruptor mode (shared memory ring buffer for Project 15)
+            bool enable_disruptor = false;
         };
 
         /**
@@ -123,6 +128,9 @@ namespace gateway
         std::unique_ptr<MQTT> mqtt_;
         std::unique_ptr<KafkaProducer> kafka_;
         std::unique_ptr<CSVLogger> csv_logger_;
+
+        // Disruptor shared memory ring buffer
+        disruptor::BboRingBuffer* ring_buffer_;
 
         // Thread-safe queue for BBO updates
         std::queue<BBOData> bbo_queue_;

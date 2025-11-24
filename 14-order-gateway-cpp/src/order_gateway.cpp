@@ -10,8 +10,20 @@ namespace gateway
 {
 
     OrderGateway::OrderGateway(const Config &config)
-        : config_(config), running_(false), stopped_(true)
+        : config_(config), running_(false), stopped_(true), ring_buffer_(nullptr)
     {
+        // Initialize Disruptor shared memory if enabled
+        if (config_.enable_disruptor) {
+            try {
+                ring_buffer_ = disruptor::SharedMemoryManager<
+                    disruptor::BboRingBuffer>::create("gateway");
+                std::cout << "[Disruptor] Shared memory ring buffer created" << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "[Disruptor] Failed to create ring buffer: " << e.what() << std::endl;
+                config_.enable_disruptor = false;
+            }
+        }
+
         // Initialize components
         try
         {
@@ -84,6 +96,12 @@ namespace gateway
     OrderGateway::~OrderGateway()
     {
         stop();
+
+        // Cleanup Disruptor shared memory
+        if (ring_buffer_) {
+            disruptor::SharedMemoryManager<disruptor::BboRingBuffer>::destroy("gateway", ring_buffer_);
+            ring_buffer_ = nullptr;
+        }
     }
 
     void OrderGateway::start()
@@ -471,6 +489,11 @@ namespace gateway
 
     void OrderGateway::publishBBO(const BBOData &bbo)
     {
+        // Publish to Disruptor shared memory if enabled
+        if (config_.enable_disruptor && ring_buffer_) {
+            ring_buffer_->publish(bbo);
+        }
+
         // Early exit if all distribution is disabled
         bool needs_json = !config_.disable_tcp ||
                          (mqtt_ && mqtt_->isConnected()) ||

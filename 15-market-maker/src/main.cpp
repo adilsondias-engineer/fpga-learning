@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 #include "market_maker_fsm.h"
 #include "tcp_client.h"
+#include "disruptor_client.h"
 #include "bbo_parser.h"
 #include "common/perf_monitor.h"
 
@@ -70,6 +71,35 @@ struct TCPClientWrapper : public ListenerBase {
     void setPerfMonitor(gateway::PerfMonitor* monitor) override { impl->setPerfMonitor(monitor); }
 };
 
+// Disruptor client wrapper
+struct DisruptorClientWrapper : public ListenerBase {
+    std::unique_ptr<gateway::DisruptorClient> impl;
+    gateway::PerfMonitor* monitor_;
+
+    DisruptorClientWrapper(const std::string& shm_name = "gateway")
+        : impl(std::make_unique<gateway::DisruptorClient>(shm_name)), monitor_(nullptr) {}
+
+    void start() override { impl->connect(); }
+    void stop() override { impl->disconnect(); }
+    gateway::BBOData read_bbo() override {
+        gateway::BBOData bbo;
+        // Use try_read_bbo for non-blocking poll, then wait longer if needed
+        if (impl->try_read_bbo(bbo)) {
+            return bbo;
+        }
+        // If no data available, try blocking read with longer timeout
+        if (monitor_) {
+            gateway::LatencyMeasurement measurement(*monitor_);
+            bbo = impl->read_bbo(100000);  // 100ms timeout
+        } else {
+            bbo = impl->read_bbo(100000);  // 100ms timeout
+        }
+        return bbo;
+    }
+    bool isRunning() const override { return impl->isConnected(); }
+    void setPerfMonitor(gateway::PerfMonitor* monitor) override { monitor_ = monitor; }
+};
+
 std::unique_ptr<ListenerBase> g_listener;
 gateway::PerfMonitor g_parse_latency;  // Global performance monitor
 
@@ -108,6 +138,7 @@ int main(int argc, char** argv) {
     std::string gateway_host = "localhost";
     int gateway_port = 9999;
     bool enable_rt = false;
+    bool enable_disruptor = false;
     std::vector<int> cpu_cores = {2, 3};
 
     std::ifstream config_stream(config_file);
@@ -146,6 +177,9 @@ int main(int argc, char** argv) {
             if (config_json.contains("cpu_cores")) {
                 cpu_cores = config_json["cpu_cores"].get<std::vector<int>>();
             }
+            if (config_json.contains("enable_disruptor")) {
+                enable_disruptor = config_json["enable_disruptor"];
+            }
 
             spdlog::info("Loaded config from {}", config_file);
         } catch (const std::exception& e) {
@@ -167,17 +201,32 @@ int main(int argc, char** argv) {
     mm::MarketMakerFSM fsm(mm_config);
 
     try {
-        // Create TCP client to connect to Order Gateway (Project 14)
-        spdlog::info("Connecting to Order Gateway at {}:{}...", gateway_host, gateway_port);
-        g_listener = std::make_unique<TCPClientWrapper>(gateway_host, gateway_port);
+        // Create client to connect to Order Gateway (TCP or Disruptor)
+        if (enable_disruptor) {
+            spdlog::info("Connecting to Order Gateway via Disruptor (shared memory)...");
+            g_listener = std::make_unique<DisruptorClientWrapper>("gateway");
+        } else {
+            spdlog::info("Connecting to Order Gateway at {}:{}...", gateway_host, gateway_port);
+            g_listener = std::make_unique<TCPClientWrapper>(gateway_host, gateway_port);
+        }
+
         g_listener->setPerfMonitor(&g_parse_latency);
         g_listener->start();
-        spdlog::info("Connected to Order Gateway");
+
+        if (enable_disruptor) {
+            spdlog::info("Connected to Order Gateway (Disruptor Mode - Shared Memory)");
+        } else {
+            spdlog::info("Connected to Order Gateway (TCP Mode)");
+        }
 
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTERM, signalHandler);
 
-        spdlog::info("Market Maker FSM running");
+        if (enable_disruptor) {
+            spdlog::info("Market Maker FSM running (Disruptor Mode - Shared Memory)");
+        } else {
+            spdlog::info("Market Maker FSM running (TCP Client)");
+        }
         spdlog::info("Press Ctrl+C to stop");
 
         while (g_running) {
@@ -190,9 +239,16 @@ int main(int argc, char** argv) {
                 }
             } catch (const std::exception& e) {
                 if (g_running) {
+                    // Timeout is expected when waiting for data - continue polling
+                    std::string error_msg = e.what();
+                    if (error_msg.find("timeout") != std::string::npos) {
+                        // Just continue polling
+                        continue;
+                    }
+                    // For other errors, log and break
                     spdlog::error("Error processing BBO: {}", e.what());
+                    break;
                 }
-                break;
             }
         }
 

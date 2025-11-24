@@ -1,26 +1,10 @@
 #pragma once
 
+#include "bbo_data.h"  // BBOData from common
 #include <string>
-#include <cstdint>
 
 namespace gateway
 {
-
-    /**
-     * BBO Data structure
-     * Represents parsed Best Bid/Offer data from FPGA UART output
-     */
-    struct BBOData
-    {
-        std::string symbol;      // e.g., "AAPL"
-        double bid_price;         // e.g., 150.00 (4 decimal places)
-        uint32_t bid_shares;      // e.g., 100
-        double ask_price;         // e.g., 149.95
-        uint32_t ask_shares;      // e.g., 200
-        double spread;            // e.g., 0.50
-        int64_t timestamp_ns;     // Nanoseconds since Unix epoch
-        bool valid;               // true if BBO data, false if NODATA
-    };
 
     /**
      * BBO Parser

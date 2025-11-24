@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+# Start Project 14 (Producer) with XDP + Disruptor
+#
+
+set -e
+
+# Configuration
+XDP_INTERFACE="eno2"
+XDP_QUEUE_ID="0"
+UDP_PORT="5000"
+
+echo "========================================="
+echo "Starting Project 14 (Producer)"
+echo "XDP + Disruptor Mode"
+echo "========================================="
+
+# Cleanup any existing shared memory
+echo "Cleaning up shared memory..."
+rm -f /dev/shm/bbo_ring_gateway 2>/dev/null || true
+
+cd /work/projects/fpga-trading-systems/14-order-gateway-cpp/build
+
+echo ""
+echo "Starting Order Gateway with:"
+echo "  - XDP interface: $XDP_INTERFACE"
+echo "  - XDP queue ID: $XDP_QUEUE_ID"
+echo "  - UDP port: $UDP_PORT"
+echo "  - Disruptor: ENABLED"
+echo "  - Real-time: ENABLED"
+echo "  - TCP/MQTT/Kafka: DISABLED (using Disruptor only)"
+echo ""
+
+sudo ./order_gateway 0.0.0.0 $UDP_PORT \
+    --enable-disruptor \
+    --enable-xdp-debug \
+    --use-xdp \
+    --xdp-interface $XDP_INTERFACE \
+    --xdp-queue-id $XDP_QUEUE_ID \
+    --enable-rt \
+    --disable-tcp \
+    --disable-mqtt \
+    --disable-kafka \
+    --disable-logger \
+    --quiet
