@@ -32,3 +32,9 @@ Thumbs.db
 *.bak
 *.old
 dfx_runtime.txt
+/09-order-gateway-cpp/.vscode
+08-order-book/build_version.txt
+/14-order-gateway-cpp/build
+/14-order-gateway-cpp/vcpkg_installed
+/15-market-maker/build
+/15-market-maker/vcpkg_installed
