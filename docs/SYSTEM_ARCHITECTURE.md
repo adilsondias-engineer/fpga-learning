@@ -1124,6 +1124,14 @@ With 8 symbols: 96 / 8 = 12 BBO/sec per symbol
 | RAMB36 | 32 | 135 | 24% |
 | DSP48E | 0 | 240 | 0% |
 
+**BRAM Breakdown (FPGA Projects 6-8):**
+- Order storage (1024 orders): 4 BRAM36 blocks (130 bits × 1024 entries)
+- Price level table (256 levels): 1 BRAM36 block (82 bits × 256 entries)
+- Async FIFO (CDC - ITCH parser): 1-2 BRAM36 blocks (gray code synchronizer)
+- UDP transmitter buffers: 1-2 BRAM36 blocks (packet assembly)
+
+**Note:** Projects 14-15 use software-based Disruptor pattern (POSIX shared memory), not FPGA BRAM
+
 **C++ Gateway (Project 09 - UART):**
 | Resource | Usage |
 |----------|-------|

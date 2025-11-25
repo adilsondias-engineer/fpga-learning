@@ -52,7 +52,7 @@ Progressive architecture development from digital design fundamentals to product
 - **Message Types:** S (System), R (Directory), A (Add), E (Execute), X (Cancel), D (Delete), U (Replace), P (Trade), Q (Cross)
 - **Performance:** Deterministic message parsing, symbol filtering reduces downstream load
 - **Integration:** Feeds parsed ITCH messages to Project 8 order book
-- **Demo Video:** [docs/live_historic_data_feed.mp4](docs/live_historic_data_feed.mp4) - Python script feeding historic NASDAQ data to FPGA via UDP
+- **Demo Video:** [docs/videos/live_historic_data_feed.mp4](docs/videos/live_historic_data_feed.mp4) - Python script feeding historic NASDAQ data to FPGA via UDP
 
 **Project 08: Multi-Symbol Hardware Order Book** ✅
 - **Achievement:** Sub-microsecond order book tracking 8 symbols simultaneously
@@ -133,7 +133,7 @@ Progressive architecture development from digital design fundamentals to product
   - XDP + Disruptor: 267× faster than UART baseline (10.67 μs → 0.10 μs)
   - Zero-copy shared memory IPC (no TCP/socket overhead)
   - Fixed-size data structures (char arrays, not std::string/vector)
-- **Demo Video:** [docs/OrderGateway_MarketMaker_disruptorPattern.mkv](docs/OrderGateway_MarketMaker_disruptorPattern.mkv) - Live Disruptor IPC demonstration
+- **Demo Video:** [docs/videos/OrderGateway_MarketMaker_disruptorPattern.mkv](docs/videos/OrderGateway_MarketMaker_disruptorPattern.mkv) - Live Disruptor IPC demonstration
 - **Technologies:** C++17, libxdp, libbpf, POSIX shared memory, atomic operations
 - **Status:** Completed and tested on hardware
 
@@ -156,7 +156,7 @@ Progressive architecture development from digital design fundamentals to product
 - **FSM States:** IDLE → CALCULATE → QUOTE → RISK_CHECK → ORDER_GEN → WAIT_FILL
 - **Risk Controls:** Max position (500 shares), max notional ($100k), spread enforcement (5 bps min)
 - **RT Optimization:** SCHED_FIFO priority 50 + CPU cores 2-3 pinning
-- **Demo Video:** [docs/OrderGateway_MarketMaker_disruptorPattern.mkv](docs/OrderGateway_MarketMaker_disruptorPattern.mkv) - Live demonstration with Project 14
+- **Demo Video:** [docs/videos/OrderGateway_MarketMaker_disruptorPattern.mkv](docs/videos/OrderGateway_MarketMaker_disruptorPattern.mkv) - Live demonstration with Project 14
 - **Technologies:** C++20, POSIX shared memory, LMAX Disruptor pattern, nlohmann/json, spdlog
 - **Status:** Completed and tested on hardware
 
