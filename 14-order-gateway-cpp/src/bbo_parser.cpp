@@ -115,7 +115,7 @@ Decoded:
             }
             symbol[last + 1] = '\0';
 
-            bbo.symbol = std::string(symbol);
+            bbo.set_symbol(std::string(symbol));
             bbo.timestamp_ns = get_timestamp_ns();
             bbo.valid = true;
         }

@@ -105,7 +105,7 @@ BBOData TCPClient::parseJsonBBO(const std::string& json_line) {
         }
 
         // Parse BBO fields
-        bbo.symbol = j.value("symbol", "");
+        bbo.set_symbol(j.value("symbol", ""));
         bbo.timestamp_ns = j.value("timestamp", 0LL);
 
         if (j.contains("bid")) {

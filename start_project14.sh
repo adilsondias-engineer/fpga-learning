@@ -7,7 +7,7 @@ set -e
 
 # Configuration
 XDP_INTERFACE="eno2"
-XDP_QUEUE_ID="0"
+XDP_QUEUE_ID="1"  # Packets arriving on queue 2
 UDP_PORT="5000"
 
 echo "========================================="
@@ -18,9 +18,9 @@ echo "========================================="
 # Cleanup any existing shared memory
 echo "Cleaning up shared memory..."
 rm -f /dev/shm/bbo_ring_gateway 2>/dev/null || true
-
+#sudo xdp-loader unload eno2 -a 2>/dev/null
 cd /work/projects/fpga-trading-systems/14-order-gateway-cpp/build
-
+sudo xdp-loader load -m native -s xdp eno2 xdp_prog.o
 echo ""
 echo "Starting Order Gateway with:"
 echo "  - XDP interface: $XDP_INTERFACE"
@@ -30,10 +30,9 @@ echo "  - Disruptor: ENABLED"
 echo "  - Real-time: ENABLED"
 echo "  - TCP/MQTT/Kafka: DISABLED (using Disruptor only)"
 echo ""
-
+# --enable-xdp-debug
 sudo ./order_gateway 0.0.0.0 $UDP_PORT \
     --enable-disruptor \
-    --enable-xdp-debug \
     --use-xdp \
     --xdp-interface $XDP_INTERFACE \
     --xdp-queue-id $XDP_QUEUE_ID \
@@ -41,5 +40,4 @@ sudo ./order_gateway 0.0.0.0 $UDP_PORT \
     --disable-tcp \
     --disable-mqtt \
     --disable-kafka \
-    --disable-logger \
-    --quiet
+    --disable-logger

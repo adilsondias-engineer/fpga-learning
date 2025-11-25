@@ -1,19 +1,21 @@
 #pragma once
 
-#include <vector>
 #include <stdexcept>
 #include <cstdint>
+#include <array>
 
 namespace disruptor {
 
-template<typename T>
+template<typename T, size_t N>
 class RingBuffer {
 public:
-    explicit RingBuffer(size_t size) : buffer_size_(size), buffer_mask_(size - 1) {
-        if (size == 0 || (size & (size - 1)) != 0) {
-            throw std::invalid_argument("Ring buffer size must be power of 2");
+    static_assert((N & (N - 1)) == 0, "Ring buffer size must be power of 2");
+
+    RingBuffer() : buffer_size_(N), buffer_mask_(N - 1) {
+        // Initialize array elements
+        for (size_t i = 0; i < N; ++i) {
+            new (&buffer_[i]) T();
         }
-        buffer_.resize(size);
     }
 
     T& operator[](int64_t sequence) {
@@ -29,7 +31,7 @@ public:
 private:
     const size_t buffer_size_;
     const size_t buffer_mask_;
-    std::vector<T> buffer_;
+    T buffer_[N];  // Fixed-size array for shared memory compatibility
 };
 
 }  // namespace disruptor

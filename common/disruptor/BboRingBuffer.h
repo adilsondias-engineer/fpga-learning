@@ -10,7 +10,7 @@ class BboRingBuffer {
 public:
     static constexpr size_t SIZE = 1024;
 
-    BboRingBuffer() : ring_buffer_(SIZE), sequencer_(SIZE) {}
+    BboRingBuffer() : sequencer_(SIZE) {}
 
     // Producer: publish BBO
     void publish(const gateway::BBOData& bbo) {
@@ -34,7 +34,7 @@ public:
     }
 
 private:
-    RingBuffer<BboEvent> ring_buffer_;
+    RingBuffer<BboEvent, SIZE> ring_buffer_;
     Sequencer sequencer_;
 };
 

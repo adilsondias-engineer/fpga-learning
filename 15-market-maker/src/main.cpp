@@ -1,6 +1,7 @@
 #include <iostream>
 #include <csignal>
 #include <fstream>
+#include <chrono>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <nlohmann/json.hpp>
@@ -82,18 +83,37 @@ struct DisruptorClientWrapper : public ListenerBase {
     void start() override { impl->connect(); }
     void stop() override { impl->disconnect(); }
     gateway::BBOData read_bbo() override {
-        gateway::BBOData bbo;
-        // Use try_read_bbo for non-blocking poll, then wait longer if needed
-        if (impl->try_read_bbo(bbo)) {
-            return bbo;
+        // Read BBO from Disruptor
+        gateway::BBOData bbo = impl->read_bbo(100000);  // 100ms timeout
+
+        // Debug: check BBO state for first few samples
+        static int debug_count = 0;
+        if (++debug_count <= 3) {
+            spdlog::info("BBO #{}: valid={}, timestamp_ns={}, monitor={}",
+                         debug_count, bbo.valid, bbo.timestamp_ns,
+                         monitor_ ? "set" : "null");
         }
-        // If no data available, try blocking read with longer timeout
-        if (monitor_) {
-            gateway::LatencyMeasurement measurement(*monitor_);
-            bbo = impl->read_bbo(100000);  // 100ms timeout
-        } else {
-            bbo = impl->read_bbo(100000);  // 100ms timeout
+
+        // Measure latency from BBO timestamp to now (end-to-end latency)
+        if (bbo.valid && bbo.timestamp_ns > 0) {
+            auto now = std::chrono::high_resolution_clock::now();
+            auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                now.time_since_epoch()).count();
+            uint64_t latency_ns = now_ns - bbo.timestamp_ns;
+
+            if (monitor_) {
+                monitor_->recordLatency(latency_ns);
+                // Debug: log first 5 samples
+                static int sample_count = 0;
+                if (++sample_count <= 5) {
+                    spdlog::info("Recorded latency sample #{}: {} ns ({} μs)",
+                                 sample_count, latency_ns, latency_ns / 1000.0);
+                }
+            } else {
+                spdlog::warn("Monitor is null!");
+            }
         }
+
         return bbo;
     }
     bool isRunning() const override { return impl->isConnected(); }
@@ -106,14 +126,12 @@ gateway::PerfMonitor g_parse_latency;  // Global performance monitor
 void signalHandler(int signal) {
     spdlog::info("Received signal {}, shutting down...", signal);
     g_running = false;
-    if (g_listener) {
-        g_listener->stop();
-    }
+    // Don't stop listener here - let main loop clean up properly
 }
 
 mm::BBO convertBboData(const gateway::BBOData& bbo_data) {
     mm::BBO bbo;
-    bbo.symbol = bbo_data.symbol;
+    bbo.symbol = bbo_data.get_symbol();
     bbo.bid_price = bbo_data.bid_price;
     bbo.bid_shares = bbo_data.bid_shares;
     bbo.ask_price = bbo_data.ask_price;
@@ -236,13 +254,15 @@ int main(int argc, char** argv) {
 
                 if (bbo.valid) {
                     fsm.onBboUpdate(bbo);
+                } else {
+                    spdlog::warn("Received invalid BBO");
                 }
             } catch (const std::exception& e) {
                 if (g_running) {
                     // Timeout is expected when waiting for data - continue polling
                     std::string error_msg = e.what();
                     if (error_msg.find("timeout") != std::string::npos) {
-                        // Just continue polling
+                        // Just continue polling (silent - this is normal)
                         continue;
                     }
                     // For other errors, log and break
@@ -252,14 +272,22 @@ int main(int argc, char** argv) {
             }
         }
 
+        spdlog::info("Main loop exited, g_running={}", g_running);
+
         if (g_listener) {
+            spdlog::info("Stopping listener...");
             g_listener->stop();
         }
 
         // Print performance statistics
+        spdlog::info("Checking latency samples: count={}", g_parse_latency.count());
         if (g_parse_latency.count() > 0) {
-            g_parse_latency.printSummary("Project 15 (TCP Client)");
+            std::string mode = enable_disruptor ? "Disruptor" : "TCP Client";
+            spdlog::info("Printing performance summary...");
+            g_parse_latency.printSummary("Project 15 (" + mode + ")");
             g_parse_latency.saveToFile("project15_latency.csv");
+        } else {
+            spdlog::warn("No latency samples recorded");
         }
 
         spdlog::info("Shutdown complete");
