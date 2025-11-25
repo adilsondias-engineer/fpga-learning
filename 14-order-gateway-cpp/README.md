@@ -1,16 +1,21 @@
-# Project 14: C++ Order Gateway - UDP High-Performance Data Distribution
+# Project 14: C++ Order Gateway - XDP Kernel Bypass + Disruptor IPC
 
-**Platform:** Windows/Linux
-**Technology:** C++17, Boost.Asio, MQTT (libmosquitto), Kafka (librdkafka)
-**Status:** Functional - Performance Optimization in Progress
+**Platform:** Linux (Windows for legacy UDP mode)
+**Technology:** C++20, AF_XDP, LMAX Disruptor, Boost.Asio, MQTT (libmosquitto), Kafka (librdkafka)
+**Status:** Completed and tested on hardware
 
 ---
 
 ## Overview
 
-The C++ Order Gateway is the **middleware layer** of the FPGA trading system, acting as a bridge between the FPGA hardware and multiple application clients. It reads BBO (Best Bid/Offer) data from the FPGA via **UDP** and distributes it to multiple protocols simultaneously.
+The C++ Order Gateway is the **middleware layer** of the FPGA trading system, acting as a bridge between the FPGA hardware and application clients. It reads BBO (Best Bid/Offer) data from the FPGA via **AF_XDP kernel bypass** and distributes it using **LMAX Disruptor lock-free IPC** for ultra-low-latency communication.
 
-**Data Flow:**
+**Primary Data Flow (Ultra-Low-Latency):**
+```
+FPGA Order Book (UDP) → XDP Kernel Bypass (0.10 μs) → Disruptor Shared Memory → Market Maker FSM (4.13 μs end-to-end)
+```
+
+**Legacy Data Flow (Multi-Protocol Distribution):**
 ```
 FPGA Order Book (UDP) → C++ Gateway → TCP/MQTT/Kafka → Applications
 ```
@@ -21,6 +26,41 @@ FPGA Order Book (UDP) → C++ Gateway → TCP/MQTT/Kafka → Applications
 
 ### Core Components
 
+**Primary Architecture (Ultra-Low-Latency Mode):**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   C++ Order Gateway (Project 14)             │
+│                                                              │
+│  ┌────────────────┐     ┌──────────────────────────┐        │
+│  │  XDP Listener  │────→│     BBO Parser          │        │
+│  │  (AF_XDP)      │     │  (Binary Protocol)       │        │
+│  │  Port 5000     │     │                          │        │
+│  └────────────────┘     └──────────┬───────────────┘        │
+│                                    │                         │
+│                                    ↓                         │
+│                         ┌──────────────────────┐             │
+│                         │  Disruptor Producer  │             │
+│                         │  (Lock-Free Publish) │             │
+│                         └──────────┬───────────┘             │
+│                                    │                         │
+└────────────────────────────────────┼─────────────────────────┘
+                                     │
+                    POSIX Shared Memory (/dev/shm/bbo_ring_gateway)
+                    Ring Buffer: 1024 entries × 128 bytes = 131 KB
+                    Lock-Free IPC: Atomic sequence numbers
+                                     │
+┌────────────────────────────────────┼─────────────────────────┐
+│                                    ↓                         │
+│                         ┌──────────────────────┐             │
+│                         │  Disruptor Consumer  │             │
+│                         │  (Lock-Free Poll)    │             │
+│                         └──────────┬───────────┘             │
+│                                    │                         │
+│                   Market Maker FSM (Project 15)              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Legacy Architecture (Multi-Protocol Distribution):**
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                   C++ Order Gateway                       │
@@ -80,6 +120,14 @@ FPGA Order Book (UDP) → C++ Gateway → TCP/MQTT/Kafka → Applications
 - **P95:** 0.08 μs
 - **Improvement over standard UDP:** 5× faster average, 7× faster P95
 - **See:** [README_XDP.md](README_XDP.md) for XDP setup and implementation details
+
+**XDP + Disruptor Integration Performance (Validated):**
+- **Average:** 0.10 μs, **P50:** 0.09 μs, **P99:** 0.29 μs
+- **Test Load:** 78,514 samples @ 400 Hz
+- **End-to-End Latency:** 4.13 μs (FPGA → Market Maker FSM in Project 15)
+- **Improvement over TCP Mode:** 3× faster (12.73 μs → 4.13 μs)
+- **IPC Method:** LMAX Disruptor lock-free ring buffer (131 KB shared memory)
+- **Note:** Slightly higher than raw XDP due to Disruptor publish overhead, but enables ultra-low-latency IPC
 
 ### 2. BBO Parser
 - Parses binary BBO data packets
@@ -145,7 +193,34 @@ FPGA Order Book (UDP) → C++ Gateway → TCP/MQTT/Kafka → Applications
 - ❌ Native library dependencies (Android issues)
 - ❌ Designed for backend services, not edge devices
 
-### 6. CSV Logging (Optional)
+### 6. Disruptor IPC (Ultra-Low-Latency Mode)
+- **Architecture:** LMAX Disruptor lock-free ring buffer
+- **Shared Memory:** `/dev/shm/bbo_ring_gateway` (POSIX shm)
+- **Ring Buffer Size:** 1024 entries × 128 bytes = 131,328 bytes
+- **IPC Method:** Lock-free atomic operations (memory_order_acquire/release)
+- **Consumer:** Project 15 (Market Maker FSM)
+- **Performance:** 0.10 μs publish latency, 4.13 μs end-to-end
+
+**Disruptor Pattern Benefits:**
+- ✅ Zero-copy shared memory (no TCP/socket overhead)
+- ✅ Lock-free synchronization (atomic sequence numbers)
+- ✅ Cache-line aligned structures (prevents false sharing)
+- ✅ Power-of-2 ring buffer (fast modulo using bitwise AND)
+- ✅ 3× faster than TCP IPC (12.73 μs → 4.13 μs)
+
+**Critical Implementation Details:**
+- Fixed-size data structures (char arrays, not std::string/vector)
+- Template parameter `RingBuffer<T, size_t N>` for fixed array
+- Signal handlers must be minimal (only set flag, no cleanup)
+- Latency measurement at BBO creation, not at read time
+
+**Enable Disruptor Mode:**
+```bash
+# Run gateway with Disruptor IPC enabled
+./order_gateway 0.0.0.0 5000 --use-xdp --enable-disruptor
+```
+
+### 7. CSV Logging (Optional)
 - Logs all BBO updates to CSV file
 - Format: `timestamp,symbol,bid_price,bid_shares,ask_price,ask_shares,spread`
 - Useful for debugging and offline analysis
@@ -338,8 +413,9 @@ order_gateway.exe 0.0.0.0 5000 --tcp-port 9999 --csv-file bbo_log.csv --mqtt-bro
 | `--xdp-interface` | Network interface for XDP (e.g., eno2) | eno2 |
 | `--xdp-queue-id` | XDP queue ID (must match RX queue packets arrive on) | 0 |
 | `--enable-xdp-debug` | Enable XDP debug logging (verbose ring status, map operations) | false |
+| `--enable-disruptor` | Enable Disruptor IPC (POSIX shared memory to Project 15) | false |
 
-**Note:** XDP options require `USE_XDP` build flag and libxdp library. See [README_XDP.md](README_XDP.md) for XDP setup instructions.
+**Note:** XDP options require `USE_XDP` build flag and libxdp library. See [README_XDP.md](README_XDP.md) for XDP setup instructions. Disruptor mode creates shared memory at `/dev/shm/bbo_ring_gateway` for ultra-low-latency IPC with Project 15.
 
 ---
 
@@ -475,25 +551,30 @@ StdDev:   0.02 μs
 - **5× faster average** than standard UDP (0.04 μs vs 0.20 μs)
 - **7× faster P95** than standard UDP (0.08 μs vs 0.32 μs)
 
-#### UDP vs XDP Comparison
+#### UDP vs XDP vs XDP+Disruptor Comparison
 
-| Metric | Standard UDP | XDP Kernel Bypass | Improvement |
-|--------|--------------|-------------------|-------------|
-| **Avg Latency** | 0.20 µs | **0.04 µs** | **5× faster** |
-| **P50 Latency** | 0.19 µs | **0.04 µs** | **4.8× faster** |
-| **P95 Latency** | 0.32 µs | **0.08 µs** | **4× faster** |
-| **P99 Latency** | 0.38 µs | **0.12 µs** | **3.2× faster** |
-| **Std Dev** | 0.06 µs | **0.02 µs** | **3× more consistent** |
-| **Max Latency** | 2.12 µs | **0.49 µs** | **4.3× faster** |
-| **Samples** | 10,000 | **78,585** | 7.9× more validation data |
-| **Transport** | Kernel UDP stack | AF_XDP (kernel bypass) | Zero-copy, no syscalls |
+| Metric | Standard UDP | XDP Kernel Bypass | XDP + Disruptor | Best Improvement |
+|--------|--------------|-------------------|-----------------|------------------|
+| **Avg Latency** | 0.20 µs | **0.04 µs** | **0.10 µs** | **5× faster (UDP→XDP)** |
+| **P50 Latency** | 0.19 µs | **0.04 µs** | **0.09 µs** | **4.8× faster (UDP→XDP)** |
+| **P95 Latency** | 0.32 µs | **0.08 µs** | Not measured | **4× faster (UDP→XDP)** |
+| **P99 Latency** | 0.38 µs | **0.12 µs** | **0.29 µs** | **3.2× faster (UDP→XDP)** |
+| **Std Dev** | 0.06 µs | **0.02 µs** | Not measured | **3× more consistent** |
+| **Max Latency** | 2.12 µs | **0.49 µs** | Not measured | **4.3× faster** |
+| **Samples** | 10,000 | **78,585** | **78,514** | Large validation datasets |
+| **Transport** | Kernel UDP stack | AF_XDP (kernel bypass) | AF_XDP + Disruptor IPC | Zero-copy shared memory |
+| **IPC Method** | N/A (parsing only) | N/A (parsing only) | POSIX shm (131 KB) | Lock-free ring buffer |
+| **End-to-End** | N/A | N/A | **4.13 µs to Project 15** | 3× faster than TCP mode |
 
 **Key Insights:**
 - **XDP eliminates kernel overhead:** 5× average latency improvement by bypassing network stack
 - **Tighter tail latencies:** P95 improvement (4×) and much lower max latency (4.3×) shows consistent performance
 - **Sub-100ns parsing:** 40 ns average puts parsing well below network jitter
-- **Validated with large dataset:** 78,585 samples demonstrate stability and reliability
+- **Disruptor adds minimal overhead:** 0.06 µs (60 ns) to publish to shared memory ring buffer
+- **Disruptor vs TCP IPC:** 3× faster end-to-end (12.73 µs → 4.13 µs) by eliminating socket overhead
+- **Validated with large dataset:** 78,514+ samples demonstrate stability and reliability
 - **When to use XDP:** For ultra-low latency trading (HFT), market making, or high-frequency analytics
+- **When to use Disruptor:** For ultra-low-latency IPC between processes (Project 14 → Project 15)
 - **Setup complexity:** XDP requires kernel bypass setup, XDP program loading, and specific queue configuration
 
 ### Throughput
@@ -805,8 +886,14 @@ Order Gateway stopped
 - [Linux Kernel vs DPDK HTTP Performance](https://talawah.io/blog/linux-kernel-vs-dpdk-http-performance-showdown/) - Performance comparison study
 
 ### Ring Buffers and Lock-Free Data Structures
+- [LMAX Disruptor - Technical Paper](https://lmax-exchange.github.io/disruptor/disruptor.html) - Official Disruptor pattern documentation
+- [Mechanical Sympathy - Martin Thompson](https://mechanical-sympathy.blogspot.com/) - Blog covering Disruptor and performance engineering
+- [Imperial HFT - GitHub Repository](https://github.com/0burak/imperial_hft) - Source of Disruptor implementation classes used in Project 14-15
+- [Low-Latency Trading Systems - Thesis](https://arxiv.org/abs/2309.04259) - Burak Gunduz thesis on HFT systems with Disruptor pattern
+- [Imperial HFT Explanation Video](https://www.youtube.com/watch?v=65XoXkh6VcY) - Video explanation of Disruptor implementation for trading systems
 - [Ring Buffers](https://www.snellman.net/blog/archive/2016-12-13-ring-buffers/) - Ring buffer design and implementation
 - [eBPF Ring Buffer Optimization](https://ebpfchirp.substack.com/p/challenge-3-ebpf-ring-buffer-optimization) - eBPF ring buffer optimization techniques
+- [Lock-Free Programming](https://preshing.com/20120612/an-introduction-to-lock-free-programming/) - Introduction to lock-free programming concepts
 
 ### Performance Analysis
 - [Brendan Gregg - CPU Flame Graphs](https://www.brendangregg.com/FlameGraphs/cpuflamegraphs.html) - CPU profiling visualization

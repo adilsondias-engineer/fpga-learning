@@ -3292,3 +3292,335 @@ FPGA → C++ Gateway ─┬→ TCP → Java Desktop ✅
 **Development Time:** 300+ hours
 
 This document grows with each project and includes lessons from all phases.
+
+---
+
+## Project 14-15: XDP + Disruptor Ultra-Low-Latency IPC (November 2025)
+
+### 1. Shared Memory Requires Fixed-Size Data Structures
+
+**Problem:** `std::string` and `std::vector` contain pointers that become invalid across process boundaries.
+
+**Why Pointers Break in Shared Memory:**
+```cpp
+// Process A creates shared memory with this struct:
+struct BBOData {
+    std::string symbol;  // Contains pointer to heap: 0x12345678
+};
+
+// Process B maps the same shared memory and sees:
+struct BBOData {
+    std::string symbol;  // Still sees pointer 0x12345678
+                         // BUT 0x12345678 is in Process A's address space!
+                         // Accessing it → SEGFAULT
+};
+```
+
+**Solution - Use Fixed-Size Arrays:**
+```cpp
+// Shared-memory safe version:
+struct BBOData {
+    char symbol[16];  // Fixed-size, no pointers
+
+    void set_symbol(const std::string& sym) {
+        std::strncpy(symbol, sym.c_str(), 15);
+        symbol[15] = '\0';
+    }
+
+    std::string get_symbol() const {
+        return std::string(symbol);
+    }
+};
+```
+
+**Same Problem with std::vector:**
+```cpp
+// WRONG - std::vector allocates heap memory
+template<typename T>
+class RingBuffer {
+    std::vector<T> buffer_;  // Pointer to heap, invalid in other process
+};
+
+// RIGHT - fixed-size array
+template<typename T, size_t N>
+class RingBuffer {
+    T buffer_[N];  // Fixed-size, no dynamic allocation
+};
+```
+
+**Lesson:** Shared memory can only contain POD (Plain Old Data) types or structs with fixed-size arrays. Any dynamic allocation (std::string, std::vector, smart pointers) will crash.
+
+**Why This Matters for Trading:**
+- High-frequency trading systems use shared memory IPC extensively
+- LMAX Disruptor pattern is industry standard for ultra-low-latency IPC
+- Understanding memory layout critical for performance-critical systems
+
+---
+
+### 2. XDP Queue Must Match Hardware RSS Configuration
+
+**Problem:** AF_XDP socket must bind to the queue where packets actually arrive, determined by NIC's Receive Side Scaling (RSS).
+
+**Debugging Process:**
+```bash
+# Check which queue receives UDP port 5000 packets:
+sudo cat /sys/kernel/debug/tracing/trace_pipe | grep "XDP:"
+
+# Output shows actual queue:
+<idle>-0 [015] ..s2. 4150.970766: bpf_trace_printk: XDP: rx_queue_index=2
+```
+
+**Solution:**
+```bash
+# Bind XDP socket to correct queue:
+sudo ./order_gateway 0.0.0.0 5000 \
+    --use-xdp \
+    --xdp-queue-id 2 \  # Match actual hardware queue!
+    --xdp-interface eno2
+```
+
+**Why Queue Mismatch Causes No Packets:**
+- XDP program populates XSK map with socket for specific queue
+- Packets arriving on different queue → XSK map lookup returns NULL
+- Packet gets passed to kernel network stack instead of userspace socket
+
+**Lesson:** Always verify actual packet arrival queue using BPF tracing before binding XDP socket. Hardware RSS configuration varies by NIC model.
+
+**Why This Matters for Trading:**
+- XDP is kernel bypass technology used in HFT for sub-microsecond latency
+- Proper configuration essential - silent failures waste hours of debugging
+- Understanding NIC hardware behavior critical for low-latency systems
+
+---
+
+### 3. Signal Handlers Must Be Minimal - Let Main Loop Clean Up
+
+**Problem:** Calling complex functions (like `stop()`) in signal handlers caused immediate process termination, skipping performance summary and cleanup.
+
+**Wrong Approach:**
+```cpp
+void signalHandler(int signal) {
+    spdlog::info("Shutting down...");
+    g_running = false;
+    if (g_listener) {
+        g_listener->stop();  // WRONG - complex operation in signal handler
+    }
+}
+// Result: Process terminates immediately, no performance metrics printed
+```
+
+**Right Approach:**
+```cpp
+void signalHandler(int signal) {
+    spdlog::info("Shutting down...");
+    g_running = false;  // Just set flag, nothing else
+}
+
+int main() {
+    while (g_running) {
+        // Main loop...
+    }
+
+    // Clean up happens here, after loop exits naturally:
+    if (g_listener) {
+        g_listener->stop();
+    }
+    g_parse_latency.printSummary("Project 15 (Disruptor)");
+}
+```
+
+**Why Signal Handlers Must Be Minimal:**
+- Signal handlers interrupt normal execution flow asynchronously
+- Calling non-reentrant functions (I/O, mutexes, complex logic) → undefined behavior
+- Best practice: Set atomic flag, let main loop handle cleanup
+
+**Lesson:** Signal handlers should only set flags. Complex cleanup belongs in main loop after controlled exit.
+
+**Why This Matters for Trading:**
+- Production systems require graceful shutdown for metrics collection
+- Proper cleanup prevents shared memory leaks (` /dev/shm` files left behind)
+- Performance monitoring depends on shutdown code executing fully
+
+---
+
+### 4. Latency Measurement Best Practices - Timestamp at Data Creation
+
+**Problem:** Measuring only processing time (FIFO write, read operations) misses true end-to-end latency.
+
+**Wrong Approaches:**
+```cpp
+// WRONG 1: Measure only FIFO write time
+auto start = now();
+fifo.write(data);
+auto latency = now() - start;  // Misses actual processing
+
+// WRONG 2: Measure only read time
+auto start = now();
+auto data = fifo.read();  // Includes timeout polling!
+auto latency = now() - start;  // Includes wait time, not processing time
+
+// WRONG 3: Different clock sources
+// Producer:
+auto ts = system_clock::now();
+// Consumer:
+auto now = steady_clock::now();  // WRONG - incompatible clocks!
+```
+
+**Right Approach:**
+```cpp
+// Producer (Project 14):
+bbo.timestamp_ns = get_timestamp_ns();  // Timestamp at creation
+ring_buffer_->publish(bbo);
+
+// Consumer (Project 15):
+gateway::BBOData bbo = impl->read_bbo();
+auto now_ns = get_timestamp_ns();  // Same clock source!
+uint64_t latency_ns = now_ns - bbo.timestamp_ns;  // True end-to-end
+monitor_->recordLatency(latency_ns);
+```
+
+**Key Principles:**
+1. **Timestamp at data creation** (earliest point in pipeline)
+2. **Measure at processing completion** (latest point in pipeline)
+3. **Use same clock source everywhere** (high_resolution_clock)
+4. **Store timestamp in data structure** (travels with data through pipeline)
+
+**Lesson:** End-to-end latency measurement requires timestamping at data origin and measuring at final processing point, using consistent clock source.
+
+**Why This Matters for Trading:**
+- Trading systems need wire-to-decision latency, not component timings
+- Benchmarking requires consistent measurement methodology
+- Sub-microsecond accuracy demands proper clock selection
+
+---
+
+### 5. LMAX Disruptor Pattern - Lock-Free IPC Architecture
+
+**Architecture Components:**
+
+**1. Ring Buffer (Power-of-2 Size):**
+```cpp
+template<typename T, size_t N>
+class RingBuffer {
+    static_assert((N & (N - 1)) == 0);  // Must be power of 2
+
+    T& operator[](int64_t sequence) {
+        return buffer_[sequence & buffer_mask_];  // Fast modulo
+    }
+
+private:
+    T buffer_[N];  // Fixed-size array
+    const size_t buffer_mask_ = N - 1;
+};
+```
+
+**Why Power-of-2:** `sequence & mask` is faster than `sequence % size`.
+
+**2. Sequencer (Atomic Cursors):**
+```cpp
+class Sequencer {
+    alignas(64) std::atomic<int64_t> cursor_;           // Producer cursor
+    alignas(64) std::atomic<int64_t> consumer_cursor_;  // Consumer cursor
+
+    int64_t next() {  // Producer: claim next slot
+        int64_t current = cursor_.load(std::memory_order_relaxed);
+        int64_t next_seq = current + 1;
+        int64_t wrap_point = next_seq - buffer_size_;
+
+        // Wait for consumer to consume old data before wrapping:
+        while (wrap_point > consumer_cursor_.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+        return next_seq;
+    }
+
+    void publish(int64_t sequence) {
+        cursor_.store(sequence, std::memory_order_release);
+    }
+};
+```
+
+**Why Cache-Line Alignment:** `alignas(64)` prevents false sharing between producer/consumer.
+
+**3. Memory Ordering:**
+- `memory_order_relaxed`: No synchronization, fastest
+- `memory_order_acquire`: Read barrier, see all previous writes
+- `memory_order_release`: Write barrier, all previous writes visible
+
+**Performance Results:**
+- **Disruptor IPC:** 0.50 μs (shared memory access)
+- **TCP IPC:** 12-15 μs (syscalls, kernel stack, protocol overhead)
+- **Improvement:** 24-30× faster
+
+**Lesson:** Lock-free ring buffers with atomic operations achieve sub-microsecond IPC latency, eliminating need for kernel involvement.
+
+**Why This Matters for Trading:**
+- LMAX Disruptor is proven technology (used in real exchanges)
+- Understanding lock-free patterns essential for HFT systems
+- Shared memory IPC is standard for co-located trading strategies
+
+---
+
+### 6. Performance Optimization Journey - Know When to Stop
+
+**Optimization Phases:**
+1. **Baseline (UART):** 10.67 μs - Serial communication bottleneck
+2. **Standard UDP:** 0.34 μs - 31× faster
+3. **RT Optimization:** 0.20 μs - SCHED_FIFO + CPU isolation
+4. **XDP Kernel Bypass:** 0.04 μs - 267× faster than UART
+5. **XDP + Disruptor:** 4.13 μs end-to-end - 3× faster than TCP IPC
+
+**Key Insight:** Each optimization phase had diminishing returns. XDP (0.04 μs) achieved sub-microsecond packet processing. Further optimization (0.04 → 0.02 μs) would require hardware timestamping or custom NIC drivers with minimal practical benefit.
+
+**When to Stop Optimizing:**
+- **Bottleneck moved:** From packet processing (0.04 μs) to business logic (3.23 μs)
+- **Cost vs Benefit:** Hardware timestamping costs $10k+, gains 20-30 ns
+- **Good Enough:** 4.13 μs end-to-end competitive with commercial HFT systems
+
+**Lesson:** Optimize systematically, measure at each step, stop when bottleneck moves to business logic or cost exceeds benefit.
+
+**Why This Matters for Trading:**
+- Real HFT firms face same optimization decisions
+- Understanding where latency lives guides architecture choices
+- Sub-microsecond packet processing enables microsecond-level strategies
+
+---
+
+### Trading System Skills Demonstrated (Projects 14-15)
+
+**Ultra-Low-Latency Systems:**
+- XDP kernel bypass (AF_XDP + eBPF)
+- LMAX Disruptor lock-free IPC
+- POSIX shared memory management
+- Atomic operations and memory ordering
+
+**System Programming:**
+- Real-time scheduling (SCHED_FIFO)
+- CPU affinity and core isolation
+- Signal handling and graceful shutdown
+- Performance measurement and benchmarking
+
+**Data Structure Design:**
+- Fixed-size arrays for shared memory
+- Cache-line alignment (false sharing prevention)
+- Power-of-2 ring buffers (fast modulo)
+- Template metaprogramming (compile-time sizing)
+
+**Debugging Methodology:**
+- BPF tracing (queue identification)
+- Shared memory inspection (`ls -lh /dev/shm`)
+- Latency profiling (P50/P95/P99 metrics)
+- Systematic root cause analysis
+
+**References for Disruptor Implementation:**
+- [Imperial HFT - GitHub Repository](https://github.com/0burak/imperial_hft) - Source of Disruptor implementation classes
+- [Low-Latency Trading Systems - Thesis](https://arxiv.org/abs/2309.04259) - Burak Gunduz thesis on HFT systems with Disruptor pattern
+- [Imperial HFT Explanation Video](https://www.youtube.com/watch?v=65XoXkh6VcY) - Video explanation of Disruptor implementation for trading systems
+
+---
+
+**Last Updated:** Projects 1-15 Complete - XDP + Disruptor Integration (November 2025)
+
+**Development Time:** 320+ hours
+
+This document grows with each project and includes lessons from all phases.

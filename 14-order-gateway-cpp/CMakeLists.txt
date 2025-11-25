@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(OrderGateway C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add vcpkg installed directory to CMAKE_PREFIX_PATH if it exists

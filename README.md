@@ -52,6 +52,7 @@ Progressive architecture development from digital design fundamentals to product
 - **Message Types:** S (System), R (Directory), A (Add), E (Execute), X (Cancel), D (Delete), U (Replace), P (Trade), Q (Cross)
 - **Performance:** Deterministic message parsing, symbol filtering reduces downstream load
 - **Integration:** Feeds parsed ITCH messages to Project 8 order book
+- **Demo Video:** [docs/live_historic_data_feed.mp4](docs/live_historic_data_feed.mp4) - Python script feeding historic NASDAQ data to FPGA via UDP
 
 **Project 08: Multi-Symbol Hardware Order Book** ✅
 - **Achievement:** Sub-microsecond order book tracking 8 symbols simultaneously
@@ -119,30 +120,34 @@ Progressive architecture development from digital design fundamentals to product
 - **Technologies:** Java 21, JavaFX, Gson, Maven
 - **Status:** Complete, 100% test pass rate
 
-**Project 14: C++ Order Gateway (UDP/XDP) - Kernel Bypass** ✅ **COMPLETE**
-- **Purpose:** UDP-based gateway with AF_XDP kernel bypass for minimal latency
-- **Architecture:** XDP listener (AF_XDP + eBPF), BBO parser (binary), multi-protocol publisher
-- **Protocols:** TCP Server (9999), MQTT Publisher (Mosquitto), Kafka Producer
-- **Performance (XDP Mode - Validated):** 0.04 μs avg, 0.03 μs P50, 0.14 μs P99 (78,606 samples)
-- **Performance (UDP Mode):** 0.20 μs avg, 0.19 μs P50, 0.38 μs P99 (10,000 samples)
+**Project 14: C++ Order Gateway (UDP/XDP) - Kernel Bypass + Disruptor IPC** ✅ **COMPLETE**
+- **Purpose:** Ultra-low-latency gateway with AF_XDP kernel bypass and LMAX Disruptor IPC
+- **Architecture:** XDP listener (AF_XDP + eBPF), BBO parser (binary), Disruptor producer
+- **Performance (XDP + Disruptor - Validated):** 0.10 μs avg, 0.09 μs P50, 0.29 μs P99 (78,514 samples)
+- **Performance (XDP Only):** 0.04 μs avg, 0.03 μs P50, 0.14 μs P99 (78,606 samples)
+- **Performance (RT UDP):** 0.20 μs avg, 0.19 μs P50, 0.38 μs P99 (10,000 samples)
 - **Kernel Bypass:** AF_XDP with eBPF program redirecting UDP packets to userspace
-- **RT Optimization:** SCHED_FIFO priority 99 + CPU core 5 pinning
+- **IPC Innovation:** LMAX Disruptor lock-free ring buffer (131 KB shared memory, 1024 entries)
+- **RT Optimization:** SCHED_FIFO priority 50 + CPU core isolation
 - **Benchmark Results:**
-  - XDP mode: 5× faster than standard UDP (0.04 μs vs 0.20 μs avg)
-  - Standard deviation: 0.05 μs (highly consistent)
-  - P95: 0.09 μs (95% of messages under 0.09 μs)
-  - 267× faster than UART Project 09 (10.67 μs → 0.04 μs avg)
-- **CPU Isolation:** GRUB parameters (isolcpus, nohz_full, rcu_nocbs) for cores 2-5
-- **Hardware:** AMD Ryzen AI 9 365 w/ Radeon 880M
-- **Technologies:** C++17, Boost.Asio, libxdp, libbpf, pthread (RT scheduling), libmosquitto, librdkafka
-- **Status:** Complete, XDP mode validated with large dataset
+  - XDP + Disruptor: 267× faster than UART baseline (10.67 μs → 0.10 μs)
+  - Zero-copy shared memory IPC (no TCP/socket overhead)
+  - Fixed-size data structures (char arrays, not std::string/vector)
+- **Demo Video:** [docs/OrderGateway_MarketMaker_disruptorPattern.mkv](docs/OrderGateway_MarketMaker_disruptorPattern.mkv) - Live Disruptor IPC demonstration
+- **Technologies:** C++17, libxdp, libbpf, POSIX shared memory, atomic operations
+- **Status:** Completed and tested on hardware
 
-**Project 15: Market Maker FSM - Automated Quote Generation** ✅ **COMPLETE**
-- **Purpose:** Automated market making strategy with position management and risk controls
-- **Architecture:** TCP client connecting to Project 14, FSM-based quote generation, position tracker
-- **Data Flow:** Project 14 TCP Server → TCP Client → Market Maker FSM → Quote Generation
-- **Performance (Validated):** 12.73 μs avg, 11.76 μs P50, 21.53 μs P99 (78,606 samples)
-- **End-to-End Latency:** ~12.77 μs (Project 14 XDP: 0.04 μs + Project 15: 12.73 μs)
+**Project 15: Market Maker FSM - Disruptor Consumer** ✅ **COMPLETE**
+- **Purpose:** Ultra-low-latency market making with Disruptor shared memory IPC
+- **Architecture:** Disruptor consumer, FSM-based quote generation, position tracker
+- **Data Flow:** Project 14 Disruptor → Shared Memory (131 KB) → Project 15 FSM → Quote Generation
+- **Performance (End-to-End - Validated):** 4.13 μs avg, 4.37 μs P50, 5.82 μs P99 (78,514 samples)
+- **Latency Improvement:** 3× faster than TCP mode (12.73 μs → 4.13 μs)
+- **Latency Breakdown:**
+  - XDP packet processing: 0.10 μs
+  - Disruptor IPC: ~0.50 μs (lock-free shared memory)
+  - Market maker FSM: ~3.23 μs (business logic)
+  - Total end-to-end: 4.13 μs
 - **Features:**
   - Fair value calculation with size-weighted mid-price
   - Position-based inventory skew adjustment
@@ -151,8 +156,9 @@ Progressive architecture development from digital design fundamentals to product
 - **FSM States:** IDLE → CALCULATE → QUOTE → RISK_CHECK → ORDER_GEN → WAIT_FILL
 - **Risk Controls:** Max position (500 shares), max notional ($100k), spread enforcement (5 bps min)
 - **RT Optimization:** SCHED_FIFO priority 50 + CPU cores 2-3 pinning
-- **Technologies:** C++20, Boost.Asio (TCP), nlohmann/json, spdlog
-- **Status:** Complete, tested with 78,606 real market data samples
+- **Demo Video:** [docs/OrderGateway_MarketMaker_disruptorPattern.mkv](docs/OrderGateway_MarketMaker_disruptorPattern.mkv) - Live demonstration with Project 14
+- **Technologies:** C++20, POSIX shared memory, LMAX Disruptor pattern, nlohmann/json, spdlog
+- **Status:** Completed and tested on hardware
 
 ### Foundation Projects (Projects 1-5)
 
@@ -196,49 +202,39 @@ Each project includes:
                                           │ UDP/IP (Binary BBO packets, 192.168.0.212 → .93)
                                           ▼
 ┌──────────────────────────────────────────────────────────────────────────────────────┐
-│               C++ Gateway Layer (Project 14) - XDP Kernel Bypass (0.04 μs)           │
-│  XDP Listener (AF_XDP) → BBO Parser (binary) → Multi-Protocol Publisher              │
-│    ↑ eBPF redirect                                                                    │
-└─────────┬───────────────┬──────────────────┬──────────────────────────────────────┘
-          │               │                  │
-          │ TCP :9999     │ MQTT             │ Kafka (Future)
-          │               │ 192.168.0.2:1883 │ 192.168.0.203:9092
-          ▼               ▼                  ▼
-┌──────────────────┐  ┌─────────────────┐  ┌────────────────────────┐
-│  Java Desktop    │  │  ESP32 IoT      │  │  Future Analytics      │
-│  (Project 12)    │  │  (Project 10)   │  │  - Time-series DB      │
-│                  │  │                 │  │  - Historical replay   │
-│  • Live BBO      │  │  • TFT Display  │  │  - ML pipelines        │
-│  • Charts        │  │  • WiFi         │  │  - Data archival       │
-│  • TCP Client    │  │  • MQTT Client  │  │                        │
-└──────────────────┘  └─────────────────┘  └────────────────────────┘
-          │           ┌─────────────────┐
-          │           │  Mobile App     │
-          │           │  (Project 11)   │
-          │           │                 │
-          │           │  • Android/iOS  │
-          │           │  • .NET MAUI    │
-          │           │  • MQTT Client  │
-          │           └─────────────────┘
-          │
-          │ TCP localhost:9999 (JSON BBO)
+│               C++ Gateway Layer (Project 14) - XDP + Disruptor (0.10 μs)             │
+│  XDP Listener (AF_XDP) → BBO Parser (binary) → Disruptor Producer (Shared Memory)    │
+│    ↑ eBPF redirect                              └─→ Multi-Protocol Publisher (Legacy) │
+└─────────┬─────────────────────────────────────────────────────────────────────────────┘
+          │ POSIX Shared Memory (131 KB, /dev/shm/bbo_ring_gateway)
+          │ Lock-Free Ring Buffer (1024 entries × 128 bytes)
           ▼
 ┌──────────────────────────────────────────────────────────────────────────────────────┐
-│                    Market Maker FSM (Project 15) - 12.73 μs                          │
-│  TCP Client → BBO Parser (JSON) → Fair Value → Quote Gen → Position Tracker          │
+│                    Market Maker FSM (Project 15) - 4.13 μs (end-to-end)              │
+│  Disruptor Consumer → Fair Value → Quote Gen → Position Tracker → Risk Checks        │
 │                                       ↓                                               │
 │                               FSM States (IDLE → CALCULATE → QUOTE →                 │
 │                                         RISK_CHECK → ORDER_GEN → WAIT_FILL)          │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 
-Protocol Selection Strategy:
-  TCP    → Desktop apps + trading strategies (low latency, localhost)
-  MQTT   → IoT/Mobile (lightweight, unreliable networks, low power)
-  Kafka  → Backend services (data persistence, analytics, replay)
+Legacy Multi-Protocol Distribution (Project 14 → Projects 10-12):
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              TCP/MQTT/Kafka Distribution                             │
+│  TCP :9999 → Java Desktop (Project 12) - Live BBO table, charts                     │
+│  MQTT → ESP32 IoT (Project 10) - TFT display with real-time quotes                  │
+│  MQTT → Mobile App (Project 11) - .NET MAUI cross-platform terminal                 │
+│  Kafka → Future Analytics - Historical data, ML pipelines                           │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+IPC Architecture Comparison:
+  TCP Mode (Legacy):    Project 14 XDP (0.04 μs) → TCP Socket → Project 15 (12.73 μs)
+  Disruptor Mode (Current): Project 14 XDP (0.10 μs) → Shared Memory → Project 15 (4.13 μs)
+
+  Improvement: 3× faster (12.73 μs → 4.13 μs end-to-end latency)
 
 Performance Chain (End-to-End):
-  FPGA → Project 14 (XDP): 0.04 μs
-  Project 14 → Project 15 (TCP): 12.73 μs
+  FPGA → Project 14 (XDP): 0.10 μs
+  Project 14 → Project 15 (Disruptor): 4.13 μs (3× faster than TCP)
   Total: ~12.77 μs (FPGA BBO → Trading Strategy Decision)
 ```
 

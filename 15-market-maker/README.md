@@ -1,25 +1,43 @@
-# Project 15: Market Maker FSM - Automated Quote Generation
+# Project 15: Market Maker FSM - Disruptor Consumer + Automated Trading
 
-**Platform:** Linux/Windows
-**Technology:** C++20, Boost.Asio, spdlog, nlohmann/json
-**Status:** Complete
+**Platform:** Linux
+**Technology:** C++20, LMAX Disruptor, spdlog, nlohmann/json
+**Status:** Completed and tested on hardware
 
 ---
 
 ## Overview
 
-The Market Maker FSM is an automated trading strategy that consumes BBO (Best Bid/Offer) data from Project 14's TCP server and generates two-sided quotes with position management and risk controls.
+The Market Maker FSM is an automated trading strategy that consumes BBO (Best Bid/Offer) data from Project 14 via **LMAX Disruptor lock-free IPC** and generates two-sided quotes with position management and risk controls.
 
-**Data Flow:**
+**Data Flow (Ultra-Low-Latency Mode):**
+```
+FPGA Order Book (Project 13) → XDP Kernel Bypass (0.10 μs) → Project 14 Disruptor Producer
+                                                                      ↓
+                                            POSIX Shared Memory (131 KB ring buffer)
+                                            Lock-Free IPC (~0.50 μs)
+                                                                      ↓
+                                                      Project 15 Disruptor Consumer
+                                                                      ↓
+                                               Market Maker FSM (~3.23 μs business logic)
+                                                                      ↓
+                                                Quote Generation + Position Tracking
+
+Total End-to-End Latency: 4.13 μs (3× faster than TCP mode)
+```
+
+**Legacy Data Flow (TCP Mode):**
 ```
 FPGA Order Book (Project 13) → UDP (XDP Kernel Bypass) → Project 14 Order Gateway
                                                                ↓ TCP :9999 (JSON)
                                                           Market Maker FSM
                                                                ↓
                                                  Quote Generation + Position Tracking
+
+End-to-End Latency: 12.73 μs (legacy mode)
 ```
 
-**Architecture:** This project connects as a TCP client to Project 14's gateway server, receiving JSON-formatted BBO messages over localhost:9999. Project 14 handles the low-latency UDP/XDP reception from the FPGA (0.04 μs), while Project 15 focuses on trading strategy execution (12.73 μs).
+**Architecture:** This project consumes BBO data from Project 14 using POSIX shared memory with the LMAX Disruptor pattern. The Disruptor provides lock-free, zero-copy IPC with atomic sequence numbers for ultra-low-latency communication. Project 14 handles XDP reception (0.10 μs), while Project 15 focuses on trading strategy execution (4.13 μs end-to-end).
 
 ---
 
@@ -27,6 +45,51 @@ FPGA Order Book (Project 13) → UDP (XDP Kernel Bypass) → Project 14 Order Ga
 
 ### Core Components
 
+**Primary Architecture (Disruptor Mode):**
+```
+┌────────────────────────────────────────────────────────────┐
+│              Project 14 (Order Gateway - XDP)               │
+│  XDP Listener (0.10 μs) → Disruptor Producer               │
+└────────────────────────┬───────────────────────────────────┘
+                         │
+        POSIX Shared Memory (/dev/shm/bbo_ring_gateway)
+        Ring Buffer: 1024 entries × 128 bytes = 131 KB
+        Lock-Free IPC: Atomic sequence numbers (~0.50 μs)
+                         │
+┌────────────────────────┴───────────────────────────────────┐
+│                    Market Maker FSM (Project 15)            │
+│                                                             │
+│  ┌────────────────┐     ┌──────────────────────────┐       │
+│  │  Disruptor     │────→│     BBO Parser          │       │
+│  │  Consumer      │     │  (Binary Protocol)       │       │
+│  │  (Lock-Free)   │     │  Fixed-size structs      │       │
+│  └────────────────┘     └──────────┬───────────────┘       │
+│                                    │                        │
+│                                    ↓                        │
+│                         ┌──────────────────┐                │
+│                         │  Market Maker    │                │
+│                         │      FSM         │                │
+│                         └─────────┬────────┘                │
+│                                   │                         │
+│          ┌────────────────────────┼────────────────┐        │
+│          ↓                        ↓                ↓        │
+│  ┌──────────────┐      ┌──────────────┐  ┌──────────────┐  │
+│  │ Fair Value   │      │ Quote        │  │ Risk         │  │
+│  │ Calculation  │      │ Generation   │  │ Management   │  │
+│  │              │      │              │  │              │  │
+│  └──────────────┘      └──────────────┘  └──────────────┘  │
+│                                   │                         │
+│                                   ↓                         │
+│                         ┌──────────────────┐                │
+│                         │  Position        │                │
+│                         │  Tracker         │                │
+│                         └──────────────────┘                │
+└─────────────────────────────────────────────────────────────┘
+
+End-to-End Latency: 4.13 μs avg (4.37 μs P50, 5.82 μs P99)
+```
+
+**Legacy Architecture (TCP Mode):**
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Market Maker FSM                         │
@@ -57,6 +120,8 @@ FPGA Order Book (Project 13) → UDP (XDP Kernel Bypass) → Project 14 Order Ga
 │                         │  Tracker         │                │
 │                         └──────────────────┘                │
 └─────────────────────────────────────────────────────────────┘
+
+End-to-End Latency: 12.73 μs avg (legacy TCP mode)
 ```
 
 ### FSM States

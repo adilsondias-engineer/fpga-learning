@@ -163,19 +163,27 @@ A complete **low-latency market data processing and distribution system** combin
 **Performance:** 10.67 μs avg parse latency, 6.32 μs P50
 **Status:** Functional, performance testing in progress
 
-#### Project 14: C++ Order Gateway (UDP/XDP - Kernel Bypass)
+#### Project 14: C++ Order Gateway (UDP/XDP + Disruptor IPC)
 
 **Core Functions:**
 1. **XDP Listener:** AF_XDP kernel bypass with eBPF program redirecting UDP packets to userspace
 2. **Binary BBO Parser:** Parse big-endian fixed-point format directly (no hex conversion)
-3. **Multi-Protocol Publisher:** Fan-out to 3 protocols simultaneously (TCP/MQTT/Kafka)
+3. **Disruptor Producer:** LMAX Disruptor lock-free ring buffer for ultra-low-latency IPC
+4. **Multi-Protocol Publisher:** Fan-out to 3 protocols simultaneously (TCP/MQTT/Kafka - legacy mode)
 
-**Performance (XDP Mode - Validated with 78,606 samples):**
+**Performance (XDP + Disruptor Mode - Validated with 78,514 samples):**
+- **Average:** 0.10 μs (100 nanoseconds)
+- **P50:** 0.09 μs
+- **P99:** 0.29 μs
+- **Std Dev:** 0.10 μs
+- **End-to-End Latency:** 4.13 μs (FPGA → Market Maker FSM in Project 15)
+- **Improvement over TCP Mode:** 3× faster (12.73 μs → 4.13 μs)
+- **IPC Method:** LMAX Disruptor lock-free ring buffer (131 KB shared memory)
+
+**Performance (Raw XDP Mode - Without Disruptor):**
 - **Average:** 0.04 μs (40 nanoseconds)
 - **P50:** 0.03 μs
 - **P99:** 0.14 μs
-- **Std Dev:** 0.05 μs
-- **Improvement:** 5× faster than standard UDP mode (0.04 μs vs 0.20 μs)
 - **267× faster than UART Project 9** (10.67 μs → 0.04 μs)
 
 **Performance (Standard UDP Mode):**
@@ -581,18 +589,18 @@ public class MqttConsumerService : IDisposable
 
 ---
 
-#### Project 15: Market Maker FSM - Automated Quote Generation - **IMPLEMENTED**
+#### Project 15: Market Maker FSM - Disruptor Consumer + Automated Trading - **IMPLEMENTED**
 
-**Purpose:** Automated market making strategy with position management and risk controls
+**Purpose:** Automated market making strategy with ultra-low-latency Disruptor IPC and position management
 
 **Status:** ✅ Complete - See `15-market-maker/`
 
 **Architecture:**
 ```cpp
-// TCP Client → Market Maker FSM → Quote Generation
+// Disruptor Consumer → Market Maker FSM → Quote Generation
 class MarketMakerFSM {
-    // TCP Connection to Project 14
-    TCPClient gateway;              // localhost:9999
+    // Disruptor Connection to Project 14
+    DisruptorClient disruptor;      // POSIX shared memory /dev/shm/bbo_ring_gateway
 
     // Core Components
     MarketMakerFSM fsm;             // State machine
@@ -625,21 +633,32 @@ class MarketMakerFSM {
 - **Risk Controls:** Pre-trade position and notional limit checks
 - **FSM-based Logic:** Deterministic state transitions for quote generation
 
-**Performance (Validated with 78,606 samples):**
+**Performance (Disruptor Mode - Validated with 78,514 samples):**
+- **Average:** 4.13 μs (end-to-end: UDP packet arrival → Market maker processing complete)
+- **P50:** 4.37 μs
+- **P99:** 5.82 μs
+- **Std Dev:** 1.39 μs
+- **Improvement over TCP Mode:** 3× faster (12.73 μs → 4.13 μs)
+
+**Performance (Legacy TCP Mode - 78,606 samples):**
 - **Average:** 12.73 μs (TCP read + JSON parse + FSM processing)
 - **P50:** 11.76 μs
 - **P99:** 21.53 μs
-- **Std Dev:** 3.58 μs
 
-**End-to-End Latency Chain:**
+**End-to-End Latency Chain (Disruptor Mode):**
 ```
 FPGA Order Book (Project 13)
     ↓ UDP (binary BBO)
-Project 14 XDP Gateway: 0.04 μs
-    ↓ TCP localhost:9999 (JSON BBO)
-Project 15 Market Maker: 12.73 μs
+Project 14 XDP + Disruptor: 0.10 μs
+    ↓ POSIX Shared Memory (131 KB ring buffer, lock-free IPC ~0.50 μs)
+Project 15 Market Maker FSM: ~3.23 μs business logic
     ↓
-Total: ~12.77 μs (FPGA → Trading Decision)
+Total: 4.13 μs (FPGA → Trading Decision)
+
+Latency Breakdown:
+├─ XDP packet processing: 0.10 μs
+├─ Disruptor IPC: ~0.50 μs
+└─ Market maker FSM: ~3.23 μs
 ```
 
 **Trading Algorithm:**
@@ -1268,6 +1287,9 @@ This system demonstrates a **complete end-to-end low-latency trading infrastruct
 - [Brendan Gregg - CPU Flame Graphs](https://www.brendangregg.com/FlameGraphs/cpuflamegraphs.html) - CPU profiling visualization
 - [Ring Buffers - Design and Implementation](https://www.snellman.net/blog/archive/2016-12-13-ring-buffers/) - Ring buffer design
 - [eBPF Ring Buffer Optimization](https://ebpfchirp.substack.com/p/challenge-3-ebpf-ring-buffer-optimization) - eBPF ring buffer techniques
+- [Imperial HFT - GitHub Repository](https://github.com/0burak/imperial_hft) - Source of Disruptor implementation classes
+- [Low-Latency Trading Systems - Thesis](https://arxiv.org/abs/2309.04259) - Burak Gunduz thesis on HFT with Disruptor
+- [Imperial HFT Explanation Video](https://www.youtube.com/watch?v=65XoXkh6VcY) - Video explanation of Disruptor for trading
 
 ### FPGA and Hardware Design
 - [Xilinx 7 Series FPGAs Overview](https://www.xilinx.com/support/documentation/data_sheets/ds180_7Series_Overview.pdf)
