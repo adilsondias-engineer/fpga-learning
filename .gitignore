@@ -38,3 +38,10 @@ dfx_runtime.txt
 /14-order-gateway-cpp/vcpkg_installed
 /15-market-maker/build
 /15-market-maker/vcpkg_installed
+/09-order-gateway-cpp/bin
+/09-order-gateway-cpp/CMakeFiles
+/11-mobile-app/.vs
+/11-mobile-app/bin
+/11-mobile-app/obj
+/12-java-desktop-trading-terminal/target
+/13-udp-tx-reference
