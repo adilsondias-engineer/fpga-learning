@@ -535,6 +535,58 @@ fpga-learning/
 - [Algorithmic Trading Basics](https://www.quantstart.com/articles/algorithmic-trading-beginners-guide/)
 - [Order Book Dynamics](https://arxiv.org/abs/1301.3841)
 
+### HFT Architecture and FPGA Technology (ByteMonk Videos)
+
+**Inside a Real High-Frequency Trading System | HFT Architecture**
+- [YouTube: HFT Architecture Deep Dive](https://www.youtube.com/watch?v=iwRaNYa8yTw)
+- Comprehensive walkthrough of production HFT system architecture
+- Key Topics Covered:
+  - Market data ingestion (multicast, ultra-low-latency NICs, kernel bypass)
+  - In-memory order book and active-passive replication
+  - Event-driven pipeline with lock-free queues
+  - Nanosecond timestamping and hardware clocks
+  - FPGA acceleration for tick-to-trade execution
+  - Market-making strategy engines
+  - Smart order routing and pre-trade risk checks
+  - Order Management System (OMS) and monitoring
+  - Latency dashboards and metrics collection
+- Architecture Components Detailed:
+  - Network infrastructure (DPDK, Solarflare Onload)
+  - Feed handlers and protocol parsers
+  - Event stream processing
+  - FPGA decision engines (arbitrage, market-making, quote stuffing)
+  - Post-trade analysis and compliance
+- Performance Targets: Sub-microsecond latency (300ns strategy latency achievable)
+
+**FPGA in HFT Systems Explained | Why Reconfigurable Hardware Beats CPUs**
+- [YouTube: FPGA Technology Deep Dive](https://www.youtube.com/watch?v=JmVOEkskft4)
+- Technical explanation of FPGA architecture and programming
+- Key Topics Covered:
+  - FPGA fundamentals vs CPU/GPU/ASIC
+  - Configurable Logic Blocks (CLBs) and Lookup Tables (LUTs)
+  - Programmable interconnects and I/O blocks
+  - Hardware Description Languages (Verilog/VHDL)
+  - Synthesis tools and bitstream compilation
+  - Real-world use cases: HFT, AI inference, telecom
+- Why FPGAs for HFT:
+  - Hardware-level processing (no OS/driver overhead)
+  - Deterministic latency (no context switching)
+  - Direct data path from network to logic
+  - Reconfigurable post-deployment
+  - Orders of magnitude faster than software for pipelined operations
+- Trade-offs: Harder to program, best for predictable workloads
+
+**Value for This Project:**
+These videos validate the architectural decisions made in Projects 6-16:
+- ✅ Event-driven architecture (Disruptor pattern in Projects 14-15)
+- ✅ Hardware acceleration (FPGA feed parsing in Projects 6-8)
+- ✅ Kernel bypass (AF_XDP in Project 14)
+- ✅ Lock-free IPC (Disruptor in Projects 14-15)
+- ✅ Market-making logic (Project 15 FSM)
+- ✅ Order execution pipeline (Project 16)
+
+Key insights: Production HFT systems use software feed handlers + FPGA acceleration (flexible), while this project uses FPGA feed handler (faster but less flexible). Both approaches achieve sub-5μs latency competitive for most trading strategies.
+
 ---
 
-_This resource list grows with each project. Last updated: Project 15 (XDP + Disruptor Integration)_
+_This resource list grows with each project. Last updated: Project 16 (Order Execution Engine) + ByteMonk HFT Videos_
