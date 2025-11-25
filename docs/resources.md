@@ -400,28 +400,79 @@ fpga-learning/
 
 ---
 
-## Next Learning Topics
+## Advanced Software Technologies (Projects 9-15)
 
-**Phase 1B (Immediate):**
+### C++ High-Performance Computing
 
-- IP header parsing (IPv4)
-- UDP packet extraction
+**Boost Libraries:**
+- [Boost.Asio](https://www.boost.org/doc/libs/1_82_0/doc/html/boost_asio.html) - Async I/O, TCP/UDP networking
+- Multi-threaded programming
+- Event-driven architecture
+
+**Lock-Free Data Structures:**
+- [LMAX Disruptor Pattern](https://lmax-exchange.github.io/disruptor/) - Ultra-low-latency IPC
+- Lock-free ring buffers
+- Memory ordering (std::memory_order_acquire/release)
+- Cache-line alignment for false-sharing prevention
+
+**Kernel Bypass Technologies:**
+- [AF_XDP (Linux)](https://www.kernel.org/doc/html/latest/networking/af_xdp.html) - Zero-copy packet reception
+- [eBPF](https://ebpf.io/) - Programmable packet filtering
+- [libxdp](https://github.com/xdp-project/xdp-tools) - XDP library
+- [libbpf](https://github.com/libbpf/libbpf) - BPF program loading
+- POSIX shared memory (/dev/shm)
+
+**Real-Time Optimization:**
+- SCHED_FIFO scheduling policy
+- CPU isolation (isolcpus kernel parameter)
+- CPU pinning (pthread_setaffinity_np)
+- NOHZ_FULL (tickless kernel)
+
+**Protocol Libraries:**
+- [libmosquitto](https://mosquitto.org/) - MQTT client library
+- [librdkafka](https://github.com/confluentinc/librdkafka) - Apache Kafka client
+- [nlohmann/json](https://github.com/nlohmann/json) - Modern C++ JSON library
+- [spdlog](https://github.com/gabime/spdlog) - Fast C++ logging library
+
+### Multi-Platform Development
+
+**.NET MAUI (Project 11):**
+- Cross-platform mobile development (Android, iOS, Windows)
+- MVVM pattern with CommunityToolkit.Mvvm
+- MQTTnet 5.x for MQTT connectivity
+- System.Text.Json for parsing
+
+**Java Desktop (Project 12):**
+- JavaFX for GUI applications
+- Gson for JSON parsing
+- Maven build system
+- Real-time charting libraries
+
+**IoT/Embedded (Project 10):**
+- ESP32-WROOM microcontroller
+- Arduino IDE framework
+- TFT_eSPI library for ST7735 displays
+- PubSubClient for MQTT
+
+### Trading System Architecture
+
+**Market Data Protocols:**
+- NASDAQ ITCH 5.0 (binary)
+- FIX Protocol 4.2 (order execution)
+- UDP multicast distribution
+
+**Market Microstructure:**
+- Order book mechanics (bid/ask levels)
+- Price-time priority matching
+- Market making strategies
+- Position and risk management
+- Best Bid/Offer (BBO) calculation
+
+**Performance Measurement:**
+- Latency percentiles (P50, P99, P99.9)
 - Hardware timestamping
-- MDIO interface for PHY management
-
-**Phase 2 (Current):**
-
-- Symbol filtering for ITCH messages
-- Additional ITCH message types (Trade, Replace, Delete)
-- Message statistics and monitoring
-
-**Phase 3 (Future):**
-
-- Hardware order book implementation
-- AXI4 interfaces
-- DMA controllers
-- High-speed serial (GTX transceivers)
-- DDR3 memory controller integration
+- End-to-end latency chains
+- Performance baselines and optimization
 
 ---
 
@@ -453,4 +504,37 @@ fpga-learning/
 
 ---
 
-_This resource list grows with each project. Last updated: Project 07 (ITCH 5.0 Protocol Parser)_
+## Key References Added (Projects 14-15)
+
+### Kernel Bypass and High-Performance Networking
+- [AF_XDP - Linux Kernel Documentation](https://www.kernel.org/doc/html/latest/networking/af_xdp.html)
+- [XDP Tutorial - xdp-project](https://github.com/xdp-project/xdp-tutorial)
+- [Kernel Bypass Techniques in Linux for HFT](https://lambdafunc.medium.com/kernel-bypass-techniques-in-linux-for-high-frequency-trading-a-deep-dive-de347ccd5407)
+- [DPDK AF_XDP PMD](https://doc.dpdk.org/guides/nics/af_xdp.html)
+- [P51: High Performance Networking - Cambridge](https://www.cl.cam.ac.uk/teaching/1920/P51/Lecture6.pdf)
+- [Linux Kernel vs DPDK Performance](https://talawah.io/blog/linux-kernel-vs-dpdk-http-performance-showdown/)
+
+### LMAX Disruptor Pattern
+- [Disruptor GitHub](https://github.com/LMAX-Exchange/disruptor) - Original Java implementation
+- [Disruptor Technical Paper](https://lmax-exchange.github.io/disruptor/disruptor.html) - Architecture and design
+- [Mechanical Sympathy Blog](https://mechanical-sympathy.blogspot.com/) - Martin Thompson's blog on performance
+- [Ring Buffers - Design and Implementation](https://www.snellman.net/blog/archive/2016-12-13-ring-buffers/)
+
+### Performance Analysis
+- [Brendan Gregg - Performance Methodology](https://www.brendangregg.com/methodology.html)
+- [Brendan Gregg - perf Examples](https://www.brendangregg.com/perf.html)
+- [Brendan Gregg - CPU Flame Graphs](https://www.brendangregg.com/FlameGraphs/cpuflamegraphs.html)
+
+### FIX Protocol (Project 16)
+- [FIX Protocol Official Site](https://www.fixtrading.org/)
+- [FIX 4.2 Specification](https://www.fixtrading.org/standards/fix-4-2/)
+- [QuickFIX - Open-source FIX Engine](https://www.quickfixengine.org/)
+
+### Market Making and Trading
+- [Market Making Strategies](https://quant.stackexchange.com/questions/tagged/market-making)
+- [Algorithmic Trading Basics](https://www.quantstart.com/articles/algorithmic-trading-beginners-guide/)
+- [Order Book Dynamics](https://arxiv.org/abs/1301.3841)
+
+---
+
+_This resource list grows with each project. Last updated: Project 15 (XDP + Disruptor Integration)_
