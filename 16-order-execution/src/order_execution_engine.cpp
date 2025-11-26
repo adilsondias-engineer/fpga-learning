@@ -112,7 +112,7 @@ public:
 
 private:
     void process_order(const trading::OrderRequest& order) {
-        spdlog::info("Processing order: {} {} {} @{}",
+        spdlog::debug("Processing order: {} {} {} @{}",
                     order.get_order_id(), order.get_symbol(),
                     order.quantity, order.price);
 
@@ -149,7 +149,7 @@ private:
         try {
             auto report = decoder_.decode_execution_report(fix_msg);
 
-            spdlog::info("Received ExecutionReport: {} ExecType={} Status={} Qty={} AvgPx={}",
+            spdlog::debug("Received ExecutionReport: {} ExecType={} Status={} Qty={} AvgPx={}",
                         report.order_id, report.exec_type, report.order_status,
                         report.cum_qty, report.avg_price);
 

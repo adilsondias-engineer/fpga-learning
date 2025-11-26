@@ -138,7 +138,7 @@ void MarketMakerFSM::handleRiskCheck() {
 }
 
 void MarketMakerFSM::handleOrderGen() {
-    logger_->info("ORDER_GEN: Sending quote: {}@{:.4f} / {:.4f}@{}",
+    logger_->debug("ORDER_GEN: Sending quote: {}@{:.4f} / {:.4f}@{}",
                   current_quote_.bid_size, current_quote_.bid_price,
                   current_quote_.ask_price, current_quote_.ask_size);
 
@@ -196,7 +196,7 @@ void MarketMakerFSM::processFills() {
 
     trading::FillNotification fill;
     while (order_producer_->try_read_fill(fill)) {
-        logger_->info("Received fill: {} {} {} shares @ {:.4f} (cumQty={}, complete={})",
+        logger_->debug("Received fill: {} {} {} shares @ {:.4f} (cumQty={}, complete={})",
                      fill.get_order_id(), fill.side == 'B' ? "BUY" : "SELL",
                      fill.fill_qty, fill.avg_price, fill.cum_qty,
                      fill.is_complete ? "yes" : "no");
@@ -206,7 +206,7 @@ void MarketMakerFSM::processFills() {
         position_.addFill(fill.get_symbol(), shares, fill.avg_price);
 
         Position pos = position_.getPosition(fill.get_symbol());
-        logger_->info("Updated position: {} shares, realized_pnl={:.2f}",
+        logger_->debug("Updated position: {} shares, realized_pnl={:.2f}",
                      pos.shares, pos.realized_pnl);
     }
 }
@@ -316,7 +316,7 @@ void MarketMakerFSM::simulateFill(const BBO& bbo) {
         ).count();
 
         position_.addFill(fill.symbol, fill.shares, fill.price);
-        logger_->info("FILL: BUY {} shares of {} @ {:.4f}",
+        logger_->debug("FILL: BUY {} shares of {} @ {:.4f}",
                       fill.shares, fill.symbol, fill.price);
     } else {
         Fill fill;
@@ -329,12 +329,12 @@ void MarketMakerFSM::simulateFill(const BBO& bbo) {
         ).count();
 
         position_.addFill(fill.symbol, fill.shares, fill.price);
-        logger_->info("FILL: SELL {} shares of {} @ {:.4f}",
+        logger_->debug("FILL: SELL {} shares of {} @ {:.4f}",
                       std::abs(fill.shares), fill.symbol, fill.price);
     }
 
     Position pos = position_.getPosition(current_quote_.symbol);
-    logger_->info("POSITION: {} shares, realized_pnl={:.2f}, unrealized_pnl={:.2f}",
+    logger_->debug("POSITION: {} shares, realized_pnl={:.2f}, unrealized_pnl={:.2f}",
                   pos.shares, pos.realized_pnl, pos.unrealized_pnl);
 }
 

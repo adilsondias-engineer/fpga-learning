@@ -90,7 +90,7 @@ private:
         uint32_t qty = std::stoul(fields.at("38"));
         double price = fields.count("44") ? std::stod(fields.at("44")) : 0.0;
 
-        spdlog::info("Received order: {} {} {} @{}", order_id, symbol, qty, price);
+        spdlog::debug("Received order: {} {} {} @{}", order_id, symbol, qty, price);
 
         // Send immediate fill
         send_fill(order_id, symbol, side, qty, price);
@@ -139,7 +139,7 @@ private:
         std::string exec_report = build_exec_report(body.str());
         send_message(exec_report);
 
-        spdlog::info("Sent fill for order {}: {} @ {}", order_id, qty, price);
+        spdlog::debug("Sent fill for order {}: {} @ {}", order_id, qty, price);
     }
 
     std::string build_exec_report(const std::string& body) {
