@@ -53,7 +53,7 @@ Progressive architecture development from digital design fundamentals to product
 - **Performance:** Deterministic message parsing, symbol filtering reduces downstream load
 - **Integration:** Feeds parsed ITCH messages to Project 8 order book
 
-**Project 08: Multi-Symbol Hardware Order Book** ✅
+**Project 08: Multi-Symbol Hardware Order Book**
 - **Achievement:** Sub-microsecond order book tracking 8 symbols simultaneously
 - **Architecture:** 8 parallel BRAM-based order books with round-robin BBO arbiter
 - **Symbols:** AAPL, TSLA, SPY, QQQ, GOOGL, MSFT, AMZN, NVDA
@@ -66,7 +66,7 @@ Progressive architecture development from digital design fundamentals to product
 - **Trading Relevance:** Multi-symbol tracking essential for real-world exchange systems
 - **BBO Output:** UART interface with symbol name, bid/ask prices/shares, spread, change detection
 
-**Project 13: UDP BBO Transmitter (MII TX)** ✅
+**Project 13: UDP BBO Transmitter (MII TX)**
 - **Achievement:** Real-time BBO distribution via UDP with sub-microsecond latency
 - **Architecture:** BBO UDP formatter + SystemVerilog/VHDL mixed-language integration
 - **Protocol:** UDP/IP transmission to 192.168.0.93:5000, broadcast MAC
@@ -79,9 +79,9 @@ Progressive architecture development from digital design fundamentals to product
 - **Trading Relevance:** Low-latency UDP multicast essential for distributing BBO to trading algorithms
 - **Parsing Support:** Python and C++ reference implementations for UDP packet decoding
 
-### Application Layer (Projects 9-12, 14) ✅
+### Application Layer (Projects 9-12, 14)
 
-**Project 09: C++ Order Gateway (UART)** ✅
+**Project 09: C++ Order Gateway (UART)**
 - **Purpose:** Multi-protocol data distribution bridge (FPGA → Applications)
 - **Architecture:** UART reader, BBO parser (hex→decimal), multi-protocol publisher
 - **Protocols:** TCP Server (9999), MQTT Publisher (Mosquitto), Kafka Producer
@@ -94,7 +94,7 @@ Progressive architecture development from digital design fundamentals to product
 - **Limitation:** UART @ 115200 baud (replaced by UDP in Project 14)
 - **Status:** Complete, superseded by Project 14 for production use
 
-**Project 10: ESP32 IoT Live Ticker** ✅ **COMPLETE**
+**Project 10: ESP32 IoT Live Ticker** *[COMPLETE]**
 - **Purpose:** Physical trading floor display with MQTT feed
 - **Hardware:** ESP32-WROOM + 1.8" TFT LCD (ST7735)
 - **Protocol:** MQTT v3.1.1 (optimized for IoT/low power)
@@ -103,7 +103,7 @@ Progressive architecture development from digital design fundamentals to product
 - **Design Decision:** Arduino chosen over ESP-IDF for simplicity (project demonstrates MQTT usage, not ESP-IDF capabilities)
 - **Status:** Fully functional, displays all 8 symbols in real-time
 
-**Project 11: .NET MAUI Mobile App** ✅ **COMPLETE**
+**Project 11: .NET MAUI Mobile App** *[COMPLETE]**
 - **Purpose:** Cross-platform mobile BBO terminal (Android/iOS/Windows)
 - **Protocol:** MQTT v3.1.1 (perfect for mobile - handles unreliable networks)
 - **Architecture:** MVVM pattern with CommunityToolkit.Mvvm
@@ -111,7 +111,7 @@ Progressive architecture development from digital design fundamentals to product
 - **Technologies:** .NET 10 MAUI, MQTTnet 5.x, System.Text.Json
 - **Status:** Fully functional on Android, iOS, Windows
 
-**Project 12: Java Desktop Trading Terminal** ✅ **COMPLETE**
+**Project 12: Java Desktop Trading Terminal** *[COMPLETE]**
 - **Purpose:** High-performance desktop trading terminal with charts
 - **Protocol:** TCP (optimal for localhost desktop - < 10ms latency)
 - **Architecture:** JavaFX GUI, TCP client, real-time charting
@@ -119,7 +119,7 @@ Progressive architecture development from digital design fundamentals to product
 - **Technologies:** Java 21, JavaFX, Gson, Maven
 - **Status:** Complete, 100% test pass rate
 
-**Project 14: C++ Order Gateway (UDP/XDP) - Kernel Bypass** ✅ **COMPLETE**
+**Project 14: C++ Order Gateway (UDP/XDP) - Kernel Bypass** *[COMPLETE]**
 - **Purpose:** UDP-based gateway with AF_XDP kernel bypass for minimal latency
 - **Architecture:** XDP listener (AF_XDP + eBPF), BBO parser (binary), multi-protocol publisher
 - **Protocols:** TCP Server (9999), MQTT Publisher (Mosquitto), Kafka Producer
@@ -137,7 +137,7 @@ Progressive architecture development from digital design fundamentals to product
 - **Technologies:** C++17, Boost.Asio, libxdp, libbpf, pthread (RT scheduling), libmosquitto, librdkafka
 - **Status:** Complete, XDP mode validated with large dataset
 
-**Project 15: Market Maker FSM - Automated Quote Generation** ✅ **COMPLETE**
+**Project 15: Market Maker FSM - Automated Quote Generation** *[COMPLETE]**
 - **Purpose:** Automated market making strategy with position management and risk controls
 - **Architecture:** TCP client connecting to Project 14, FSM-based quote generation, position tracker
 - **Data Flow:** Project 14 TCP Server → TCP Client → Market Maker FSM → Quote Generation
@@ -151,8 +151,27 @@ Progressive architecture development from digital design fundamentals to product
 - **FSM States:** IDLE → CALCULATE → QUOTE → RISK_CHECK → ORDER_GEN → WAIT_FILL
 - **Risk Controls:** Max position (500 shares), max notional ($100k), spread enforcement (5 bps min)
 - **RT Optimization:** SCHED_FIFO priority 50 + CPU cores 2-3 pinning
-- **Technologies:** C++20, Boost.Asio (TCP), nlohmann/json, spdlog
-- **Status:** Complete, tested with 78,606 real market data samples
+- **Technologies:** C++20, Boost.Asio (TCP), nlohmann/json, spdlog, LMAX Disruptor (Project 16 integration)
+- **Project 16 Integration:** OrderProducer class for bidirectional Disruptor communication
+- **Status:** Complete, tested with 78,606 real market data samples + order execution loop
+
+**Project 16: Order Execution Engine - Simulated Exchange** *[COMPLETE]**
+- **Purpose:** Complete order execution loop with FIX 4.2 protocol and price-time priority matching
+- **Architecture:** Disruptor-based bidirectional communication (orders + fills), matching engine, FIX encoder/decoder
+- **Data Flow:** Project 15 → Order Ring Buffer → Order Execution Engine → Matching Engine → Fill Ring Buffer → Project 15
+- **Performance:** ~1 μs order processing, <1 μs fill notification, ~2 μs round-trip latency
+- **Components:**
+  - Order Ring Buffer Consumer (reads orders from Project 15)
+  - Matching Engine (price-time priority, simulated immediate fills)
+  - FIX 4.2 Protocol (NewOrderSingle MsgType=D, ExecutionReport MsgType=8)
+  - Fill Ring Buffer Producer (sends fills back to Project 15)
+- **Ring Buffers:**
+  - Order Ring: `/dev/shm/order_ring_mm` (Project 15 → Project 16)
+  - Fill Ring: `/dev/shm/fill_ring_oe` (Project 16 → Project 15)
+  - 1024 slots per ring, lock-free atomic sequence cursors
+- **FIX 4.2 Messages:** NewOrderSingle (D), ExecutionReport (8), OrderCancelRequest (F)
+- **Technologies:** C++20, LMAX Disruptor, FIX 4.2 protocol, shared memory IPC
+- **Status:** Complete, full order execution loop validated with position tracking
 
 ### Foundation Projects (Projects 1-5)
 

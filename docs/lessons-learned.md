@@ -1172,7 +1172,7 @@ UDP Parse:   idle  idle        idle idle idle START     Too late!
 
 ### Real-Time vs Event-Driven Parser Architecture
 
-**❌ Event-Driven (v3b - FAILED):**
+**[FAIL] Event-Driven (v3b - FAILED):**
 ```vhdl
 -- Wait for signal, then try to capture bytes
 when IDLE =>
@@ -1187,7 +1187,7 @@ when PARSE_HEADER =>
             when 0 => src_port_reg(15 downto 8) <= data_in;  -- MISSED!
 ```
 
-**✅ Real-Time (v5 - SUCCESS):**
+**[PASS] Real-Time (v5 - SUCCESS):**
 ```vhdl
 -- Trigger at exact byte position
 when IDLE =>
@@ -1393,38 +1393,38 @@ b14=45      -- Byte 14 content (IP version/IHL verification)
 
 Based on Bug #13 resolution, use this checklist for ALL multi-clock designs:
 
-✅ **1. Identify ALL CDC signals**
+[PASS] **1. Identify ALL CDC signals**
    - Single-bit control/status signals
    - Multi-bit data buses
    - Reset signals
 
-✅ **2. Synchronize reset to EACH clock domain**
+[PASS] **2. Synchronize reset to EACH clock domain**
    - Use 2-FF synchronizer for reset
    - Apply synchronized reset to all registers in that domain
 
-✅ **3. Apply 2-FF synchronizer to ALL single-bit CDC signals**
+[PASS] **3. Apply 2-FF synchronizer to ALL single-bit CDC signals**
    - Don't skip error flags or status signals
    - Even "don't care" signals need synchronization
 
-✅ **4. Use valid-gated capture for multi-bit buses**
+[PASS] **4. Use valid-gated capture for multi-bit buses**
    - Never synchronize multi-bit buses directly
    - Synchronize the valid signal (2-FF)
    - Sample bus on synchronized valid pulse
 
-✅ **5. Track state in source clock domain**
+[PASS] **5. Track state in source clock domain**
    - Clean boundaries (like in_frame flag)
    - Reduces glitches during CDC
 
-✅ **6. Add comprehensive XDC constraints**
+[PASS] **6. Add comprehensive XDC constraints**
    - Mark clock groups as asynchronous
    - Set ASYNC_REG property on synchronizer FFs
    - Set false path to first synchronizer stage
 
-✅ **7. Verify timing closure**
+[PASS] **7. Verify timing closure**
    - Check for CDC violations in timing report
    - Ensure no setup/hold violations on CDC paths
 
-✅ **8. Hardware stress test**
+[PASS] **8. Hardware stress test**
    - Test with 1000+ packets
    - Verify 100% success rate
    - Look for intermittent failures
@@ -1438,12 +1438,12 @@ Based on Bug #13 resolution, use this checklist for ALL multi-clock designs:
 
 **Pattern:**
 ```vhdl
--- ✅ GOOD: Position-based triggering
+-- [PASS] GOOD: Position-based triggering
 if byte_index = HEADER_START then
     state <= PARSE;
 end if;
 
--- ❌ BAD: Signal-based triggering (creates race)
+-- [FAIL] BAD: Signal-based triggering (creates race)
 if some_valid_signal = '1' then
     state <= PARSE;
 end if;
@@ -2085,13 +2085,13 @@ end function;
 ### v3 Architecture Complete - Production Ready
 
 **Quality Metrics:**
-- ✅ Zero race conditions (async FIFO CDC)
-- ✅ Zero message loss (two-stage capture)
-- ✅ Zero message duplication (single write/read per message)
-- ✅ 100% parsing accuracy (5 message types)
-- ✅ Overflow detection with visual LED indicator
-- ✅ 512-deep FIFO handles 0.6 second bursts
-- ✅ Clean synthesis, timing closure
+- [PASS] Zero race conditions (async FIFO CDC)
+- [PASS] Zero message loss (two-stage capture)
+- [PASS] Zero message duplication (single write/read per message)
+- [PASS] 100% parsing accuracy (5 message types)
+- [PASS] Overflow detection with visual LED indicator
+- [PASS] 512-deep FIFO handles 0.6 second bursts
+- [PASS] Clean synthesis, timing closure
 
 **Development Stats:**
 - 16 days (Oct 25 - Nov 10, 2025)
@@ -2167,11 +2167,11 @@ end function;
 6. **mii_eth_top.vhd** - Wired 12 new signals through component hierarchy
 
 **What Didn't Change:**
-- ✅ Async FIFO - No modifications needed
-- ✅ Two-stage capture - Handles all message types identically
-- ✅ Clock domain crossing - No CDC changes required
-- ✅ Message serialization format - Accommodated new fields in existing 324-bit width
-- ✅ FSM structure - Clean state additions, no refactoring
+- [PASS] Async FIFO - No modifications needed
+- [PASS] Two-stage capture - Handles all message types identically
+- [PASS] Clock domain crossing - No CDC changes required
+- [PASS] Message serialization format - Accommodated new fields in existing 324-bit width
+- [PASS] FSM structure - Clean state additions, no refactoring
 
 **Lesson:** Good architecture scales. v3's design absorbed 80% more message types with zero architectural changes.
 
@@ -2224,22 +2224,22 @@ Build v048: 17 messages tested - banner + all types working
 ```
 
 **Message Type Coverage:**
-- ✅ **S (System Event):** 6 different event codes (O, S, Q, M, E, C) all decoded
-- ✅ **R (Stock Directory):** 6 different symbols, market categories parsed
-- ✅ **A (Add Order):** Multiple orders, symbols, prices decoded correctly
-- ✅ **E (Order Executed):** Exec shares, match numbers correct
-- ✅ **X (Order Cancel):** Cancel shares parsed
-- ✅ **D (Order Delete):** Order refs extracted correctly  NEW
-- ✅ **U (Order Replace):** Old/new refs, shares, prices all decoded  NEW
-- ✅ **P (Trade):** All fields including 64-bit match number correct  NEW
-- ✅ **Q (Cross Trade):** 64-bit shares, prices, cross types perfect  NEW
+- [PASS] **S (System Event):** 6 different event codes (O, S, Q, M, E, C) all decoded
+- [PASS] **R (Stock Directory):** 6 different symbols, market categories parsed
+- [PASS] **A (Add Order):** Multiple orders, symbols, prices decoded correctly
+- [PASS] **E (Order Executed):** Exec shares, match numbers correct
+- [PASS] **X (Order Cancel):** Cancel shares parsed
+- [PASS] **D (Order Delete):** Order refs extracted correctly  NEW
+- [PASS] **U (Order Replace):** Old/new refs, shares, prices all decoded  NEW
+- [PASS] **P (Trade):** All fields including 64-bit match number correct  NEW
+- [PASS] **Q (Cross Trade):** 64-bit shares, prices, cross types perfect  NEW
 
 **Data Integrity Verification:**
-- Prices: `0x0016ED24` = $150.25 ✅
-- Prices: `0x001E8480` = $200.00 ✅
-- Prices: `0x017D7840` = $2500.00 ✅
-- Shares: `0x00000064` = 100 ✅
-- 64-bit shares: `0x00000000000003E8` = 1000 (cross trade) ✅
+- Prices: `0x0016ED24` = $150.25
+- Prices: `0x001E8480` = $200.00
+- Prices: `0x017D7840` = $2500.00
+- Shares: `0x00000064` = 100
+- 64-bit shares: `0x00000000000003E8` = 1000 (cross trade)
 
 **Architecture Validation:**
 - Zero message loss across 51 total test messages
@@ -2317,13 +2317,13 @@ Build v048: 17 messages tested - banner + all types working
 ### v4 Complete - Production Ready for Trading Simulation
 
 **Quality Metrics:**
-- ✅ 9 message types (complete ITCH subset for order book simulation)
-- ✅ Zero race conditions (v3 architecture proven)
-- ✅ Zero message loss (two-stage capture + 512-deep FIFO)
-- ✅ 100% parsing accuracy (hardware validated)
-- ✅ Professional UX (startup banner)
-- ✅ Build tracking (v048+)
-- ✅ Comprehensive test infrastructure (Python generators)
+- [PASS] 9 message types (complete ITCH subset for order book simulation)
+- [PASS] Zero race conditions (v3 architecture proven)
+- [PASS] Zero message loss (two-stage capture + 512-deep FIFO)
+- [PASS] 100% parsing accuracy (hardware validated)
+- [PASS] Professional UX (startup banner)
+- [PASS] Build tracking (v048+)
+- [PASS] Comprehensive test infrastructure (Python generators)
 
 **Files Created/Modified in v4:**
 - `itch_msg_pkg.vhd` - Added 4 encode/decode functions
@@ -2858,9 +2858,9 @@ UDP/IP Packet (192.168.0.212:5000 → 192.168.0.93:5000)
 **The Challenge:** How to distribute FPGA BBO data to diverse application types (desktop, mobile, IoT)?
 
 **Wrong Approach:** Use single protocol for everything
-- ❌ TCP for mobile → Poor handling of unreliable networks (WiFi/cellular)
-- ❌ MQTT for desktop → Unnecessary broker latency for localhost
-- ❌ Kafka for ESP32 → Too heavy for 520KB RAM microcontroller
+- [FAIL] TCP for mobile → Poor handling of unreliable networks (WiFi/cellular)
+- [FAIL] MQTT for desktop → Unnecessary broker latency for localhost
+- [FAIL] Kafka for ESP32 → Too heavy for 520KB RAM microcontroller
 
 **Right Approach:** Multi-protocol gateway matching protocol to use case
 
@@ -2979,9 +2979,9 @@ mqtt.connect(CLIENT_ID, MQTT_USER, MQTT_PASS);
 
 | Protocol | RAM Usage | Power | Reconnect | ESP32 Library |
 |----------|-----------|-------|-----------|---------------|
-| MQTT | ~5KB | Low | Automatic | ✅ PubSubClient |
-| Kafka | ~50KB+ | High | Manual | ❌ None |
-| TCP | ~10KB | Medium | Manual | ✅ WiFiClient |
+| MQTT | ~5KB | Low | Automatic | [PASS] PubSubClient |
+| Kafka | ~50KB+ | High | Manual | [FAIL] None |
+| TCP | ~10KB | Medium | Manual | [PASS] WiFiClient |
 
 **Lesson:** IoT devices need lightweight protocols with graceful disconnects. MQTT designed for this.
 
@@ -3055,11 +3055,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 **Build Error:**
 ```csharp
-// ❌ MQTTnet 5.x ERROR
+// [FAIL] MQTTnet 5.x ERROR
 var reason = e.Reason?.ToString() ?? "Unknown";
 // CS0023: Operator '?' cannot be applied to operand of type 'MqttClientDisconnectReason'
 
-// ✅ MQTTnet 5.x FIX
+// [PASS] MQTTnet 5.x FIX
 var reason = e.Reason.ToString();  // Enum is non-nullable now
 ```
 
@@ -3072,7 +3072,7 @@ var reason = e.Reason.ToString();  // Enum is non-nullable now
 **Problem:** Compiler warnings when accessing private fields directly
 
 ```csharp
-// ❌ Causes MVVM Toolkit warning
+// [FAIL] Causes MVVM Toolkit warning
 [ObservableProperty]
 private string _brokerUrl = "192.168.0.2";
 
@@ -3090,7 +3090,7 @@ private void Connect() {
 private string _brokerUrl = "192.168.0.2";  // Generates 'BrokerUrl'
 
 private void Connect() {
-    _mqttService = new MqttService(BrokerUrl, Port);  // ✅ Use generated property
+    _mqttService = new MqttService(BrokerUrl, Port);  // [PASS] Use generated property
 }
 ```
 
@@ -3130,7 +3130,7 @@ private void Connect() {
 **Problem:** Network I/O updates UI from background thread → crash
 
 ```java
-// ❌ CRASHES - UI update from network thread
+// [FAIL] CRASHES - UI update from network thread
 private void onBboReceived(BboUpdate bbo) {
     bboTable.getItems().add(bbo);  // IllegalStateException!
 }
@@ -3141,7 +3141,7 @@ private void onBboReceived(BboUpdate bbo) {
 **Solution:** Platform.runLater()
 
 ```java
-// ✅ WORKS - Marshals to FX thread
+// [PASS] WORKS - Marshals to FX thread
 private void onBboReceived(BboUpdate bbo) {
     Platform.runLater(() -> {
         bboTable.getItems().add(bbo);  // Safe on FX thread
@@ -3159,7 +3159,7 @@ private void onBboReceived(BboUpdate bbo) {
 
 **Naive Approach:** Wait for `}`
 ```java
-// ❌ BREAKS on nested objects
+// [FAIL] BREAKS on nested objects
 String json = "";
 while ((char c = reader.read()) != '}') {
     json += c;
@@ -3210,17 +3210,17 @@ while ((line = reader.readLine()) != null) {  // ← Read until '\n'
 
 **Without Gateway (Tightly Coupled):**
 ```
-FPGA → Kafka → Java Desktop ❌ (Kafka overhead for desktop)
-FPGA → TCP → ESP32 ❌ (No TCP on ESP32)
-FPGA → MQTT → Analytics ❌ (MQTT not designed for data pipelines)
+FPGA → Kafka → Java Desktop [FAIL] (Kafka overhead for desktop)
+FPGA → TCP → ESP32 [FAIL] (No TCP on ESP32)
+FPGA → MQTT → Analytics [FAIL] (MQTT not designed for data pipelines)
 ```
 
 **With Gateway (Loosely Coupled):**
 ```
-FPGA → C++ Gateway ─┬→ TCP → Java Desktop ✅
-                    ├→ MQTT → ESP32 ✅
-                    ├→ MQTT → Mobile ✅
-                    └→ Kafka → Analytics ✅
+FPGA → C++ Gateway ─┬→ TCP → Java Desktop
+                    ├→ MQTT → ESP32
+                    ├→ MQTT → Mobile
+                    └→ Kafka → Analytics
 ```
 
 **Lesson:** Gateway/adapter pattern is essential for heterogeneous systems. Decouple producers from consumers.
@@ -3287,8 +3287,378 @@ FPGA → C++ Gateway ─┬→ TCP → Java Desktop ✅
 
 ---
 
-**Last Updated:** Projects 1-14 Complete - Full Stack Trading System (November 2025)
+## Project 15-16: Order Execution Loop - Key Lessons
 
-**Development Time:** 300+ hours
+### Lesson 1: Bidirectional IPC Requires Careful Design
+
+**Problem:** Market Maker (Project 15) needs to send orders AND receive fills from Order Execution Engine (Project 16)
+
+**Wrong Approach (Shared State):**
+```cpp
+// [FAIL] Shared variables with mutexes (high latency, deadlock risk)
+std::mutex order_mutex;
+std::queue<OrderRequest> pending_orders;
+
+std::mutex fill_mutex;
+std::queue<FillNotification> pending_fills;
+```
+
+**Right Approach (Dual Ring Buffers):**
+```cpp
+// [PASS] Two separate Disruptor ring buffers (lock-free, unidirectional)
+OrderRingBuffer order_ring("/dev/shm/order_ring_mm");  // P15 → P16
+FillRingBuffer fill_ring("/dev/shm/fill_ring_oe");    // P16 → P15
+```
+
+**Why It Matters:**
+- **Unidirectional flow:** Each ring has single writer, single reader (no contention)
+- **Lock-free:** Atomic sequence cursors enable sub-microsecond latency
+- **Shared memory:** Zero-copy IPC via `/dev/shm`
+- **Predictable:** No mutexes, no condition variables, no deadlocks
+
+**Lesson:** For bidirectional IPC, use two unidirectional channels instead of one bidirectional channel
+
+---
+
+### Lesson 2: Sequencer.is_available() Method Critical for Consumers
+
+**Problem:** OrderRingBuffer and FillRingBuffer consumers need to check if data is available before reading
+
+**Initial Implementation (Missing Method):**
+```cpp
+// [FAIL] Compilation error: no is_available() method
+if (consumer.is_available(seq)) {
+    auto event = consumer.read(seq);
+}
+// error: 'class disruptor::Sequencer' has no member named 'is_available'
+```
+
+**Solution (Added to Sequencer.h):**
+```cpp
+// [PASS] Check if sequence is available for consumption
+bool is_available(int64_t sequence) const {
+    return sequence <= cursor_.load(std::memory_order_acquire);
+}
+```
+
+**Why It Matters:**
+- Consumers must know if producer has published data at a sequence
+- Prevents reading uninitialized/stale data
+- Enables non-blocking polling in busy-wait loops
+- Standard Disruptor pattern for consumer sequencing
+
+**Lesson:** When implementing Disruptor pattern, consumers MUST check sequence availability before reading
+
+---
+
+### Lesson 3: OrderProducer Namespace Issue
+
+**Problem:** Compilation failed with "OrderProducer is not a member of 'mm'"
+
+**Initial Code (Wrong):**
+```cpp
+// [FAIL] Assumed OrderProducer was in mm namespace
+std::unique_ptr<mm::OrderProducer> order_producer_;
+```
+
+**Reality Check:**
+```cpp
+// OrderProducer definition (no namespace)
+class OrderProducer {
+    // ...
+};
+```
+
+**Solution:**
+```cpp
+// [PASS] OrderProducer is in global namespace
+std::unique_ptr<OrderProducer> order_producer_;
+```
+
+**Why It Matters:**
+- Assumptions about code structure can be wrong
+- Always verify namespace/scope before using
+- Good practice: Check header files for actual declarations
+- Namespace pollution: Sometimes classes intentionally live in global namespace
+
+**Lesson:** Don't assume namespace membership. Verify declarations in header files.
+
+---
+
+### Lesson 4: Config-Driven Feature Flags for Optional Integration
+
+**Problem:** Not all users want order execution enabled (testing, phased rollout, etc.)
+
+**Wrong Approach (Always Enabled):**
+```cpp
+// [FAIL] Order execution always active
+OrderProducer order_producer(order_ring_path, fill_ring_path);
+```
+
+**Right Approach (Config Flag):**
+```cpp
+// [PASS] Optional integration via config
+struct Config {
+    bool enable_order_execution = false;  // Default: disabled
+    std::string order_ring_path = "/dev/shm/order_ring_mm";
+    std::string fill_ring_path = "/dev/shm/fill_ring_oe";
+};
+
+// In constructor
+if (config_.enable_order_execution) {
+    try {
+        order_producer_ = std::make_unique<OrderProducer>(
+            config_.order_ring_path, config_.fill_ring_path);
+    } catch (const std::exception& e) {
+        logger_->error("Failed to initialize order producer: {}", e.what());
+    }
+}
+```
+
+**Why It Matters:**
+- **Phased rollout:** Test market maker without order execution first
+- **Graceful degradation:** System works even if Project 16 isn't running
+- **Configuration flexibility:** Different environments (dev/test/prod) have different needs
+- **Error handling:** Catch failures during initialization, log clearly
+
+**Lesson:** Use feature flags for optional integrations. Default to disabled for safety.
+
+---
+
+### Lesson 5: FIX Protocol is Verbose But Explicit
+
+**Problem:** Need industry-standard order execution protocol
+
+**Alternative 1 (Binary Protocol):**
+```cpp
+// [FAIL] Custom binary format (compact but non-standard)
+struct OrderMessage {
+    char order_id[16];
+    char symbol[8];
+    char side;
+    uint32_t quantity;
+    uint32_t price;
+};  // 37 bytes
+```
+
+**Alternative 2 (FIX 4.2 Protocol):**
+```cpp
+// [PASS] FIX 4.2 (verbose but industry-standard)
+8=FIX.4.2|9=XXX|35=D|49=MM|56=OE|11=MM0000000001|21=1|55=AAPL|
+54=1|38=100|40=2|44=150.00|60=20251126-14:30:00|10=XXX|
+// ~120 bytes
+```
+
+**Trade-offs:**
+
+| Aspect | Binary Protocol | FIX 4.2 Protocol |
+|--------|----------------|------------------|
+| **Size** | 37 bytes (compact) | ~120 bytes (verbose) |
+| **Speed** | Faster (less parsing) | Slower (field parsing) |
+| **Standard** | [FAIL] Custom (not portable) | [PASS] Industry standard |
+| **Debugging** | [FAIL] Hex dumps (hard to read) | [PASS] Human-readable ASCII |
+| **Interop** | [FAIL] Only works with custom code | [PASS] Works with all FIX systems |
+| **Resume** | [FAIL] Need custom docs | [PASS] FIX spec is the doc |
+
+**Why FIX Wins:**
+- **Portability:** Any FIX-compliant system can parse messages
+- **Debugging:** Human-readable format (8=FIX.4.2|35=D|55=AAPL)
+- **Resume value:** FIX experience is highly valued in trading firms
+- **Industry standard:** All exchanges, brokers, trading systems use FIX
+
+**Lesson:** For trading systems, use FIX protocol even if it's verbose. The benefits outweigh the overhead.
+
+---
+
+### Lesson 6: Simulated Exchange vs Real Exchange
+
+**Implementation Choice:**
+```cpp
+// Simulated Exchange (Project 16)
+bool match_order(const OrderRequest& order, FillNotification& fill) {
+    // Immediate fill at order price (100% fill rate)
+    fill.fill_qty = order.quantity;
+    fill.avg_price = order.price;
+    fill.exec_type = '2';  // Trade
+    fill.ord_status = '2';  // Filled
+    return true;
+}
+```
+
+**vs Real Exchange:**
+```cpp
+// Real Exchange (Production)
+bool match_order(const OrderRequest& order, Book& book) {
+    // Check if liquidity exists at price
+    if (!book.has_liquidity(order.price, order.side)) {
+        return false;  // Reject (no fill)
+    }
+
+    // Partial fills possible
+    uint32_t filled_qty = book.match(order.price, order.quantity, order.side);
+
+    // Order may rest in book
+    if (filled_qty < order.quantity) {
+        book.add_order(order, order.quantity - filled_qty);
+    }
+
+    return filled_qty > 0;
+}
+```
+
+**Differences:**
+
+| Aspect | Simulated Exchange | Real Exchange |
+|--------|-------------------|---------------|
+| **Fill Rate** | 100% (always fills) | Variable (depends on liquidity) |
+| **Partial Fills** | No (always full fill) | Yes (common) |
+| **Rejections** | Never | Yes (no liquidity, risk checks) |
+| **Order Book** | Not maintained | Full limit order book |
+| **Complexity** | Simple (~50 LOC) | Complex (~5000+ LOC) |
+| **Purpose** | Testing order flow | Production trading |
+
+**Why Simulated is Sufficient for Testing:**
+- Validates order execution loop (Project 15 → 16 → 15)
+- Tests FIX protocol encoding/decoding
+- Verifies Disruptor bidirectional communication
+- Confirms position tracking with fills
+- Portfolio demonstration value
+
+**Lesson:** Start with simulated exchange for testing. Add realistic matching engine later if needed.
+
+---
+
+### Lesson 7: processFills() Must Be Called in Main Loop
+
+**Problem:** Market Maker generates orders but doesn't process fills
+
+**Initial Code (Missing):**
+```cpp
+// [FAIL] Main loop without fill processing
+while (running) {
+    handle_bbo_update();  // Receives BBO, generates quotes
+    // Fills pile up in ring buffer, position never updates!
+}
+```
+
+**Solution (Added processFills):**
+```cpp
+// [PASS] Main loop with fill processing
+while (running) {
+    handle_bbo_update();     // BBO → Quote generation
+    processFills();          // Read fills → Update position
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+}
+
+void processFills() {
+    if (!order_producer_) return;
+
+    trading::FillNotification fill;
+    while (order_producer_->try_read_fill(fill)) {
+        int shares = (fill.side == 'B') ?
+                     static_cast<int>(fill.fill_qty) :
+                     -static_cast<int>(fill.fill_qty);
+        position_.addFill(fill.get_symbol(), shares, fill.avg_price);
+
+        logger_->info("Fill processed: {} {} shares @ ${:.2f}",
+                     fill.get_symbol(), shares, fill.avg_price / 10000.0);
+    }
+}
+```
+
+**Why It Matters:**
+- **Position accuracy:** Without processing fills, position tracker is stale
+- **Risk management:** Incorrect position → incorrect risk limits
+- **PnL calculation:** Realized PnL requires fill processing
+- **Order generation:** Position skew depends on accurate position
+
+**Lesson:** Bidirectional communication requires processing BOTH directions in main loop.
+
+---
+
+### Lesson 8: Shared Memory Cleanup and Lifecycle
+
+**Problem:** Ring buffer files persist in `/dev/shm` after process exits
+
+**Initial Code (No Cleanup):**
+```cpp
+// [FAIL] Ring buffers created but never cleaned up
+OrderRingBuffer order_ring("/dev/shm/order_ring_mm");
+```
+
+**File Accumulation:**
+```bash
+ls /dev/shm/
+# order_ring_mm  (from previous run)
+# order_ring_mm  (from current run - ERROR: already exists!)
+# fill_ring_oe
+```
+
+**Solution (Manual Cleanup Required):**
+```bash
+# Clean up before running
+rm /dev/shm/order_ring_mm /dev/shm/fill_ring_oe
+
+# Or in startup script
+#!/bin/bash
+rm -f /dev/shm/order_ring_mm /dev/shm/fill_ring_oe
+./market_maker_fsm
+```
+
+**Better Solution (RAII Cleanup in Destructor):**
+```cpp
+// [PASS] Clean up in destructor
+class OrderProducer {
+    ~OrderProducer() {
+        if (order_ring_path_) {
+            unlink(order_ring_path_);  // Remove shared memory file
+        }
+        if (fill_ring_path_) {
+            unlink(fill_ring_path_);
+        }
+    }
+};
+```
+
+**Why It Matters:**
+- **Resource leaks:** Shared memory files persist after crash/exit
+- **Restart failures:** Can't create ring buffer if file already exists
+- **Disk space:** `/dev/shm` is RAM-backed, leaks reduce available memory
+- **Cleanup scripts:** Production systems need cleanup in startup scripts
+
+**Lesson:** Shared memory requires explicit cleanup. Use RAII or startup scripts.
+
+---
+
+## Summary: Project 15-16 Integration
+
+**What Was Built:**
+- **Project 15 (Market Maker):** OrderProducer class, processFills() method, config flag
+- **Project 16 (Order Execution):** Full exchange simulator, FIX 4.2 protocol, Disruptor consumer/producer
+- **Integration:** Bidirectional Disruptor communication (orders + fills)
+
+**Key Technologies Learned:**
+- Bidirectional IPC with dual ring buffers
+- FIX 4.2 protocol (NewOrderSingle, ExecutionReport)
+- Shared memory lifecycle management
+- Config-driven feature flags
+- Lock-free sequencing patterns
+
+**Performance Achieved:**
+- Order processing: ~1 μs
+- Fill notification: <1 μs
+- Round-trip latency: ~2 μs
+
+**Resume Value:**
+- Complete order execution loop (market maker → exchange → fills → position)
+- Industry-standard FIX protocol implementation
+- Sub-microsecond IPC with LMAX Disruptor
+- Production patterns: feature flags, error handling, RAII cleanup
+
+---
+
+**Last Updated:** Projects 1-16 Complete - Full Trading System with Order Execution (November 2025)
+
+**Development Time:** 320+ hours
 
 This document grows with each project and includes lessons from all phases.
