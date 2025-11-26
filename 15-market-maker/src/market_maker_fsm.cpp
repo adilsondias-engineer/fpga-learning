@@ -5,13 +5,25 @@
 namespace mm {
 
 MarketMakerFSM::MarketMakerFSM(const Config& config)
-    : state_(State::IDLE), config_(config) {
+    : state_(State::IDLE), config_(config), order_sequence_(0) {
     logger_ = spdlog::get("market_maker");
     if (!logger_) {
         logger_ = spdlog::stdout_color_mt("market_maker");
     }
     logger_->info("MarketMakerFSM initialized with config: spread={} bps, edge={} bps, max_pos={}, skew={} bps",
                   config_.min_spread_bps, config_.edge_bps, config_.max_position, config_.position_skew_bps);
+
+    // Initialize order producer if order execution is enabled
+    if (config_.enable_order_execution) {
+        try {
+            order_producer_ = std::make_unique<OrderProducer>(
+                config_.order_ring_path, config_.fill_ring_path);
+            logger_->info("Order execution enabled (Project 16 integration)");
+        } catch (const std::exception& e) {
+            logger_->error("Failed to initialize order producer: {}", e.what());
+            logger_->warn("Continuing without order execution");
+        }
+    }
 }
 
 void MarketMakerFSM::onBboUpdate(const BBO& bbo) {
@@ -96,11 +108,73 @@ void MarketMakerFSM::handleOrderGen() {
                   current_quote_.bid_size, current_quote_.bid_price,
                   current_quote_.ask_price, current_quote_.ask_size);
 
+    // Send orders to Project 16 if enabled
+    if (order_producer_) {
+        // Generate order ID (MM prefix + sequence number)
+        char order_id[32];
+        snprintf(order_id, sizeof(order_id), "MM%010lu", order_sequence_++);
+
+        // Send buy order (bid)
+        trading::OrderRequest buy_order;
+        buy_order.set_order_id(order_id);
+        buy_order.set_symbol(current_quote_.symbol.c_str());
+        buy_order.side = 'B';
+        buy_order.order_type = 'L';  // Limit order
+        buy_order.time_in_force = 'D';  // Day order
+        buy_order.price = current_quote_.bid_price;
+        buy_order.quantity = current_quote_.bid_size;
+        buy_order.timestamp_ns = current_quote_.timestamp_ns;
+        buy_order.valid = true;
+
+        order_producer_->send_order(buy_order);
+        logger_->debug("Sent buy order {} to Project 16", order_id);
+
+        // Generate new order ID for sell order
+        snprintf(order_id, sizeof(order_id), "MM%010lu", order_sequence_++);
+
+        // Send sell order (ask)
+        trading::OrderRequest sell_order;
+        sell_order.set_order_id(order_id);
+        sell_order.set_symbol(current_quote_.symbol.c_str());
+        sell_order.side = 'S';
+        sell_order.order_type = 'L';
+        sell_order.time_in_force = 'D';
+        sell_order.price = current_quote_.ask_price;
+        sell_order.quantity = current_quote_.ask_size;
+        sell_order.timestamp_ns = current_quote_.timestamp_ns;
+        sell_order.valid = true;
+
+        order_producer_->send_order(sell_order);
+        logger_->debug("Sent sell order {} to Project 16", order_id);
+    }
+
     state_ = State::WAIT_FILL;
 }
 
 void MarketMakerFSM::handleWaitFill() {
     logger_->debug("WAIT_FILL: Simulating fill");
+}
+
+void MarketMakerFSM::processFills() {
+    if (!order_producer_) {
+        return;
+    }
+
+    trading::FillNotification fill;
+    while (order_producer_->try_read_fill(fill)) {
+        logger_->info("Received fill: {} {} {} shares @ {:.4f} (cumQty={}, complete={})",
+                     fill.get_order_id(), fill.side == 'B' ? "BUY" : "SELL",
+                     fill.fill_qty, fill.avg_price, fill.cum_qty,
+                     fill.is_complete ? "yes" : "no");
+
+        // Update position tracker
+        int shares = (fill.side == 'B') ? static_cast<int>(fill.fill_qty) : -static_cast<int>(fill.fill_qty);
+        position_.addFill(fill.get_symbol(), shares, fill.avg_price);
+
+        Position pos = position_.getPosition(fill.get_symbol());
+        logger_->info("Updated position: {} shares, realized_pnl={:.2f}",
+                     pos.shares, pos.realized_pnl);
+    }
 }
 
 double MarketMakerFSM::calculateFairValue(const BBO& bbo) {

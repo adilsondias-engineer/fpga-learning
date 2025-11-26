@@ -3253,7 +3253,7 @@ FPGA → C++ Gateway ─┬→ TCP → Java Desktop ✅
 - Multi-threaded architecture (UART reader, TCP server, MQTT publisher)
 - Boost.Asio for async I/O
 - Protocol libraries (libmosquitto, librdkafka)
-- RAII and modern C++17 patterns
+- RAII and modern C++17/20 patterns (C++17 for Project 9, C++20 for Projects 14-16)
 
 **Mobile Development:**
 - .NET MAUI cross-platform framework

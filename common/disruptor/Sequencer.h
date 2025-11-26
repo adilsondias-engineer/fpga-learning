@@ -43,6 +43,10 @@ public:
         return consumer_cursor_.load(std::memory_order_acquire);
     }
 
+    bool is_available(int64_t sequence) const {
+        return sequence <= cursor_.load(std::memory_order_acquire);
+    }
+
 private:
     const size_t buffer_size_;
     alignas(64) std::atomic<int64_t> cursor_;

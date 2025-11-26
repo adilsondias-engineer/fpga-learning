@@ -290,7 +290,7 @@ Partition: hash(symbol) % num_partitions
 ```
 
 **Technologies:**
-- **C++17:** Modern C++ with threading
+- **C++17:** Modern C++ with threading (Project 9 legacy)
 - **Boost.Asio:** Async I/O for TCP/UART
 - **libmosquitto:** MQTT client library
 - **librdkafka:** High-performance Kafka client
@@ -737,7 +737,7 @@ Ask = fair_value + edge + skew
 - **Language:** VHDL
 
 ### Middleware
-- **Language:** C++17
+- **Language:** C++17/20
 - **Build:** CMake 3.20+
 - **Libraries:**
   - Boost.Asio (async I/O)

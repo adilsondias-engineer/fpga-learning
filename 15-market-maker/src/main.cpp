@@ -158,6 +158,7 @@ int main(int argc, char** argv) {
     bool enable_rt = false;
     bool enable_disruptor = false;
     std::vector<int> cpu_cores = {2, 3};
+    bool enable_order_execution = false;
 
     std::ifstream config_stream(config_file);
     if (config_stream.is_open()) {
@@ -197,6 +198,15 @@ int main(int argc, char** argv) {
             }
             if (config_json.contains("enable_disruptor")) {
                 enable_disruptor = config_json["enable_disruptor"];
+            }
+            if (config_json.contains("enable_order_execution")) {
+                mm_config.enable_order_execution = config_json["enable_order_execution"];
+            }
+            if (config_json.contains("order_ring_path")) {
+                mm_config.order_ring_path = config_json["order_ring_path"].get<std::string>();
+            }
+            if (config_json.contains("fill_ring_path")) {
+                mm_config.fill_ring_path = config_json["fill_ring_path"].get<std::string>();
             }
 
             spdlog::info("Loaded config from {}", config_file);
@@ -249,6 +259,10 @@ int main(int argc, char** argv) {
 
         while (g_running) {
             try {
+                // Process any fill notifications from Project 16
+                fsm.processFills();
+
+                // Process BBO updates
                 gateway::BBOData bbo_data = g_listener->read_bbo();
                 mm::BBO bbo = convertBboData(bbo_data);
 

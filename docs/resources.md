@@ -242,8 +242,10 @@ pip install scapy
 
 **Online References:**
 
-- [VHDL Quick Reference](http://www.ics.uci.edu/~jmoorkan/vhdlref/)
-- [VHDL Tutorial (UNSW)](http://web.eece.maine.edu/~vweaver/classes/ece412_2005s/vhdl_tutorial.pdf)
+- [VHDL Language Reference (IEEE Std 1076-2019)](https://standards.ieee.org/ieee/1076/10299/)
+- [Free Range VHDL - Online Book](https://github.com/fabriziotappero/Free-Range-VHDL-book)
+- [VHDL Tutorial - NANDLAND](https://nandland.com/introduction-to-vhdl/)
+- [VHDL Tutorial - ElectronicsTutorials](https://www.electronics-tutorials.ws/combination/vhdl.html)
 
 **Key Concepts Learned:**
 

@@ -171,9 +171,9 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 **Problem Solved:** Bridge FPGA to diverse application types (desktop, mobile, IoT, analytics)
 **Architecture:** Multi-threaded gateway with UART reader, BBO parser (hex→decimal), three protocol publishers
 **Key Innovation:** Single gateway publishes simultaneously to TCP, MQTT, and Kafka—matching protocol to client requirements
-**Technologies:** C++17, Boost.Asio, libmosquitto (MQTT), librdkafka, nlohmann/json
+**Technologies:** C++17 (legacy), Boost.Asio, libmosquitto (MQTT), librdkafka, nlohmann/json
 **Performance:** 10.67 μs avg parse latency, 6.32 μs P50 (UART → protocol)
-**Status:** Functional, performance testing in progress
+**Status:** Functional, superseded by Project 14 (C++20 with XDP)
 
 ### Project 10: ESP32 IoT Live Ticker (Physical Display)
 **Problem Solved:** Trading floor ticker display with real-time BBO updates
@@ -220,7 +220,7 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
   - **CPU Pinning:** Core 5 (isolated)
   - **CPU Isolation:** GRUB parameters (isolcpus=2-5, nohz_full=2-5, rcu_nocbs=2-5)
   - **Hardware:** AMD Ryzen AI 9 365 w/ Radeon 880M
-**Technologies:** C++17, Boost.Asio, libxdp, libbpf, pthread (RT scheduling), libmosquitto, librdkafka
+**Technologies:** C++20, Boost.Asio, libxdp, libbpf, pthread (RT scheduling), libmosquitto, librdkafka
 **Status:** Complete, XDP mode validated with large dataset
 
 ### Project 15: Market Maker FSM - Automated Quote Generation
@@ -373,7 +373,7 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 
 **Full-Stack Capability:**
 - Complete vertical integration: Ethernet PHY → FPGA → Gateway → Desktop/Mobile/IoT
-- Multiple languages: VHDL, C++17, Java 21, C# (.NET 10), Arduino (C++)
+- Multiple languages: VHDL, C++17/20, Java 21, C# (.NET 10), Arduino (C++)
 - Multiple platforms: FPGA, Windows, Linux, Android, iOS, ESP32
 - Ready for any trading technology role (FPGA, systems, infrastructure, application)
 

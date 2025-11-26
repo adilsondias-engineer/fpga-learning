@@ -3,6 +3,7 @@
 #include <memory>
 #include "order_types.h"
 #include "position_tracker.h"
+#include "order_producer.h"
 #include <spdlog/spdlog.h>
 #include "spdlog/sinks/stdout_color_sinks.h"
 
@@ -26,13 +27,19 @@ public:
         double position_skew_bps = 1.0;
         int quote_size = 100;
         double max_notional = 100000.0;
+        bool enable_order_execution = false;
+        std::string order_ring_path = "/dev/shm/order_ring_mm";
+        std::string fill_ring_path = "/dev/shm/fill_ring_oe";
     };
 
     explicit MarketMakerFSM(const Config& config);
-    
+
     // Main event handler
     void onBboUpdate(const BBO& bbo);
-    
+
+    // Process fill notifications (call this in main loop)
+    void processFills();
+
     // State getters
     State getState() const { return state_; }
     const PositionTracker& getPosition() const { return position_; }
@@ -57,6 +64,8 @@ private:
     PositionTracker position_;
     Quote current_quote_;
     std::shared_ptr<spdlog::logger> logger_;
+    std::unique_ptr<OrderProducer> order_producer_;
+    uint64_t order_sequence_;
 };
 
 } // namespace mm
