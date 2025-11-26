@@ -281,6 +281,83 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 **Dependencies:** Works with Project 15 when `enable_order_execution=true`
 **Status:** Complete, full order execution loop validated with position tracking
 
+### Project 17: Hardware Timestamping and Latency Measurement
+**Problem Solved:** Measure packet reception latency with nanosecond precision for performance validation
+**Architecture:** SO_TIMESTAMPING socket wrapper, lock-free latency histogram, Prometheus exporter
+**Key Innovation:** Kernel-level software timestamps capture packet arrival at network stack (~10-50ns precision)
+**Components:**
+  - **TimestampSocket:** UDP socket with SO_TIMESTAMPING ancillary data extraction
+  - **LatencyTracker:** Lock-free histogram (25 buckets, 50ns-5s+) with percentile calculation
+  - **PrometheusExporter:** HTTP /metrics endpoint for Grafana/Prometheus monitoring
+**Latency Measurement:**
+  - **Kernel RX Timestamp:** Packet arrival at kernel network stack (SO_TIMESTAMPING)
+  - **Application RX Timestamp:** Packet received by userspace via recvmsg()
+  - **Kernel→App Latency:** System call overhead + context switching + memory copy
+**Expected Performance:**
+  - **Loopback (localhost):** 1-5 μs typical, 10-20 μs P99
+  - **LAN (1 GbE):** 10-50 μs typical, 100-200 μs P99
+  - **LAN (10 GbE):** 5-20 μs typical, 50-100 μs P99
+**Lock-Free Histogram:**
+  - Atomic operations (fetch_add, CAS) for thread-safe recording without locks
+  - Sub-microsecond overhead per measurement (~100-200ns)
+  - Suitable for >1M packets/sec throughput
+**Prometheus Metrics:**
+  - Histogram buckets with cumulative counts
+  - Percentiles (P50, P90, P95, P99, P99.9) as gauges
+  - Summary statistics (min, max, mean, stddev)
+**Configuration:**
+  - UDP port, Prometheus port, network interface binding
+  - Latency thresholds (warning: 100μs, critical: 1ms)
+  - Sample buffer size (default: 100k samples)
+**Hardware Upgrade Path:**
+  - Current: Kernel software timestamps (portable, works with any NIC)
+  - Future: Hardware NIC timestamps (Intel i210, Solarflare, Mellanox)
+  - Code change: SOF_TIMESTAMPING_RX_HARDWARE instead of RX_SOFTWARE
+**Integration with Projects 14-16:**
+  - Option 1: Link against libtimestamp_lib.a for embedded timestamping
+  - Option 2: Run timestamp_demo alongside existing projects for monitoring
+**Technologies:** C++20, Linux SO_TIMESTAMPING, Prometheus format, nlohmann/json
+**Status:** Complete, standalone demo with Prometheus metrics export
+
+### Project 18: Complete Trading System Integration
+**Problem Solved:** Unified orchestration of entire trading system with lifecycle management and centralized monitoring
+**Architecture:** System orchestrator, process management, health monitoring, metrics aggregation, Prometheus exporter
+**Key Innovation:** Single-command startup/shutdown with automatic dependency resolution and graceful resource cleanup
+**Components:**
+  - **SystemOrchestrator:** Master process managing Projects 14, 15, 16 lifecycle
+  - **MetricsAggregator:** Collects and aggregates metrics from all components
+  - **PrometheusServer:** HTTP /metrics endpoint (port 9094) for Grafana dashboards
+  - **Health Monitor:** Continuous health checks (TCP, Prometheus, process alive)
+**Data Flow:**
+  1. FPGA (P13) → UDP → Project 14 (Order Gateway)
+  2. Project 14 → TCP JSON → Project 15 (Market Maker)
+  3. Project 15 → Disruptor (/dev/shm/order_ring_mm) → Project 16 (Order Execution)
+  4. Project 16 → FIX Protocol → Simulated Exchange
+  5. Exchange → FIX ExecutionReport → Project 16
+  6. Project 16 → Disruptor (/dev/shm/fill_ring_oe) → Project 15
+  7. Project 15 → Position Update → Next Trading Decision
+**Startup Sequence:**
+  1. Load system_config.json, cleanup stale shared memory
+  2. Start P14 - wait for TCP port 9999
+  3. Start P15 after 2s - verify P14 running
+  4. Start P16 after 3s - verify P15 running
+  5. Start metrics aggregator, Prometheus server
+  6. Enter monitoring loop (500ms health checks)
+**Shutdown Sequence:** Stop metrics/Prometheus → P16 → P15 → P14 (SIGTERM/10s/SIGKILL) → cleanup shared memory
+**Prometheus Metrics:**
+  - Counters: BBO updates, orders, fills, ring buffer wraps, uptime
+  - Gauges: Position (per-symbol + total), PnL (realized + unrealized)
+  - Latency: End-to-end (min/p50/p99/max/mean), per-component P99
+  - Ring buffers: Current depth, max depth
+**Health Monitoring:**
+  - P14: TCP connection test (port 9999)
+  - P15/P16: Prometheus HTTP GET
+  - All: Process alive check
+  - Interval: 500ms
+**Shared Memory Management:** Automatic cleanup of /dev/shm/order_ring_mm and /dev/shm/fill_ring_oe on startup/shutdown
+**Technologies:** C++20, fork/exec, POSIX signals, shared memory (shm_open/shm_unlink), Prometheus, nlohmann/json
+**Status:** Complete - Matches original Project 17 vision (full trading loop + metrics + monitoring)
+
 ---
 
 ## Complete System Architecture

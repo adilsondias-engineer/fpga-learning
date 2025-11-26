@@ -38,3 +38,5 @@ dfx_runtime.txt
 /14-order-gateway-cpp/vcpkg_installed
 /15-market-maker/build
 /15-market-maker/vcpkg_installed
+/17-hardware-timestamping/build
+/18-complete-system/build
