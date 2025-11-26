@@ -8,15 +8,26 @@ namespace disruptor {
 
 class BboRingBuffer {
 public:
-    static constexpr size_t SIZE = 1024;
+    static constexpr size_t SIZE = 16384;  // Increased from 1024 to handle high-frequency data
 
     BboRingBuffer() : sequencer_(SIZE) {}
 
-    // Producer: publish BBO
+    // Producer: publish BBO (blocking)
     void publish(const gateway::BBOData& bbo) {
         int64_t seq = sequencer_.next();
         ring_buffer_[seq].set(bbo);
         sequencer_.publish(seq);
+    }
+
+    // Producer: try to publish BBO (non-blocking)
+    bool try_publish(const gateway::BBOData& bbo) {
+        int64_t seq;
+        if (sequencer_.try_next(seq)) {
+            ring_buffer_[seq].set(bbo);
+            sequencer_.publish(seq);
+            return true;
+        }
+        return false;  // Buffer full, drop message
     }
 
     // Consumer: poll for BBO

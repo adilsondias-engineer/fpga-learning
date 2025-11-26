@@ -76,6 +76,7 @@ int main(int argc, char* argv[]) {
         std::vector<Component> components = {
             Component::ORDER_GATEWAY,
             Component::MARKET_MAKER,
+            Component::SIMULATED_EXCHANGE,
             Component::ORDER_EXECUTION
         };
 

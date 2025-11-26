@@ -12,9 +12,9 @@
 
   "project_17": {
     "name": "Hardware Timestamping",
-    "executable": "../17-hardware-timestamping/build/timestamp_demo",
-    "config_file": "../17-hardware-timestamping/config.json",
-    "working_directory": "../17-hardware-timestamping/build",
+    "executable": "../../17-hardware-timestamping/build/timestamp_demo",
+    "config_file": "../../17-hardware-timestamping/config.json",
+    "working_directory": "../../17-hardware-timestamping/build",
     "environment": {},
     "startup_delay_ms": 0,
     "healthcheck": {
@@ -27,9 +27,12 @@
 
   "project_14": {
     "name": "Order Gateway",
-    "executable": "../14-order-gateway/build/order_gateway",
-    "config_file": "../14-order-gateway/config.json",
-    "working_directory": "../14-order-gateway/build",
+    "executable": "../../14-order-gateway-cpp/build/order_gateway",
+    "args": ["0.0.0.0", "5000", "--enable-disruptor", "--tcp-port", "9999", "--quiet"],
+    "args_xdp": ["0.0.0.0", "5000", "--enable-disruptor", "--use-xdp", "--xdp-interface", "eno2", "--xdp-queue-id", "1", "--enable-rt", "--disable-kafka"],
+    "enable_xdp": false,
+    "requires_sudo": false,
+    "working_directory": "../../14-order-gateway-cpp/build",
     "environment": {
       "LD_LIBRARY_PATH": "/usr/local/lib"
     },
@@ -45,9 +48,9 @@
 
   "project_15": {
     "name": "Market Maker FSM",
-    "executable": "../15-market-maker/build/market_maker",
-    "config_file": "../15-market-maker/config.json",
-    "working_directory": "../15-market-maker/build",
+    "executable": "../../15-market-maker/build/market_maker",
+    "config_file": "../../15-market-maker/config.json",
+    "working_directory": "../../15-market-maker/build",
     "environment": {},
     "startup_delay_ms": 2000,
     "healthcheck": {
@@ -59,11 +62,25 @@
     "depends_on": ["project_14"]
   },
 
+  "simulated_exchange": {
+    "name": "Simulated Exchange",
+    "executable": "../../16-order-execution/build/simulated_exchange",
+    "working_directory": "../../16-order-execution/build",
+    "environment": {},
+    "startup_delay_ms": 2500,
+    "healthcheck": {
+      "type": "tcp",
+      "host": "localhost",
+      "port": 5001,
+      "timeout_ms": 1000
+    }
+  },
+
   "project_16": {
     "name": "Order Execution Engine",
-    "executable": "../16-order-execution/build/order_execution_engine",
-    "config_file": "../16-order-execution/config.json",
-    "working_directory": "../16-order-execution/build",
+    "executable": "../../16-order-execution/build/order_execution_engine",
+    "config_file": "../../16-order-execution/config.json",
+    "working_directory": "../../16-order-execution/build",
     "environment": {},
     "startup_delay_ms": 3000,
     "healthcheck": {
@@ -72,7 +89,7 @@
       "timeout_ms": 1000
     },
     "prometheus_port": 9093,
-    "depends_on": ["project_15"]
+    "depends_on": ["project_15", "simulated_exchange"]
   },
 
   "shared_memory": {
@@ -93,7 +110,7 @@
   "monitoring": {
     "orchestrator_prometheus_port": 9094,
     "enable_grafana_dashboard": true,
-    "grafana_dashboard_path": "../dashboards/trading_system.json",
+    "grafana_dashboard_path": "../../dashboards/trading_system.json",
     "enable_alerts": false,
     "alert_webhook_url": ""
   },
@@ -107,7 +124,8 @@
       "project_16": [6, 7],
       "orchestrator": [0]
     },
-    "enable_realtime_scheduling": false,
+    "enable_realtime_scheduling": true,
+    "disable_rt_for_development": false,
     "realtime_priority": {
       "project_17": 99,
       "project_14": 98,
@@ -126,13 +144,14 @@
 
   "_comments": {
     "system": "Global system configuration",
-    "project_17": "Hardware Timestamping (kernel-level latency measurement on UDP port 12345)",
-    "project_14": "Order Gateway (XDP listener, BBO parser, TCP/MQTT/Kafka publisher)",
+    "project_17": "Hardware Timestamping (kernel-level latency measurement on UDP port 5000, shares port with P14 via SO_REUSEPORT)",
+    "project_14": "Order Gateway (XDP listener, BBO parser, TCP/MQTT/Kafka publisher). Use 'args' for regular mode or 'args_xdp' for XDP mode (requires sudo)",
     "project_15": "Market Maker FSM (strategy logic, order generation)",
-    "project_16": "Order Execution Engine (FIX protocol, simulated exchange)",
+    "simulated_exchange": "Simulated Exchange Server (FIX protocol server on port 5001)",
+    "project_16": "Order Execution Engine (FIX protocol client, connects to simulated exchange)",
     "shared_memory": "Disruptor ring buffers for IPC",
     "monitoring": "Prometheus metrics and Grafana dashboards",
-    "performance": "CPU pinning and RT scheduling (requires root)",
+    "performance": "CPU pinning and RT scheduling (requires root). Projects 15 and 16 need RT scheduling for shared memory access.",
     "testing": "Integration test configuration"
   }
 }

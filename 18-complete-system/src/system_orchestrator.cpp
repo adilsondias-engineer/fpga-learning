@@ -70,6 +70,7 @@ void SystemOrchestrator::load_config() {
     parse_component_config("project_17", Component::HARDWARE_TIMESTAMPING);
     parse_component_config("project_14", Component::ORDER_GATEWAY);
     parse_component_config("project_15", Component::MARKET_MAKER);
+    parse_component_config("simulated_exchange", Component::SIMULATED_EXCHANGE);
     parse_component_config("project_16", Component::ORDER_EXECUTION);
 
     // Load shared memory paths
@@ -95,6 +96,24 @@ void SystemOrchestrator::parse_component_config(const std::string& key, Componen
     info.name = cfg["name"];
     info.executable = cfg["executable"];
     info.config_file = cfg.value("config_file", "");
+    
+    // Parse command line arguments if provided
+    if (cfg.contains("args")) {
+        for (const auto& arg : cfg["args"]) {
+            info.args.push_back(arg.get<std::string>());
+        }
+    }
+    
+    // Parse XDP command line arguments if provided
+    if (cfg.contains("args_xdp")) {
+        for (const auto& arg : cfg["args_xdp"]) {
+            info.args_xdp.push_back(arg.get<std::string>());
+        }
+    }
+    
+    info.enable_xdp = cfg.value("enable_xdp", false);
+    info.requires_sudo = cfg.value("requires_sudo", false);
+    
     info.working_directory = cfg.value("working_directory", ".");
 
     // Dependencies
@@ -176,6 +195,7 @@ void SystemOrchestrator::stop(bool force) {
     // Stop components in reverse order
     std::vector<Component> stop_order = {
         Component::ORDER_EXECUTION,
+        Component::SIMULATED_EXCHANGE,
         Component::MARKET_MAKER,
         Component::ORDER_GATEWAY,
         Component::HARDWARE_TIMESTAMPING
@@ -349,6 +369,13 @@ void SystemOrchestrator::run() {
 // Private methods
 
 pid_t SystemOrchestrator::spawn_process(const ProcessInfo& info) {
+    // Debug: Log what arguments we're about to use
+    log("DEBUG", "Spawning " + info.name + " with executable: " + info.executable);
+    log("DEBUG", "Regular args count: " + std::to_string(info.args.size()));
+    log("DEBUG", "XDP args count: " + std::to_string(info.args_xdp.size()));
+    log("DEBUG", "Config file: " + info.config_file);
+    log("DEBUG", "Requires sudo: " + std::string(info.requires_sudo ? "true" : "false"));
+    
     pid_t pid = fork();
 
     if (pid < 0) {
@@ -371,11 +398,42 @@ pid_t SystemOrchestrator::spawn_process(const ProcessInfo& info) {
         std::vector<char*> args;
         args.push_back(const_cast<char*>(info.executable.c_str()));
 
-        if (!info.config_file.empty()) {
+        // Determine which arguments to use
+        std::vector<std::string> selected_args;
+        
+        if (info.enable_xdp && !info.args_xdp.empty()) {
+            // Use XDP args if XDP is enabled
+            selected_args = info.args_xdp;
+            std::cerr << "DEBUG: Using XDP args (" << selected_args.size() << " args) - XDP mode enabled" << std::endl;
+            if (info.requires_sudo) {
+                std::cerr << "WARNING: " << info.name << " is configured for XDP mode but not running with sudo." << std::endl;
+                std::cerr << "INFO: XDP features may not work properly. Consider running with sudo for full XDP support." << std::endl;
+            }
+        } else if (!info.args.empty()) {
+            // Use regular args
+            selected_args = info.args;
+            std::cerr << "DEBUG: Using regular args (" << selected_args.size() << " args)" << std::endl;
+        } else if (!info.config_file.empty()) {
+            // Fall back to config file
+            std::cerr << "DEBUG: Using config file: " << info.config_file << std::endl;
             args.push_back(const_cast<char*>(info.config_file.c_str()));
+        } else {
+            std::cerr << "ERROR: No arguments or config file specified for " << info.name << std::endl;
+        }
+
+        // Add selected arguments
+        for (const auto& arg : selected_args) {
+            args.push_back(const_cast<char*>(arg.c_str()));
         }
 
         args.push_back(nullptr);
+        
+        // Debug: Print final command line
+        std::cerr << "DEBUG: Final command: ";
+        for (size_t i = 0; i < args.size() - 1; ++i) {
+            std::cerr << args[i] << " ";
+        }
+        std::cerr << std::endl;
 
         // Execute
         execvp(info.executable.c_str(), args.data());
@@ -527,13 +585,20 @@ bool SystemOrchestrator::start_components_in_order() {
     std::vector<Component> start_order = {
         Component::ORDER_GATEWAY,
         Component::MARKET_MAKER,
+        Component::SIMULATED_EXCHANGE,
         Component::ORDER_EXECUTION
     };
 
     for (auto comp : start_order) {
         // Add startup delay if configured
-        auto& cfg_key = (comp == Component::ORDER_GATEWAY) ? "project_14" :
-                        (comp == Component::MARKET_MAKER) ? "project_15" : "project_16";
+        std::string cfg_key;
+        switch (comp) {
+            case Component::ORDER_GATEWAY: cfg_key = "project_14"; break;
+            case Component::MARKET_MAKER: cfg_key = "project_15"; break;
+            case Component::SIMULATED_EXCHANGE: cfg_key = "simulated_exchange"; break;
+            case Component::ORDER_EXECUTION: cfg_key = "project_16"; break;
+            default: cfg_key = "unknown"; break;
+        }
 
         if (config_[cfg_key].contains("startup_delay_ms")) {
             int delay = config_[cfg_key]["startup_delay_ms"];
@@ -565,6 +630,7 @@ std::string SystemOrchestrator::component_to_string(Component comp) const {
         case Component::HARDWARE_TIMESTAMPING: return "HARDWARE_TIMESTAMPING";
         case Component::ORDER_GATEWAY: return "ORDER_GATEWAY";
         case Component::MARKET_MAKER: return "MARKET_MAKER";
+        case Component::SIMULATED_EXCHANGE: return "SIMULATED_EXCHANGE";
         case Component::ORDER_EXECUTION: return "ORDER_EXECUTION";
         default: return "UNKNOWN";
     }
@@ -574,6 +640,7 @@ Component SystemOrchestrator::string_to_component(const std::string& str) const 
     if (str == "project_17" || str == "HARDWARE_TIMESTAMPING") return Component::HARDWARE_TIMESTAMPING;
     if (str == "project_14" || str == "ORDER_GATEWAY") return Component::ORDER_GATEWAY;
     if (str == "project_15" || str == "MARKET_MAKER") return Component::MARKET_MAKER;
+    if (str == "simulated_exchange" || str == "SIMULATED_EXCHANGE") return Component::SIMULATED_EXCHANGE;
     if (str == "project_16" || str == "ORDER_EXECUTION") return Component::ORDER_EXECUTION;
     throw std::runtime_error("Unknown component: " + str);
 }

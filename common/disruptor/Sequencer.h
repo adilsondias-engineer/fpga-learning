@@ -27,6 +27,21 @@ public:
         return next_seq;
     }
 
+    // Non-blocking version - returns false if buffer would be full
+    bool try_next(int64_t& sequence) {
+        int64_t current = cursor_.load(std::memory_order_relaxed);
+        int64_t next_seq = current + 1;
+        int64_t wrap_point = next_seq - buffer_size_;
+        int64_t consumer_seq = consumer_cursor_.load(std::memory_order_acquire);
+        
+        if (wrap_point <= consumer_seq) {
+            sequence = next_seq;
+            cursor_.store(next_seq, std::memory_order_relaxed);
+            return true;
+        }
+        return false;  // Buffer full
+    }
+
     void publish(int64_t sequence) {
         cursor_.store(sequence, std::memory_order_release);
     }

@@ -31,7 +31,7 @@ public:
  */
 class FillRingBuffer {
 public:
-    static constexpr size_t SIZE = 1024;
+    static constexpr size_t SIZE = 8192;   // Increased from 1024 for better fill throughput
 
     FillRingBuffer() : sequencer_(SIZE) {}
 

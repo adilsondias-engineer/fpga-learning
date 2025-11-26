@@ -23,8 +23,8 @@
     "rate_limit_per_sec": 100
   },
   "disruptor": {
-    "order_queue_path": "/dev/shm/order_ring_mm",
-    "fill_queue_path": "/dev/shm/fill_ring_oe"
+    "order_queue_path": "order_ring_mm",
+    "fill_queue_path": "fill_ring_oe"
   },
   "logging": {
     "drop_copy_file": "drop_copy.csv",
@@ -32,8 +32,8 @@
     "log_level": "info"
   },
   "performance": {
-    "enable_rt": true,
-    "cpu_cores": [4, 5],
+    "enable_rt": false,
+    "cpu_cores": [6, 7],
     "rt_priority": 60
   }
 }

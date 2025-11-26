@@ -1,5 +1,6 @@
 #include "order_gateway.h"
 #include "common/rt_config.h"
+#include <spdlog/spdlog.h>
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -489,9 +490,15 @@ namespace gateway
 
     void OrderGateway::publishBBO(const BBOData &bbo)
     {
-        // Publish to Disruptor shared memory if enabled
+        // Publish to Disruptor shared memory if enabled (non-blocking)
         if (config_.enable_disruptor && ring_buffer_) {
-            ring_buffer_->publish(bbo);
+            if (!ring_buffer_->try_publish(bbo)) {
+                // Buffer full - drop message to prevent blocking
+                static uint64_t dropped_count = 0;
+                if (++dropped_count % 1000 == 0) {
+                    spdlog::warn("Dropped {} BBO messages due to full ring buffer", dropped_count);
+                }
+            }
         }
 
         // Early exit if all distribution is disabled

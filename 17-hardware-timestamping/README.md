@@ -162,9 +162,10 @@ cd build
 ```
 
 **Default behavior:**
-- Listens on UDP port **12345**
+- Listens on UDP port **5000** (shares with Order Gateway via SO_REUSEPORT)
 - Prometheus metrics on port **9090**
 - Prints statistics every 5 seconds
+- Samples ~50% of packets for latency measurement
 
 ### 2. Custom Configuration
 
@@ -175,7 +176,7 @@ cd build
 **Configuration File** (`config.json`):
 ```json
 {
-  "udp_port": 12345,
+  "udp_port": 5000,
   "metrics_port": 9090,
   "interface": "",
   "warning_threshold_ns": 100000,
@@ -186,17 +187,19 @@ cd build
 }
 ```
 
+**Note:** Port 5000 is shared with the Order Gateway (Project 14) using **SO_REUSEPORT**, which allows both processes to bind to the same port. The kernel load-balances incoming UDP packets between them, so this demo samples approximately 50% of packets for latency measurement.
+
 **Configuration Parameters:**
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `udp_port` | int | 12345 | UDP port to listen for packets |
+| `udp_port` | int | 5000 | UDP port to listen for packets (5000 = FPGA market data) |
 | `metrics_port` | int | 9090 | HTTP port for Prometheus `/metrics` endpoint |
-| `interface` | string | "" | Network interface (e.g., "eth0"), empty for any |
+| `interface` | string | "" | Network interface (e.g., "eno2"), empty for any |
 | `warning_threshold_ns` | int | 100000 | Latency threshold (ns) for warning logs (100μs) |
 | `critical_threshold_ns` | int | 1000000 | Latency threshold (ns) for critical logs (1ms) |
 | `max_samples` | int | 100000 | Maximum samples to store for percentile calculation |
-| `enable_console_output` | bool | true | Print per-packet latency to console |
+| `enable_console_output` | bool | true | Print per-packet latency to console (disable for production) |
 | `stats_interval_ms` | int | 5000 | Interval (ms) to print statistics summary |
 
 ### 3. Test Packet Sender
@@ -208,10 +211,10 @@ Send test UDP packets to measure latency:
 ./timestamp_demo
 
 # Terminal 2: Send test packets
-echo "test packet" | nc -u localhost 12345
+echo "test packet" | nc -u localhost 5000
 
 # Or use Python
-python3 -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.sendto(b'test', ('localhost', 12345))"
+python3 -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.sendto(b'test', ('localhost', 5000))"
 ```
 
 ### 4. View Prometheus Metrics
@@ -586,7 +589,7 @@ Compare measured latency with `tcpdump`:
 
 ```bash
 # Terminal 1: Capture packets
-sudo tcpdump -i lo -w capture.pcap udp port 12345
+sudo tcpdump -i lo -w capture.pcap udp port 5000
 
 # Terminal 2: Run timestamp demo
 ./timestamp_demo
@@ -615,6 +618,11 @@ tcpdump -r capture.pcap -ttt
 2. **NUMA Tuning**: Bind process to same NUMA node as NIC
 3. **Kernel Tuning**: Disable CPU idle states, use `isolcpus`
 4. **Network Tuning**: Optimize NIC ring buffer sizes, interrupt moderation
+
+**Important Note on RT Scheduling**: Enabling RT scheduling for **all** components simultaneously can cause severe CPU contention and performance degradation. Real-world testing shows that selective RT scheduling (only for critical components) yields better results than blanket RT priority across the entire system. Consider:
+- Running P17 without RT priority for monitoring (measurement overhead ~100-200ns is acceptable)
+- Reserving RT priority only for P14 (Order Gateway) and data plane components
+- Testing with RT disabled first to establish baseline performance
 
 ### Production Monitoring
 

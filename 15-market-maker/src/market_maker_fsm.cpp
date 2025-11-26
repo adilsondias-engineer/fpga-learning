@@ -31,6 +31,32 @@ void MarketMakerFSM::onBboUpdate(const BBO& bbo) {
         return;
     }
 
+    // Performance optimization: Skip processing if BBO hasn't changed significantly
+    static BBO last_bbo;
+    static uint64_t skip_count = 0;
+    static uint64_t process_count = 0;
+    
+    if (last_bbo.valid && last_bbo.symbol == bbo.symbol) {
+        double price_change = std::abs(bbo.bid_price - last_bbo.bid_price) + 
+                             std::abs(bbo.ask_price - last_bbo.ask_price);
+        double spread_change = std::abs(bbo.spread - last_bbo.spread);
+        
+        // Skip if price change < 0.01 and spread change < 0.01 (1 cent threshold)
+        if (price_change < 0.01 && spread_change < 0.01) {
+            if (++skip_count % 10000 == 0) {
+                logger_->debug("Skipped {} BBO updates (minimal price change)", skip_count);
+            }
+            return;
+        }
+    }
+    
+    // Aggressive throttling: Only process every 50th update for high-frequency data
+    if (++process_count % 50 != 0) {  // Process only every 50th update (2% processing rate)
+        return;
+    }
+    
+    last_bbo = bbo;
+
     switch (state_) {
         case State::IDLE:
             state_ = State::CALCULATE;
@@ -62,18 +88,18 @@ void MarketMakerFSM::onBboUpdate(const BBO& bbo) {
 }
 
 void MarketMakerFSM::handleCalculate(const BBO& bbo) {
-    double fair_value = calculateFairValue(bbo);
+    cached_fair_value_ = calculateFairValue(bbo);
 
     logger_->debug("CALCULATE: symbol={}, fair_value={:.4f}, spread={:.4f}",
-                   bbo.symbol, fair_value, bbo.spread);
+                   bbo.symbol, cached_fair_value_, bbo.spread);
 
     state_ = State::QUOTE;
     handleQuote(bbo);
 }
 
 void MarketMakerFSM::handleQuote(const BBO& bbo) {
-    double fair_value = calculateFairValue(bbo);
-    current_quote_ = generateQuote(fair_value, bbo);
+    // Use cached fair value from handleCalculate to avoid recalculation
+    current_quote_ = generateQuote(cached_fair_value_, bbo);
 
     if (!current_quote_.valid) {
         logger_->warn("QUOTE: Invalid quote generated, returning to IDLE");
@@ -94,6 +120,14 @@ void MarketMakerFSM::handleRiskCheck() {
 
     if (!risk_ok) {
         logger_->warn("RISK_CHECK: Risk limits exceeded, skipping quote");
+        state_ = State::IDLE;
+        return;
+    }
+
+    // Additional performance optimization: Skip order generation if position is near limits
+    Position pos = position_.getPosition(current_quote_.symbol);
+    if (std::abs(pos.shares) > config_.max_position * 0.8) {  // 80% of max position
+        logger_->debug("RISK_CHECK: Position near limit ({}), skipping order generation", pos.shares);
         state_ = State::IDLE;
         return;
     }

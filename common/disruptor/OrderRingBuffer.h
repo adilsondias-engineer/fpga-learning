@@ -31,7 +31,7 @@ public:
  */
 class OrderRingBuffer {
 public:
-    static constexpr size_t SIZE = 1024;
+    static constexpr size_t SIZE = 8192;   // Increased from 1024 for better order throughput
 
     OrderRingBuffer() : sequencer_(SIZE) {}
 

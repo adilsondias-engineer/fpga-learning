@@ -63,6 +63,7 @@ private:
     Config config_;
     PositionTracker position_;
     Quote current_quote_;
+    double cached_fair_value_;
     std::shared_ptr<spdlog::logger> logger_;
     std::unique_ptr<OrderProducer> order_producer_;
     uint64_t order_sequence_;

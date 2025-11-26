@@ -40,3 +40,4 @@ dfx_runtime.txt
 /15-market-maker/vcpkg_installed
 /17-hardware-timestamping/build
 /18-complete-system/build
+/16-order-execution/build

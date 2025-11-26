@@ -123,7 +123,7 @@ All four component projects must be built before starting the orchestrator:
 # From fpga-trading-systems root directory
 
 # Build Project 14
-cd 14-order-gateway
+cd 14-order-gateway-cpp
 mkdir -p build && cd build
 cmake .. && make -j$(nproc)
 cd ../..

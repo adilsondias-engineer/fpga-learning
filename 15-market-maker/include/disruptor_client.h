@@ -58,22 +58,14 @@ public:
         }
 
         BBOData bbo;
-        auto start = std::chrono::steady_clock::now();
-
-        while (true) {
-            if (ring_buffer_->poll(bbo)) {
-                return bbo;
-            }
-
-            // Check timeout
-            auto elapsed = std::chrono::steady_clock::now() - start;
-            if (elapsed > std::chrono::microseconds(timeout_us)) {
-                throw std::runtime_error("Disruptor read timeout");
-            }
-
-            // Yield CPU (low-latency busy-wait)
-            std::this_thread::yield();
+        
+        // Try non-blocking read first
+        if (ring_buffer_->poll(bbo)) {
+            return bbo;
         }
+        
+        // If no data, throw timeout exception (like before)
+        throw std::runtime_error("Disruptor read timeout");
     }
 
     // Try to read BBO (non-blocking)

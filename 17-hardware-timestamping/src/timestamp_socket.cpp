@@ -23,11 +23,18 @@ TimestampSocket::TimestampSocket(uint16_t port, const char* interface)
         throw std::runtime_error("Failed to create socket: " + std::string(strerror(errno)));
     }
 
-    // Set SO_REUSEADDR
+    // Set SO_REUSEADDR and SO_REUSEPORT
+    // SO_REUSEPORT allows multiple sockets to bind to the same port
+    // This enables P17 and P14 to both listen on port 5000 simultaneously
     int reuse = 1;
     if (setsockopt(socket_fd_, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
         close(socket_fd_);
         throw std::runtime_error("Failed to set SO_REUSEADDR: " + std::string(strerror(errno)));
+    }
+
+    if (setsockopt(socket_fd_, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) {
+        close(socket_fd_);
+        throw std::runtime_error("Failed to set SO_REUSEPORT: " + std::string(strerror(errno)));
     }
 
     // Bind to interface if specified
@@ -97,10 +104,6 @@ TimestampedPacket TimestampSocket::receive_with_timestamp() {
     msg.msg_name = &packet.src_addr;
     msg.msg_namelen = sizeof(packet.src_addr);
 
-    // Capture application RX timestamp BEFORE recvmsg
-    // (This minimizes delay between kernel RX and app RX)
-    packet.app_rx_timestamp = get_current_time();
-
     // Receive message with ancillary data
     ssize_t len = recvmsg(socket_fd_, &msg, 0);
     if (len < 0) {
@@ -108,6 +111,10 @@ TimestampedPacket TimestampSocket::receive_with_timestamp() {
     }
 
     packet.data_len = len;
+
+    // Capture application RX timestamp AFTER recvmsg
+    // (This is when the application actually received the packet)
+    packet.app_rx_timestamp = get_current_time();
 
     // Extract kernel timestamp from ancillary data
     if (timestamping_enabled_) {

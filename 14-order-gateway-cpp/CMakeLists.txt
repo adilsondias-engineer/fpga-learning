@@ -12,6 +12,7 @@ endif()
 
 find_package(eclipse-paho-mqtt-c CONFIG REQUIRED)
 find_package(RdKafka CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 
 # Define _WIN32_WINNT for Windows
 if(WIN32)
@@ -85,6 +86,9 @@ target_link_libraries(order_gateway PRIVATE RdKafka::rdkafka++)
 # Link pthread library (required for RT scheduling and CPU pinning)
 find_package(Threads REQUIRED)
 target_link_libraries(order_gateway PRIVATE Threads::Threads)
+
+# Link spdlog for logging
+target_link_libraries(order_gateway PRIVATE spdlog::spdlog)
 
 # Boost.Asio integration
 # Try to find Boost (works with vcpkg if vcpkg toolchain is set)

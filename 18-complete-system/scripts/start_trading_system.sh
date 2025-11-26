@@ -30,7 +30,7 @@ fi
 
 # Check if all component projects exist
 echo -e "${YELLOW}Checking component projects...${NC}"
-REQUIRED_PROJECTS=("17-hardware-timestamping" "14-order-gateway" "15-market-maker" "16-order-execution")
+REQUIRED_PROJECTS=("17-hardware-timestamping" "14-order-gateway-cpp" "15-market-maker" "16-order-execution")
 for proj in "${REQUIRED_PROJECTS[@]}"; do
     if [ ! -d "$proj" ]; then
         echo -e "${RED}ERROR: Required project '$proj' not found${NC}"
@@ -64,8 +64,9 @@ echo -e "${YELLOW}Checking component executables...${NC}"
 
 COMPONENT_EXECS=(
     "17-hardware-timestamping/build/timestamp_demo"
-    "14-order-gateway/build/order_gateway"
+    "14-order-gateway-cpp/build/order_gateway"
     "15-market-maker/build/market_maker"
+    "16-order-execution/build/simulated_exchange"
     "16-order-execution/build/order_execution_engine"
 )
 
@@ -102,11 +103,28 @@ if [ -e "/dev/shm/fill_ring_oe" ]; then
     rm -f /dev/shm/fill_ring_oe
     echo "  Removed /dev/shm/fill_ring_oe"
 fi
+if [ -e "/dev/shm/bbo_ring_gateway" ]; then
+    rm -f /dev/shm/bbo_ring_gateway
+    echo "  Removed /dev/shm/bbo_ring_gateway"
+fi
+
+# Check for XDP prerequisites if XDP mode is enabled
+if grep -q '"enable_xdp": true' "../${CONFIG_FILE}" 2>/dev/null; then
+    echo ""
+    echo -e "${YELLOW}XDP mode detected - checking prerequisites...${NC}"
+    if ! command -v xdp-loader &> /dev/null; then
+        echo -e "${RED}WARNING: xdp-loader not found. XDP mode may not work properly.${NC}"
+        echo "  Install with: sudo apt install xdp-tools"
+    else
+        echo "  [OK] xdp-loader found"
+    fi
+fi
 
 # Start the orchestrator
 echo ""
 echo -e "${GREEN}Starting Trading System Orchestrator...${NC}"
+echo -e "${YELLOW}Note: Running with sudo for RT scheduling and shared memory access${NC}"
 echo ""
 
 cd "$BUILD_DIR"
-./${EXECUTABLE} "../${CONFIG_FILE}"
+sudo ./${EXECUTABLE} "../${CONFIG_FILE}"

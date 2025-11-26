@@ -22,6 +22,7 @@ enum class Component {
     HARDWARE_TIMESTAMPING,  // Project 17
     ORDER_GATEWAY,          // Project 14
     MARKET_MAKER,           // Project 15
+    SIMULATED_EXCHANGE,     // Simulated Exchange for Project 16
     ORDER_EXECUTION         // Project 16
 };
 
@@ -44,6 +45,10 @@ struct ProcessInfo {
     std::string name;
     std::string executable;
     std::string config_file;
+    std::vector<std::string> args;
+    std::vector<std::string> args_xdp;
+    bool enable_xdp;
+    bool requires_sudo;
     std::string working_directory;
     std::vector<std::string> dependencies;
 
@@ -70,6 +75,8 @@ struct ProcessInfo {
 
     ProcessInfo()
         : component(Component::ORDER_GATEWAY)
+        , enable_xdp(false)
+        , requires_sudo(false)
         , pid(-1)
         , state(ComponentState::STOPPED)
         , restart_count(0)
