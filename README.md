@@ -2,8 +2,8 @@
 ![Language](https://img.shields.io/badge/Language-VHDL-blue)
 ![Status](https://img.shields.io/badge/Status-In%20Development-yellow)
 ![Hardware Verified](https://img.shields.io/badge/Hardware-Verified-brightgreen)
-![Projects](https://img.shields.io/badge/Projects-15%20Complete-brightgreen)
-![Development Time](https://img.shields.io/badge/Development%20Time-320%2B%20hours-blue)
+![Projects](https://img.shields.io/badge/Projects-18%20Complete-brightgreen)
+![Development Time](https://img.shields.io/badge/Development%20Time-360%2B%20hours-blue)
 
 # FPGA Trading Systems
 
@@ -176,38 +176,40 @@ Progressive architecture development from digital design fundamentals to product
 **Project 17: Hardware Timestamping and Latency Measurement** *[COMPLETE]**
 - **Purpose:** Measure packet reception latency with nanosecond precision for performance validation
 - **Architecture:** SO_TIMESTAMPING socket wrapper, lock-free latency histogram, Prometheus exporter
-- **Key Innovation:** Kernel-level software timestamps capture packet arrival at network stack (~10-50ns precision)
+- **Key Innovation:** Kernel-level software timestamps capture packet arrival at network stack (nanosecond precision)
+- **Integration:** SO_REUSEPORT allows coexistence with Project 14 on UDP port 5000 (actual trading path)
 - **Performance:**
   - Loopback: 1-5 μs typical, 10-20 μs P99
   - LAN (1 GbE): 10-50 μs typical, 100-200 μs P99
-  - LAN (10 GbE): 5-20 μs typical, 50-100 μs P99
+  - Measured: 6.1 μs P50, 79 μs P99 (5,067 packet samples)
 - **Components:**
   - TimestampSocket: UDP socket with SO_TIMESTAMPING ancillary data extraction
   - LatencyTracker: Lock-free histogram (25 buckets, 50ns-5s+) with percentile calculation (P50, P90, P95, P99, P99.9)
-  - PrometheusExporter: HTTP /metrics endpoint for Grafana/Prometheus monitoring
+  - PrometheusExporter: HTTP /metrics endpoint (port 9090) for Grafana/Prometheus monitoring
 - **Measurement:** Kernel RX timestamp (packet arrival at network stack) vs Application RX timestamp (userspace recvmsg)
-- **Lock-Free Design:** Atomic operations for thread-safe histogram updates, ~100-200ns overhead per measurement
-- **Integration:** Link against libtimestamp_lib.a or run timestamp_demo alongside Projects 14-16
-- **Hardware Upgrade:** Current implementation uses kernel software timestamps (portable); code supports hardware NIC timestamps (Intel i210, Solarflare, Mellanox)
+- **Lock-Free Design:** Atomic operations for thread-safe histogram updates, approximately 100-200ns overhead per measurement
+- **Port Sharing:** SO_REUSEPORT enables kernel load-balancing between P14 (processing) and P17 (monitoring) on same port
+- **Hardware Upgrade Path:** Current implementation uses kernel software timestamps (portable); supports hardware NIC timestamps (Intel i210, Solarflare, Mellanox)
 - **Technologies:** C++20, Linux SO_TIMESTAMPING, Prometheus format, nlohmann/json
-- **Status:** Complete, standalone demo with Prometheus metrics export
+- **Status:** Complete, measures actual trading path latency with sub-microsecond accuracy
 
 **Project 18: Complete Trading System Integration** *[COMPLETE]**
-- **Purpose:** System orchestrator integrating Projects 14-16 into unified production-ready trading system
+- **Purpose:** System orchestrator integrating Projects 17, 14, 15, 16 into unified production-ready trading system
 - **Architecture:** Process lifecycle management, health monitoring, metrics aggregation, Prometheus exporter
 - **Key Innovation:** Single-command startup/shutdown with dependency resolution and graceful resource cleanup
 - **Components:**
-  - SystemOrchestrator: Master process managing all trading components
-  - MetricsAggregator: Collects metrics from P14, P15, P16
+  - SystemOrchestrator: Master process managing all trading components (P17, P14, P15, P16)
+  - MetricsAggregator: Collects metrics from all components
   - PrometheusServer: HTTP /metrics endpoint (port 9094) for Grafana
   - Health monitoring: TCP/Prometheus checks every 500ms
 - **Startup Sequence:**
   1. Cleanup stale shared memory
-  2. Start Project 14 (Order Gateway) - verify TCP port 9999
-  3. Start Project 15 (Market Maker) after 2s delay - verify dependencies
-  4. Start Project 16 (Order Execution) after 3s delay - verify dependencies
-  5. Start metrics collection and Prometheus server
-- **Shutdown Sequence:** Reverse order (P16→P15→P14), SIGTERM with 10s timeout, cleanup shared memory
+  2. Start Project 17 (Hardware Timestamping) - independent monitoring on UDP port 5000
+  3. Start Project 14 (Order Gateway) after 1s delay - verify TCP port 9999
+  4. Start Project 15 (Market Maker) after 2s delay - verify dependencies
+  5. Start Project 16 (Order Execution) after 3s delay - verify dependencies
+  6. Start metrics collection and Prometheus server
+- **Shutdown Sequence:** Reverse order (P16→P15→P14→P17), SIGTERM with 10s timeout, cleanup shared memory
 - **Metrics Exported:**
   - System counters: BBO updates, orders, fills
   - Position tracking: Per-symbol and aggregated positions

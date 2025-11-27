@@ -476,7 +476,7 @@ For detailed information about the ITCH 5.0 dataset, see [docs/database.md](../d
 
 ## Related Projects
 
-- **[13-udp-transmitter-mii/](../13-udp-transmitter-mii/)** - FPGA order book with UDP BBO transmission (data source for Project 14)
+- **[13-udp-trasmitter-mii/](../13-udp-trasmitter-mii/)** - FPGA order book with UDP BBO transmission (data source for Project 14)
 - **[14-order-gateway-cpp/](../14-order-gateway-cpp/)** - XDP kernel bypass gateway (TCP server for this project)
 - **[16-order-execution/](../16-order-execution/)** - Order execution engine (future integration)
 
@@ -527,7 +527,7 @@ For detailed information about the ITCH 5.0 dataset, see [docs/database.md](../d
 
 ### Related Project Documentation
 - [Project 14 - Order Gateway (XDP)](../14-order-gateway-cpp/README.md) - Data source for this project
-- [Project 13 - FPGA UDP Transmitter](../13-udp-transmitter-mii/README.md) - FPGA BBO source
+- [Project 13 - FPGA UDP Transmitter](../13-udp-trasmitter-mii/README.md) - FPGA BBO source
 - [System Architecture](../docs/SYSTEM_ARCHITECTURE.md) - Complete system overview
 
 ---

@@ -123,7 +123,7 @@ class LiveFeedSimulator:
 
     def _signal_handler(self, sig, frame):
         """Handle Ctrl+C gracefully"""
-        print("\n\n⚠ Shutdown signal received, stopping...")
+        print("\n\nShutdown signal received, stopping...")
         self.running = False
 
     def replay_multi_symbol(self, symbols=None, speed_multiplier=1.0,

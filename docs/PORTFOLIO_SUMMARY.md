@@ -12,7 +12,7 @@
 
 **Unique Value Proposition:** 20+ years C++ systems engineering + 5 years active futures trading (S&P 500, Nasdaq) + FPGA hardware acceleration + full-stack application development (C++, Java, .NET, IoT).
 
-**Development Achievement:** 15 complete projects, 320+ hours of development, demonstrating end-to-end trading infrastructure from FPGA hardware acceleration to automated market making strategies.
+**Development Achievement:** 18 complete projects, 360+ hours of development, demonstrating end-to-end trading infrastructure from FPGA hardware acceleration to automated market making strategies.
 
 ---
 
@@ -282,18 +282,23 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 **Status:** Complete, full order execution loop validated with position tracking
 
 ### Project 17: Hardware Timestamping and Latency Measurement
-**Problem Solved:** Measure packet reception latency with nanosecond precision for performance validation
-**Architecture:** SO_TIMESTAMPING socket wrapper, lock-free latency histogram, Prometheus exporter
-**Key Innovation:** Kernel-level software timestamps capture packet arrival at network stack (~10-50ns precision)
+**Problem Solved:** Measure packet reception latency with nanosecond precision for performance validation on actual trading path
+**Architecture:** SO_TIMESTAMPING socket wrapper, SO_REUSEPORT port sharing, lock-free latency histogram, Prometheus exporter
+**Key Innovation:** SO_REUSEPORT enables coexistence with Project 14 on UDP port 5000, measuring actual production traffic
 **Components:**
-  - **TimestampSocket:** UDP socket with SO_TIMESTAMPING ancillary data extraction
+  - **TimestampSocket:** UDP socket with SO_TIMESTAMPING ancillary data extraction, SO_REUSEPORT enabled
   - **LatencyTracker:** Lock-free histogram (25 buckets, 50ns-5s+) with percentile calculation
-  - **PrometheusExporter:** HTTP /metrics endpoint for Grafana/Prometheus monitoring
+  - **PrometheusExporter:** HTTP /metrics endpoint (port 9090) for Grafana/Prometheus monitoring
 **Latency Measurement:**
   - **Kernel RX Timestamp:** Packet arrival at kernel network stack (SO_TIMESTAMPING)
   - **Application RX Timestamp:** Packet received by userspace via recvmsg()
   - **Kernel→App Latency:** System call overhead + context switching + memory copy
-**Expected Performance:**
+**Port Sharing:**
+  - **SO_REUSEPORT:** Kernel load-balances packets between P14 (processing) and P17 (monitoring)
+  - **Monitoring Port:** UDP 5000 (FPGA market data, shared with Project 14)
+  - **Sampling:** Approximately 50% of packets for latency statistics (sufficient for percentile accuracy)
+**Measured Performance:**
+  - **Actual Trading Path:** 6.1 μs P50, 79 μs P99 (5,067 packet samples)
   - **Loopback (localhost):** 1-5 μs typical, 10-20 μs P99
   - **LAN (1 GbE):** 10-50 μs typical, 100-200 μs P99
   - **LAN (10 GbE):** 5-20 μs typical, 50-100 μs P99
@@ -324,26 +329,28 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 **Architecture:** System orchestrator, process management, health monitoring, metrics aggregation, Prometheus exporter
 **Key Innovation:** Single-command startup/shutdown with automatic dependency resolution and graceful resource cleanup
 **Components:**
-  - **SystemOrchestrator:** Master process managing Projects 14, 15, 16 lifecycle
+  - **SystemOrchestrator:** Master process managing Projects 17, 14, 15, 16 lifecycle
   - **MetricsAggregator:** Collects and aggregates metrics from all components
   - **PrometheusServer:** HTTP /metrics endpoint (port 9094) for Grafana dashboards
   - **Health Monitor:** Continuous health checks (TCP, Prometheus, process alive)
 **Data Flow:**
-  1. FPGA (P13) → UDP → Project 14 (Order Gateway)
-  2. Project 14 → TCP JSON → Project 15 (Market Maker)
-  3. Project 15 → Disruptor (/dev/shm/order_ring_mm) → Project 16 (Order Execution)
-  4. Project 16 → FIX Protocol → Simulated Exchange
-  5. Exchange → FIX ExecutionReport → Project 16
-  6. Project 16 → Disruptor (/dev/shm/fill_ring_oe) → Project 15
-  7. Project 15 → Position Update → Next Trading Decision
+  1. Network Packet Arrival → Project 17 (Hardware Timestamping) - kernel-level latency measurement
+  2. FPGA (P13) → UDP → Project 14 (Order Gateway) - shares UDP port 5000 with P17 via SO_REUSEPORT
+  3. Project 14 → TCP JSON → Project 15 (Market Maker)
+  4. Project 15 → Disruptor (/dev/shm/order_ring_mm) → Project 16 (Order Execution)
+  5. Project 16 → FIX Protocol → Simulated Exchange
+  6. Exchange → FIX ExecutionReport → Project 16
+  7. Project 16 → Disruptor (/dev/shm/fill_ring_oe) → Project 15
+  8. Project 15 → Position Update → Next Trading Decision
 **Startup Sequence:**
   1. Load system_config.json, cleanup stale shared memory
-  2. Start P14 - wait for TCP port 9999
-  3. Start P15 after 2s - verify P14 running
-  4. Start P16 after 3s - verify P15 running
-  5. Start metrics aggregator, Prometheus server
-  6. Enter monitoring loop (500ms health checks)
-**Shutdown Sequence:** Stop metrics/Prometheus → P16 → P15 → P14 (SIGTERM/10s/SIGKILL) → cleanup shared memory
+  2. Start P17 (Hardware Timestamping) - independent monitoring on UDP port 5000
+  3. Start P14 (Order Gateway) after 1s - wait for TCP port 9999, shares UDP port 5000 with P17
+  4. Start P15 (Market Maker) after 2s - verify P14 running
+  5. Start P16 (Order Execution) after 3s - verify P15 running
+  6. Start metrics aggregator, Prometheus server
+  7. Enter monitoring loop (500ms health checks)
+**Shutdown Sequence:** Stop metrics/Prometheus → P16 → P15 → P14 → P17 (SIGTERM/10s/SIGKILL) → cleanup shared memory
 **Prometheus Metrics:**
   - Counters: BBO updates, orders, fills, ring buffer wraps, uptime
   - Gauges: Position (per-symbol + total), PnL (realized + unrealized)

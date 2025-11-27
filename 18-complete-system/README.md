@@ -36,11 +36,11 @@ Project 18 is the **system orchestrator** that integrates Projects 17 (Hardware 
 │  Hardware    │  │  Order       │  │  Market      │  │  Order Execution │
 │  Timestamping│  │  Gateway     │  │  Maker FSM   │  │  Engine          │
 │              │  │              │  │              │  │                  │
-│  UDP :12345  │  │  XDP/UDP RX  │  │  TCP Client  │  │  Disruptor       │
-│  SO_         │  │  BBO Parser  │  │  Strategy    │  │  FIX Protocol    │
-│  TIMESTAMPING│  │  TCP Server  │  │  Position    │  │  Simulated       │
-│  Metrics     │  │  :9999       │  │  Tracker     │  │  Exchange        │
-│  :9090       │  │  :9091       │  │  :9092       │  │  :9093           │
+│  UDP :5000   │  │  XDP/UDP RX  │  │  TCP Client  │  │  Disruptor       │
+│  SO_REUSEPORT│  │  BBO Parser  │  │  Strategy    │  │  FIX Protocol    │
+│  Metrics     │  │  TCP Server  │  │  Position    │  │  Simulated       │
+│  :9090       │  │  :9999       │  │  Tracker     │  │  Exchange        │
+│              │  │  :9091       │  │  :9092       │  │  :9093           │
 └──────────────┘  └──────────────┘  └──────────────┘  └──────────────────┘
         │                 │                 │                   │
         └─────────────────┼─────────────────┼───────────────────┘

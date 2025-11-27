@@ -194,7 +194,7 @@ class MySQLITCHImporter:
                 # Read message payload
                 payload = f.read(msg_length)
                 if len(payload) < msg_length:
-                    print(f"⚠ Warning: Truncated message at offset {f.tell()}")
+                    print(f"Warning: Truncated message at offset {f.tell()}")
                     break
 
                 # Parse message
