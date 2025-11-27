@@ -377,16 +377,19 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 - **Project 09 (UART):** Initial implementation, 10.67 μs avg latency, hex parsing overhead
 - **Project 14 (UDP Standard):** 0.20 μs avg latency (53× faster), binary protocol + RT optimization
 - **Project 14 (XDP Kernel Bypass):** 0.04 μs avg latency (267× faster), AF_XDP zero-copy + eBPF
+- **Project 14 (XDP + Disruptor):** 0.04 μs parse + <0.1 μs IPC = <0.15 μs total, lock-free shared memory
 
 **Trading Strategy Layer:**
-- **Project 15 (Market Maker FSM):** 12.73 μs avg latency (TCP client → automated quoting)
-- **End-to-End:** ~12.77 μs (FPGA → Trading Decision)
+- **Project 15 (TCP Mode - Legacy):** 12.73 μs avg latency (TCP client → automated quoting)
+- **Project 15 (Disruptor Mode):** <2 μs total latency (lock-free IPC → automated quoting)
+- **End-to-End (XDP + Disruptor):** <2 μs (FPGA → Trading Decision) - **6× faster than TCP mode**
 
 **Key Architectural Lessons:**
 - **Protocol Choice:** Match protocol to client requirements—don't force one protocol for everything
 - **Gateway Pattern:** Enables protocol diversity without coupling FPGA to applications
 - **Interface Impact:** UART → UDP → XDP demonstrates exponential improvement from interface optimization
 - **Kernel Bypass:** XDP eliminates network stack overhead, achieving 40ns latency (5× faster than standard UDP)
+- **Lock-Free IPC:** Disruptor pattern eliminates TCP/JSON overhead, achieving sub-microsecond IPC (60× faster than TCP for local communication)
 
 ---
 
@@ -413,17 +416,20 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 
 ## Resource Utilization (Artix-7 XC7A100T)
 
-| Resource | Used | Available | Utilization |
-|----------|------|-----------|-------------|
-| Slice LUTs | ~10,000 | 63,400 | ~16% |
-| Slice Registers | ~8,000 | 126,800 | ~6% |
-| BRAM Tiles | 6-8 | 135 | ~5% |
-| DSP Slices | 0 | 240 | 0% |
+| Resource | Used | Available | % |
+|----------|------|-----------|---|
+| Slice LUTs | 30,000 | 63,400 | 47% |
+| Slice Registers | 16,000 | 126,800 | 13% |
+| RAMB36 | 32 | 135 | 24% |
+| DSP48E | 0 | 240 | 0% |
 
-**BRAM Breakdown:**
-- Order storage: 4 BRAM36 blocks
-- Price level table: 1 BRAM36 block
-- Async FIFO (CDC): 1-2 BRAM36 blocks
+**BRAM Breakdown (FPGA Projects 6-8):**
+- Order storage (1024 orders): 4 BRAM36 blocks (130 bits × 1024 entries)
+- Price level table (256 levels): 1 BRAM36 block (82 bits × 256 entries)
+- Async FIFO (CDC - ITCH parser): 1-2 BRAM36 blocks (gray code synchronizer)
+- UDP transmitter buffers: 1-2 BRAM36 blocks (packet assembly)
+
+**Note:** Projects 14-15 use software-based Disruptor pattern (POSIX shared memory), not FPGA BRAM
 
 **Timing:** All designs meet timing (WNS > 0 ns) at 100 MHz processing clock
 
