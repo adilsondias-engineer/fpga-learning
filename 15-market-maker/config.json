@@ -4,10 +4,14 @@
   "max_position": 500,
   "position_skew_bps": 1.0,
   "quote_size": 100,
-  "max_notional": 100000.0,
+  "max_notional": 1000000.0,
   "gateway_host": "localhost",
   "gateway_port": 9999,
-  "enable_rt": true,
-  "cpu_cores": [2, 3],
-  "enable_disruptor": true
+  "enable_rt": false,
+  "cpu_cores": [4,5],
+  "enable_disruptor": true,
+  "enable_order_execution": true,
+  "order_ring_path": "order_ring_mm",
+  "fill_ring_path": "fill_ring_oe",
+  "log_level": "warn"
 }

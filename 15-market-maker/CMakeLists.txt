@@ -16,7 +16,6 @@ if(WIN32)
 endif()
 
 # Set default build type to Debug if not specified
-# This is required for single-config generators (like Ninja) to work properly with IntelliSense
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
     message(STATUS "CMAKE_BUILD_TYPE not set, defaulting to Debug")
@@ -29,9 +28,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/../common)
 
-# Option to enable XDP support
-option(USE_XDP "Enable AF_XDP support for kernel bypass" OFF)
-
 # Source files
 set(SOURCES
     src/main.cpp
@@ -39,200 +35,19 @@ set(SOURCES
     src/bbo_parser.cpp
     src/market_maker_fsm.cpp
     src/position_tracker.cpp
+    src/order_producer.cpp
 )
-
-# Add XDP listener source if enabled
-if(USE_XDP)
-    list(APPEND SOURCES src/xdp_listener.cpp)
-    message(STATUS "XDP support enabled")
-    
-    # Try to find libbpf and libxdp (required for proper XDP support)
-    find_path(LIBBPF_INCLUDE_DIR bpf/bpf.h)
-    find_library(LIBBPF_LIBRARY bpf)
-    
-    # Find libxdp (required for XSK map population)
-    find_path(LIBXDP_INCLUDE_DIR xdp/libxdp.h)
-    find_library(LIBXDP_LIBRARY xdp)
-    
-    if(LIBBPF_INCLUDE_DIR AND LIBBPF_LIBRARY AND LIBXDP_INCLUDE_DIR AND LIBXDP_LIBRARY)
-        message(STATUS "libbpf found: ${LIBBPF_LIBRARY}")
-        message(STATUS "libxdp found: ${LIBXDP_LIBRARY}")
-        set(HAVE_LIBXDP TRUE)
-    else()
-        message(WARNING "libxdp not found - XDP bind will fail. Install: sudo apt-get install libxdp-dev")
-        set(HAVE_LIBXDP FALSE)
-    endif()
-else()
-    message(STATUS "XDP support disabled (use -DUSE_XDP=ON to enable)")
-endif()
 
 # Executable
 add_executable(market_maker ${SOURCES})
 
-# Configure XDP support after target is created
-if(USE_XDP)
-    target_compile_definitions(market_maker PRIVATE USE_XDP)
-    
-    # Link libbpf if found
-    # Link libbpf and libxdp if found
-    if(HAVE_LIBXDP)
-        target_include_directories(market_maker PRIVATE ${LIBBPF_INCLUDE_DIR} ${LIBXDP_INCLUDE_DIR})
-        target_link_libraries(market_maker PRIVATE ${LIBBPF_LIBRARY} ${LIBXDP_LIBRARY})
-        target_compile_definitions(market_maker PRIVATE HAVE_LIBXDP)
-        message(STATUS "XDP support enabled with libxdp")
-    else()
-        message(WARNING "XDP enabled but libxdp not found - XDP bind will fail")
-    endif()
-    
-    # Compile eBPF program
-    find_program(CLANG_EXECUTABLE clang)
-    if(CLANG_EXECUTABLE)
-        set(XDP_PROG_SRC "${CMAKE_SOURCE_DIR}/xdp/xdp_prog.c")
-        set(XDP_PROG_OBJ "${CMAKE_BINARY_DIR}/xdp_prog.o")
-        
-        # Find kernel headers
-        execute_process(
-            COMMAND uname -r
-            OUTPUT_VARIABLE KERNEL_VERSION
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-        
-        execute_process(
-            COMMAND uname -m
-            OUTPUT_VARIABLE ARCH
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-        
-        # Map architecture names (x86_64 -> x86)
-        if(ARCH STREQUAL "x86_64")
-            set(KERNEL_ARCH "x86")
-        else()
-            set(KERNEL_ARCH ${ARCH})
-        endif()
-        
-        # Find kernel source/build directory
-        set(KERNEL_SRC "")
-        set(KERNEL_BUILD "")
-        
-        # Try common locations
-        if(EXISTS "/lib/modules/${KERNEL_VERSION}/build")
-            set(KERNEL_BUILD "/lib/modules/${KERNEL_VERSION}/build")
-        elseif(EXISTS "/usr/src/linux-headers-${KERNEL_VERSION}")
-            set(KERNEL_BUILD "/usr/src/linux-headers-${KERNEL_VERSION}")
-        endif()
-        
-        # Build include flags - use kernel build directory as base
-        # Order matters! Architecture-specific paths must come first
-        set(INCLUDE_FLAGS "")
-        
-        if(KERNEL_BUILD)
-            # Architecture-specific UAPI includes FIRST (for asm/ includes)
-            if(EXISTS "${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include/generated/uapi")
-                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include/generated/uapi")
-            endif()
-            if(EXISTS "${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include/uapi")
-                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include/uapi")
-            endif()
-            if(EXISTS "${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include/generated")
-                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include/generated")
-            endif()
-            if(EXISTS "${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include")
-                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/arch/${KERNEL_ARCH}/include")
-            endif()
-            
-            # Main UAPI includes
-            if(EXISTS "${KERNEL_BUILD}/include/uapi")
-                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/include/uapi")
-            endif()
-            if(EXISTS "${KERNEL_BUILD}/include/generated/uapi")
-                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/include/generated/uapi")
-            endif()
-            
-            # Main include directory
-            if(EXISTS "${KERNEL_BUILD}/include")
-                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/include")
-            endif()
-            
-            # Tools/include (for bpf helpers)
-            if(EXISTS "${KERNEL_BUILD}/tools/include")
-                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/tools/include")
-            endif()
-            
-            # Tools/lib/bpf (for bpf helpers)
-            if(EXISTS "${KERNEL_BUILD}/tools/lib/bpf")
-                list(APPEND INCLUDE_FLAGS "-I${KERNEL_BUILD}/tools/lib/bpf")
-            endif()
-            
-            message(STATUS "Using kernel build directory: ${KERNEL_BUILD}")
-        else()
-            message(WARNING "Kernel build directory not found - eBPF compilation may fail")
-        endif()
-        
-        # Fallback to system includes
-        list(APPEND INCLUDE_FLAGS "-I/usr/include")
-        list(APPEND INCLUDE_FLAGS "-I/usr/include/x86_64-linux-gnu")
-        
-        # Also check for libbpf headers
-        if(LIBBPF_INCLUDE_DIR)
-            list(APPEND INCLUDE_FLAGS "-I${LIBBPF_INCLUDE_DIR}")
-        endif()
-        
-        # Convert -I flags to -isystem for kernel headers (better include resolution)
-        string(REPLACE "-I" "-isystem " SYSTEM_INCLUDE_FLAGS "${INCLUDE_FLAGS}")
-        
-        # Check if kernel has BTF support
-        execute_process(
-            COMMAND test -f /sys/kernel/btf/vmlinux
-            RESULT_VARIABLE BTF_AVAILABLE
-        )
-        
-        if(BTF_AVAILABLE EQUAL 0)
-            message(STATUS "Kernel BTF support detected - compiling with BTF")
-            set(BPF_FLAGS "-g")  # Include debug info for BTF
-        else()
-            message(STATUS "Kernel BTF not available - compiling without BTF")
-            set(BPF_FLAGS "")
-        endif()
-        
-        add_custom_command(
-            OUTPUT ${XDP_PROG_OBJ}
-            COMMAND ${CLANG_EXECUTABLE}
-                -O2
-                -target bpf
-                ${BPF_FLAGS}
-                -c ${XDP_PROG_SRC}
-                -o ${XDP_PROG_OBJ}
-                ${INCLUDE_FLAGS}
-                -Wno-unused-value
-                -Wno-pointer-sign
-                -Wno-compare-distinct-pointer-types
-                -Wno-gnu-variable-sized-type-not-at-end
-                -Wno-address-of-packed-member
-                -Wno-tautological-compare
-                -Wno-unknown-warning-option
-            DEPENDS ${XDP_PROG_SRC}
-            COMMENT "Compiling eBPF/XDP program"
-            VERBATIM
-        )
-        
-        add_custom_target(xdp_prog ALL DEPENDS ${XDP_PROG_OBJ})
-        
-        # Install the eBPF object file
-        install(FILES ${XDP_PROG_OBJ} DESTINATION bin RENAME xdp_prog.o)
-        
-        message(STATUS "eBPF program will be compiled to: ${XDP_PROG_OBJ}")
-        message(STATUS "Kernel version: ${KERNEL_VERSION}")
-    else()
-        message(WARNING "clang not found - eBPF program will not be compiled automatically")
-        message(WARNING "Install clang: sudo apt-get install clang")
-        message(WARNING "Then compile manually: clang -O2 -target bpf -c xdp/xdp_prog.c -o xdp_prog.o")
-    endif()
-endif()
-
+# Find and link required packages
 find_package(spdlog REQUIRED)
 target_link_libraries(market_maker PRIVATE spdlog::spdlog)
+
 find_package(nlohmann_json REQUIRED)
 target_link_libraries(market_maker PRIVATE nlohmann_json::nlohmann_json)
+
 # Add spdlog include directory
 target_include_directories(market_maker PRIVATE ${spdlog_INCLUDE_DIRS})
 
@@ -241,13 +56,12 @@ find_package(Threads REQUIRED)
 target_link_libraries(market_maker PRIVATE Threads::Threads)
 
 # Boost.Asio integration
-# Try to find Boost (works with vcpkg if vcpkg toolchain is set)
 find_package(Boost REQUIRED COMPONENTS system thread)
 
 if(Boost_FOUND)
     message(STATUS "Boost found: ${Boost_VERSION}")
     message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
-    
+
     # Link Boost.System (required for Boost.Asio error codes)
     if(TARGET Boost::system AND TARGET Boost::thread)
         target_link_libraries(market_maker PRIVATE Boost::system Boost::thread)
@@ -255,28 +69,33 @@ if(Boost_FOUND)
         target_link_libraries(market_maker PRIVATE boost_system boost_thread)
     else()
         # Fallback: link the library directly
-        find_library(BOOST_SYSTEM_LIB 
+        find_library(BOOST_SYSTEM_LIB
             NAMES boost_system
                   libboost_system
             PATHS ${Boost_LIBRARY_DIRS}
         )
-        if(BOOST_SYSTEM_LIB AND BOOST_THREAD_LIB    )
+        find_library(BOOST_THREAD_LIB
+            NAMES boost_thread
+                  libboost_thread
+            PATHS ${Boost_LIBRARY_DIRS}
+        )
+        if(BOOST_SYSTEM_LIB AND BOOST_THREAD_LIB)
             target_link_libraries(market_maker PRIVATE ${BOOST_SYSTEM_LIB} ${BOOST_THREAD_LIB})
         else()
             message(WARNING "Boost.System library not found, but headers should still work")
         endif()
     endif()
-    
+
     # Add Boost include directory
     if(Boost_INCLUDE_DIRS)
         target_include_directories(market_maker PRIVATE ${Boost_INCLUDE_DIRS})
     endif()
-    
+
     # Define preprocessor macro to indicate Boost.Asio is available
     target_compile_definitions(market_maker PRIVATE USE_BOOST_ASIO)
     message(STATUS "Boost.Asio configured successfully")
 else()
-    message(FATAL_ERROR 
+    message(FATAL_ERROR
         "Boost not found!\n"
         "Install Boost using one of these methods:\n"
         "  1. vcpkg: vcpkg install boost-system\n"

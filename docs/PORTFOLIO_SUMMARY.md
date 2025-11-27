@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-**Complete full-stack FPGA trading system** from hardware acceleration to ultra-low-latency automated trading. Implements wire-to-application processing with sub-5μs FPGA latency + XDP kernel bypass (40ns) + lock-free Disruptor IPC achieving <2μs end-to-end (FPGA → Trading Decision). Multi-protocol distribution (TCP/MQTT/Kafka) to desktop, mobile, and IoT clients.
+**Complete full-stack FPGA trading system** from hardware acceleration to multi-platform applications. Implements wire-to-application processing with sub-5μs FPGA latency + multi-protocol distribution (TCP/MQTT/Kafka) to desktop, mobile, and IoT clients.
 
 **Unique Value Proposition:** 20+ years C++ systems engineering + 5 years active futures trading (S&P 500, Nasdaq) + FPGA hardware acceleration + full-stack application development (C++, Java, .NET, IoT).
 
@@ -96,48 +96,48 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 ## Technical Skills Matrix
 
 ### HDL & FPGA Architecture
-- ✅ VHDL design (complex state machines, memory systems, protocol parsers)
-- ✅ BRAM inference and optimization
-- ✅ Multi-stage FSM pipelines
-- ✅ Timing closure and critical path optimization
+- [COMPLETE] VHDL design (complex state machines, memory systems, protocol parsers)
+- [COMPLETE] BRAM inference and optimization
+- [COMPLETE] Multi-stage FSM pipelines
+- [COMPLETE] Timing closure and critical path optimization
 
 ### Network & Protocol Processing
-- ✅ Ethernet/MII physical layer
-- ✅ UDP/IP stack implementation
-- ✅ NASDAQ ITCH 5.0 protocol (9 message types)
-- ✅ Binary protocol parsing (big-endian, checksums)
+- [COMPLETE] Ethernet/MII physical layer
+- [COMPLETE] UDP/IP stack implementation
+- [COMPLETE] NASDAQ ITCH 5.0 protocol (9 message types)
+- [COMPLETE] Binary protocol parsing (big-endian, checksums)
 
 ### Clock Domain Crossing & Timing
-- ✅ Gray code FIFO synchronizers
-- ✅ Metastability protection
-- ✅ XDC constraint management
-- ✅ Multi-clock domain systems (25 MHz PHY, 100 MHz processing)
+- [COMPLETE] Gray code FIFO synchronizers
+- [COMPLETE] Metastability protection
+- [COMPLETE] XDC constraint management
+- [COMPLETE] Multi-clock domain systems (25 MHz PHY, 100 MHz processing)
 
 ### Verification & Debug
-- ✅ Self-checking VHDL testbenches
-- ✅ Python/Scapy automated testing (1000+ packet stress tests)
-- ✅ Hardware validation on real FPGA
-- ✅ Systematic troubleshooting methodology
+- [COMPLETE] Self-checking VHDL testbenches
+- [COMPLETE] Python/Scapy automated testing (1000+ packet stress tests)
+- [COMPLETE] Hardware validation on real FPGA
+- [COMPLETE] Systematic troubleshooting methodology
 
 ### Trading Domain Knowledge
-- ✅ Order book mechanics (bid/ask levels, price-time priority)
-- ✅ Market data formats (ITCH 5.0 order lifecycle)
-- ✅ Latency requirements (HFT microsecond sensitivity)
-- ✅ Symbol filtering and message routing
+- [COMPLETE] Order book mechanics (bid/ask levels, price-time priority)
+- [COMPLETE] Market data formats (ITCH 5.0 order lifecycle)
+- [COMPLETE] Latency requirements (HFT microsecond sensitivity)
+- [COMPLETE] Symbol filtering and message routing
 
 ### Systems & Application Development
-- ✅ C++ multi-threaded architecture (Boost.Asio async I/O)
-- ✅ Protocol integration (TCP, MQTT, Kafka)
-- ✅ Mobile development (.NET MAUI, MVVM pattern)
-- ✅ Desktop applications (Java, JavaFX)
-- ✅ IoT/Embedded (ESP32, Arduino)
-- ✅ Cross-platform development challenges
+- [COMPLETE] C++ multi-threaded architecture (Boost.Asio async I/O)
+- [COMPLETE] Protocol integration (TCP, MQTT, Kafka)
+- [COMPLETE] Mobile development (.NET MAUI, MVVM pattern)
+- [COMPLETE] Desktop applications (Java, JavaFX)
+- [COMPLETE] IoT/Embedded (ESP32, Arduino)
+- [COMPLETE] Cross-platform development challenges
 
 ### Protocol Expertise
-- ✅ TCP socket programming (JSON streaming, newline delimiters)
-- ✅ MQTT (QoS levels, v3.1.1 vs v5.0, broker architecture)
-- ✅ Kafka (producers, topics, partitions - reserved for analytics)
-- ✅ Protocol selection trade-offs (latency, reliability, power consumption)
+- [COMPLETE] TCP socket programming (JSON streaming, newline delimiters)
+- [COMPLETE] MQTT (QoS levels, v3.1.1 vs v5.0, broker architecture)
+- [COMPLETE] Kafka (producers, topics, partitions - reserved for analytics)
+- [COMPLETE] Protocol selection trade-offs (latency, reliability, power consumption)
 
 ---
 
@@ -171,9 +171,9 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 **Problem Solved:** Bridge FPGA to diverse application types (desktop, mobile, IoT, analytics)
 **Architecture:** Multi-threaded gateway with UART reader, BBO parser (hex→decimal), three protocol publishers
 **Key Innovation:** Single gateway publishes simultaneously to TCP, MQTT, and Kafka—matching protocol to client requirements
-**Technologies:** C++17, Boost.Asio, libmosquitto (MQTT), librdkafka, nlohmann/json
+**Technologies:** C++17 (legacy), Boost.Asio, libmosquitto (MQTT), librdkafka, nlohmann/json
 **Performance:** 10.67 μs avg parse latency, 6.32 μs P50 (UART → protocol)
-**Status:** Functional, performance testing in progress
+**Status:** Functional, superseded by Project 14 (C++20 with XDP)
 
 ### Project 10: ESP32 IoT Live Ticker (Physical Display)
 **Problem Solved:** Trading floor ticker display with real-time BBO updates
@@ -196,10 +196,10 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 **Technologies:** Java 21, JavaFX, Gson, Maven
 **Features:** Live BBO table, spread charts, multi-symbol tracking
 
-### Project 14: C++ Order Gateway (UDP/XDP + Disruptor)
-**Problem Solved:** Eliminate kernel network stack overhead AND IPC latency with XDP kernel bypass + lock-free shared memory
-**Architecture:** XDP listener (AF_XDP + eBPF), binary BBO parser, Disruptor producer (lock-free IPC), multi-protocol publisher (TCP/MQTT/Kafka)
-**Key Innovation:** AF_XDP zero-copy + LMAX Disruptor pattern eliminates both kernel and IPC overhead (40ns parse + <100ns IPC)
+### Project 14: C++ Order Gateway (UDP/XDP - Kernel Bypass)
+**Problem Solved:** Eliminate kernel network stack overhead with AF_XDP kernel bypass for minimal latency
+**Architecture:** XDP listener (AF_XDP + eBPF), binary BBO parser, multi-protocol publisher (TCP/MQTT/Kafka)
+**Key Innovation:** AF_XDP zero-copy packet reception with eBPF redirect achieves 40ns (0.04 μs) parsing latency
 **Performance XDP Mode (Validated with 78,606 samples):**
   - **Average:** 0.04 μs (40 nanoseconds)
   - **P50:** 0.03 μs
@@ -210,13 +210,8 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 **XDP Architecture:**
   - **eBPF Program:** Redirects UDP port 5000 packets to XSK map
   - **AF_XDP Socket:** Zero-copy UMEM shared memory (8MB, 4096 frames)
-  - **XDP Ring Buffers:** RX, Fill, Completion rings
+  - **Ring Buffers:** RX, Fill, Completion rings
   - **Queue:** Combined channel 4, queue_id 3 (hardware-specific configuration)
-**Disruptor IPC Architecture:**
-  - **LMAX Disruptor Pattern:** Lock-free ring buffer (1024 slots)
-  - **Shared Memory:** POSIX /dev/shm/gateway (4KB, page-aligned)
-  - **Memory Ordering:** std::memory_order_acquire/release (no mutexes)
-  - **Cache-Line Alignment:** Producer/consumer cursors on separate cache lines
 **Performance Comparisons:**
   - **XDP vs UDP:** 5× faster (0.04 μs vs 0.20 μs)
   - **XDP vs UART (Project 09):** 267× faster (10.67 μs → 0.04 μs)
@@ -225,41 +220,143 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
   - **CPU Pinning:** Core 5 (isolated)
   - **CPU Isolation:** GRUB parameters (isolcpus=2-5, nohz_full=2-5, rcu_nocbs=2-5)
   - **Hardware:** AMD Ryzen AI 9 365 w/ Radeon 880M
-**Technologies:** C++17, Boost.Asio, libxdp, libbpf, POSIX shared memory, lock-free atomics, pthread (RT scheduling), libmosquitto, librdkafka
-**Status:** Complete, XDP + Disruptor integration validated with large dataset
+**Technologies:** C++20, Boost.Asio, libxdp, libbpf, pthread (RT scheduling), libmosquitto, librdkafka
+**Status:** Complete, XDP mode validated with large dataset
 
-### Project 15: Market Maker FSM (Disruptor Consumer + Automated Trading)
-**Problem Solved:** Ultra-low-latency market making with lock-free IPC and real-time position management
-**Architecture:** Disruptor consumer (lock-free shared memory from Project 14), FSM-based quote generation, position tracker, risk manager
-**Key Innovation:** Disruptor IPC eliminates TCP/JSON overhead—zero-copy binary BBO consumption with lock-free coordination
-**Performance (Disruptor Mode - Validated with 78,606 samples):**
-  - **Disruptor Read:** < 0.1 μs (lock-free polling, no syscalls)
-  - **FSM Processing:** < 1 μs (fair value calculation + quote generation + risk checks)
-  - **Total Project 15 Latency:** < 2 μs (BBO read → trading decision)
-**End-to-End Latency Chain (XDP + Disruptor Architecture):**
-  - FPGA → Project 14 XDP Parse: 0.04 μs
-  - Project 14 → Disruptor Write: < 0.1 μs (lock-free publish)
-  - Disruptor → Project 15 Read: < 0.1 μs (lock-free poll)
-  - Project 15 FSM Processing: < 1 μs
-  - **Total:** < 2 μs (FPGA BBO → Trading Decision)
+### Project 15: Market Maker FSM - Automated Quote Generation
+**Problem Solved:** Automated market making strategy with real-time position management and risk controls
+**Architecture:** TCP client (connects to Project 14), FSM-based quote generation, position tracker, risk manager
+**Key Innovation:** FSM-driven automated quoting with position-based inventory skew and pre-trade risk checks
+**Performance (Validated with 78,606 samples):**
+  - **Average:** 12.73 μs (TCP read + JSON parse + FSM processing)
+  - **P50:** 11.76 μs
+  - **P99:** 21.53 μs
+  - **Std Dev:** 3.58 μs
+**End-to-End Latency Chain:**
+  - FPGA → Project 14 (XDP): 0.04 μs
+  - Project 14 → Project 15 (TCP + JSON): 12.73 μs
+  - **Total:** ~12.77 μs (FPGA BBO → Trading Decision)
 **Trading Features:**
   - **Fair Value Calculation:** Size-weighted mid-price
   - **Quote Generation:** Two-sided markets with position-based skew
   - **Position Management:** Real-time PnL tracking (realized + unrealized)
   - **Risk Controls:** Position limits (500 shares), notional limits ($100k), spread enforcement (5 bps)
 **FSM States:** IDLE → CALCULATE → QUOTE → RISK_CHECK → ORDER_GEN → WAIT_FILL
-**Disruptor IPC Details:**
-  - **Shared Memory:** /dev/shm/gateway (POSIX shared memory)
-  - **Ring Buffer:** 1024-slot lock-free circular buffer
-  - **Coordination:** Sequencer with cache-line-aligned cursors
-  - **Mode:** Busy-wait polling (no blocking, no context switches)
 **RT Optimization:**
   - **Scheduling:** SCHED_FIFO priority 50
   - **CPU Pinning:** Cores 2-3 (isolated)
-  - **CPU Isolation:** Shared with Project 14 (isolcpus=2-5, nohz_full=2-5)
-**Technologies:** C++20, POSIX shared memory, lock-free atomics, spdlog
-**Dependencies:** Requires Project 14 running (Disruptor producer)
-**Status:** Complete, Disruptor IPC validated with 78,606 real market data samples
+**Technologies:** C++20, Boost.Asio (TCP), nlohmann/json, spdlog, LMAX Disruptor (for Project 16 integration)
+**Dependencies:** Requires Project 14 running (TCP server localhost:9999)
+**Project 16 Integration:**
+  - **OrderProducer class:** Bidirectional Disruptor communication with Project 16
+  - **Order Ring Buffer:** Sends orders to Order Execution Engine
+  - **Fill Ring Buffer:** Receives fill notifications from Order Execution Engine
+  - **processFills() method:** Updates position tracker with executed trades
+  - **Config flag:** `enable_order_execution` (default: false)
+**Status:** Complete, tested with 78,606 real market data samples + Project 16 order execution loop
+
+### Project 16: Order Execution Engine - Simulated Exchange
+**Problem Solved:** Complete the order execution loop with FIX 4.2 protocol and price-time priority matching
+**Architecture:** Disruptor consumer (orders), matching engine, FIX encoder/decoder, Disruptor producer (fills)
+**Key Innovation:** Lock-free bidirectional communication using dual Disruptor ring buffers (orders + fills)
+**Components:**
+  - **Order Ring Buffer Consumer:** Receives orders from Project 15 Market Maker
+  - **Matching Engine:** Price-time priority order matching algorithm
+  - **FIX 4.2 Protocol:** Encoder/decoder for NewOrderSingle (D) and ExecutionReport (8)
+  - **Fill Ring Buffer Producer:** Sends fill notifications back to Project 15
+  - **Simulated Exchange:** Immediate fills at order price (100% fill rate for testing)
+**Performance:**
+  - **Order Processing:** ~1 μs (Disruptor read → match → FIX encode)
+  - **Fill Notification:** <1 μs (FIX encode → Disruptor write)
+  - **Round-Trip:** ~2 μs (Project 15 → Project 16 → Project 15)
+**FIX 4.2 Messages Implemented:**
+  - **NewOrderSingle (MsgType=D):** Order submissions from Market Maker
+  - **ExecutionReport (MsgType=8):** Fill notifications (ExecType=2, OrdStatus=2)
+  - **OrderCancelRequest (MsgType=F):** Order cancellations (not yet used)
+**Ring Buffer Configuration:**
+  - **Order Ring:** `/dev/shm/order_ring_mm` (1024 slots, lock-free)
+  - **Fill Ring:** `/dev/shm/fill_ring_oe` (1024 slots, lock-free)
+  - **Single Writer/Single Reader:** Optimized for sub-microsecond latency
+**Technologies:** C++20, LMAX Disruptor, FIX 4.2 protocol, shared memory IPC
+**Dependencies:** Works with Project 15 when `enable_order_execution=true`
+**Status:** Complete, full order execution loop validated with position tracking
+
+### Project 17: Hardware Timestamping and Latency Measurement
+**Problem Solved:** Measure packet reception latency with nanosecond precision for performance validation
+**Architecture:** SO_TIMESTAMPING socket wrapper, lock-free latency histogram, Prometheus exporter
+**Key Innovation:** Kernel-level software timestamps capture packet arrival at network stack (~10-50ns precision)
+**Components:**
+  - **TimestampSocket:** UDP socket with SO_TIMESTAMPING ancillary data extraction
+  - **LatencyTracker:** Lock-free histogram (25 buckets, 50ns-5s+) with percentile calculation
+  - **PrometheusExporter:** HTTP /metrics endpoint for Grafana/Prometheus monitoring
+**Latency Measurement:**
+  - **Kernel RX Timestamp:** Packet arrival at kernel network stack (SO_TIMESTAMPING)
+  - **Application RX Timestamp:** Packet received by userspace via recvmsg()
+  - **Kernel→App Latency:** System call overhead + context switching + memory copy
+**Expected Performance:**
+  - **Loopback (localhost):** 1-5 μs typical, 10-20 μs P99
+  - **LAN (1 GbE):** 10-50 μs typical, 100-200 μs P99
+  - **LAN (10 GbE):** 5-20 μs typical, 50-100 μs P99
+**Lock-Free Histogram:**
+  - Atomic operations (fetch_add, CAS) for thread-safe recording without locks
+  - Sub-microsecond overhead per measurement (~100-200ns)
+  - Suitable for >1M packets/sec throughput
+**Prometheus Metrics:**
+  - Histogram buckets with cumulative counts
+  - Percentiles (P50, P90, P95, P99, P99.9) as gauges
+  - Summary statistics (min, max, mean, stddev)
+**Configuration:**
+  - UDP port, Prometheus port, network interface binding
+  - Latency thresholds (warning: 100μs, critical: 1ms)
+  - Sample buffer size (default: 100k samples)
+**Hardware Upgrade Path:**
+  - Current: Kernel software timestamps (portable, works with any NIC)
+  - Future: Hardware NIC timestamps (Intel i210, Solarflare, Mellanox)
+  - Code change: SOF_TIMESTAMPING_RX_HARDWARE instead of RX_SOFTWARE
+**Integration with Projects 14-16:**
+  - Option 1: Link against libtimestamp_lib.a for embedded timestamping
+  - Option 2: Run timestamp_demo alongside existing projects for monitoring
+**Technologies:** C++20, Linux SO_TIMESTAMPING, Prometheus format, nlohmann/json
+**Status:** Complete, standalone demo with Prometheus metrics export
+
+### Project 18: Complete Trading System Integration
+**Problem Solved:** Unified orchestration of entire trading system with lifecycle management and centralized monitoring
+**Architecture:** System orchestrator, process management, health monitoring, metrics aggregation, Prometheus exporter
+**Key Innovation:** Single-command startup/shutdown with automatic dependency resolution and graceful resource cleanup
+**Components:**
+  - **SystemOrchestrator:** Master process managing Projects 14, 15, 16 lifecycle
+  - **MetricsAggregator:** Collects and aggregates metrics from all components
+  - **PrometheusServer:** HTTP /metrics endpoint (port 9094) for Grafana dashboards
+  - **Health Monitor:** Continuous health checks (TCP, Prometheus, process alive)
+**Data Flow:**
+  1. FPGA (P13) → UDP → Project 14 (Order Gateway)
+  2. Project 14 → TCP JSON → Project 15 (Market Maker)
+  3. Project 15 → Disruptor (/dev/shm/order_ring_mm) → Project 16 (Order Execution)
+  4. Project 16 → FIX Protocol → Simulated Exchange
+  5. Exchange → FIX ExecutionReport → Project 16
+  6. Project 16 → Disruptor (/dev/shm/fill_ring_oe) → Project 15
+  7. Project 15 → Position Update → Next Trading Decision
+**Startup Sequence:**
+  1. Load system_config.json, cleanup stale shared memory
+  2. Start P14 - wait for TCP port 9999
+  3. Start P15 after 2s - verify P14 running
+  4. Start P16 after 3s - verify P15 running
+  5. Start metrics aggregator, Prometheus server
+  6. Enter monitoring loop (500ms health checks)
+**Shutdown Sequence:** Stop metrics/Prometheus → P16 → P15 → P14 (SIGTERM/10s/SIGKILL) → cleanup shared memory
+**Prometheus Metrics:**
+  - Counters: BBO updates, orders, fills, ring buffer wraps, uptime
+  - Gauges: Position (per-symbol + total), PnL (realized + unrealized)
+  - Latency: End-to-end (min/p50/p99/max/mean), per-component P99
+  - Ring buffers: Current depth, max depth
+**Health Monitoring:**
+  - P14: TCP connection test (port 9999)
+  - P15/P16: Prometheus HTTP GET
+  - All: Process alive check
+  - Interval: 500ms
+**Shared Memory Management:** Automatic cleanup of /dev/shm/order_ring_mm and /dev/shm/fill_ring_oe on startup/shutdown
+**Technologies:** C++20, fork/exec, POSIX signals, shared memory (shm_open/shm_unlink), Prometheus, nlohmann/json
+**Status:** Complete - Matches original Project 17 vision (full trading loop + metrics + monitoring)
 
 ---
 
@@ -280,19 +377,16 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 - **Project 09 (UART):** Initial implementation, 10.67 μs avg latency, hex parsing overhead
 - **Project 14 (UDP Standard):** 0.20 μs avg latency (53× faster), binary protocol + RT optimization
 - **Project 14 (XDP Kernel Bypass):** 0.04 μs avg latency (267× faster), AF_XDP zero-copy + eBPF
-- **Project 14 (XDP + Disruptor):** 0.04 μs parse + <0.1 μs IPC = <0.15 μs total, lock-free shared memory
 
 **Trading Strategy Layer:**
-- **Project 15 (TCP Mode - Legacy):** 12.73 μs avg latency (TCP client → automated quoting)
-- **Project 15 (Disruptor Mode):** <2 μs total latency (lock-free IPC → automated quoting)
-- **End-to-End (XDP + Disruptor):** <2 μs (FPGA → Trading Decision) - **6× faster than TCP mode**
+- **Project 15 (Market Maker FSM):** 12.73 μs avg latency (TCP client → automated quoting)
+- **End-to-End:** ~12.77 μs (FPGA → Trading Decision)
 
 **Key Architectural Lessons:**
 - **Protocol Choice:** Match protocol to client requirements—don't force one protocol for everything
 - **Gateway Pattern:** Enables protocol diversity without coupling FPGA to applications
 - **Interface Impact:** UART → UDP → XDP demonstrates exponential improvement from interface optimization
 - **Kernel Bypass:** XDP eliminates network stack overhead, achieving 40ns latency (5× faster than standard UDP)
-- **Lock-Free IPC:** Disruptor pattern eliminates TCP/JSON overhead, achieving sub-microsecond IPC (60× faster than TCP for local communication)
 
 ---
 
@@ -319,20 +413,17 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 
 ## Resource Utilization (Artix-7 XC7A100T)
 
-| Resource | Used | Available | % |
-|----------|------|-----------|---|
-| Slice LUTs | 30,000 | 63,400 | 47% |
-| Slice Registers | 16,000 | 126,800 | 13% |
-| RAMB36 | 32 | 135 | 24% |
-| DSP48E | 0 | 240 | 0% |
+| Resource | Used | Available | Utilization |
+|----------|------|-----------|-------------|
+| Slice LUTs | ~10,000 | 63,400 | ~16% |
+| Slice Registers | ~8,000 | 126,800 | ~6% |
+| BRAM Tiles | 6-8 | 135 | ~5% |
+| DSP Slices | 0 | 240 | 0% |
 
-**BRAM Breakdown (FPGA Projects 6-8):**
-- Order storage (1024 orders): 4 BRAM36 blocks (130 bits × 1024 entries)
-- Price level table (256 levels): 1 BRAM36 block (82 bits × 256 entries)
-- Async FIFO (CDC - ITCH parser): 1-2 BRAM36 blocks (gray code synchronizer)
-- UDP transmitter buffers: 1-2 BRAM36 blocks (packet assembly)
-
-**Note:** Projects 14-15 use software-based Disruptor pattern (POSIX shared memory), not FPGA BRAM
+**BRAM Breakdown:**
+- Order storage: 4 BRAM36 blocks
+- Price level table: 1 BRAM36 block
+- Async FIFO (CDC): 1-2 BRAM36 blocks
 
 **Timing:** All designs meet timing (WNS > 0 ns) at 100 MHz processing clock
 
@@ -391,7 +482,7 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 
 **Full-Stack Capability:**
 - Complete vertical integration: Ethernet PHY → FPGA → Gateway → Desktop/Mobile/IoT
-- Multiple languages: VHDL, C++17, Java 21, C# (.NET 10), Arduino (C++)
+- Multiple languages: VHDL, C++17/20, Java 21, C# (.NET 10), Arduino (C++)
 - Multiple platforms: FPGA, Windows, Linux, Android, iOS, ESP32
 - Ready for any trading technology role (FPGA, systems, infrastructure, application)
 

@@ -84,7 +84,7 @@ struct DisruptorClientWrapper : public ListenerBase {
     void stop() override { impl->disconnect(); }
     gateway::BBOData read_bbo() override {
         // Read BBO from Disruptor
-        gateway::BBOData bbo = impl->read_bbo(100000);  // 100ms timeout
+        gateway::BBOData bbo = impl->read_bbo(10000);   // 10ms timeout (balanced)
 
         // Debug: check BBO state for first few samples
         static int debug_count = 0;
@@ -94,8 +94,9 @@ struct DisruptorClientWrapper : public ListenerBase {
                          monitor_ ? "set" : "null");
         }
 
-        // Measure latency from BBO timestamp to now (end-to-end latency)
-        if (bbo.valid && bbo.timestamp_ns > 0) {
+        // Measure latency occasionally (every 100th sample for performance)
+        static uint64_t sample_counter = 0;
+        if (bbo.valid && bbo.timestamp_ns > 0 && (++sample_counter % 100 == 0)) {
             auto now = std::chrono::high_resolution_clock::now();
             auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                 now.time_since_epoch()).count();
@@ -103,14 +104,12 @@ struct DisruptorClientWrapper : public ListenerBase {
 
             if (monitor_) {
                 monitor_->recordLatency(latency_ns);
-                // Debug: log first 5 samples
+                // Debug: log first 5 samples only
                 static int sample_count = 0;
                 if (++sample_count <= 5) {
                     spdlog::info("Recorded latency sample #{}: {} ns ({} μs)",
                                  sample_count, latency_ns, latency_ns / 1000.0);
                 }
-            } else {
-                spdlog::warn("Monitor is null!");
             }
         }
 
@@ -145,7 +144,7 @@ mm::BBO convertBboData(const gateway::BBOData& bbo_data) {
 int main(int argc, char** argv) {
     auto console = spdlog::stdout_color_mt("market_maker");
     spdlog::set_default_logger(console);
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::warn);  // Default to warn for performance
 
     std::string config_file = "config.json";
     if (argc > 1) {
@@ -158,6 +157,7 @@ int main(int argc, char** argv) {
     bool enable_rt = false;
     bool enable_disruptor = false;
     std::vector<int> cpu_cores = {2, 3};
+    bool enable_order_execution = false;
 
     std::ifstream config_stream(config_file);
     if (config_stream.is_open()) {
@@ -197,6 +197,22 @@ int main(int argc, char** argv) {
             }
             if (config_json.contains("enable_disruptor")) {
                 enable_disruptor = config_json["enable_disruptor"];
+            }
+            if (config_json.contains("enable_order_execution")) {
+                mm_config.enable_order_execution = config_json["enable_order_execution"];
+            }
+            if (config_json.contains("order_ring_path")) {
+                mm_config.order_ring_path = config_json["order_ring_path"].get<std::string>();
+            }
+            if (config_json.contains("fill_ring_path")) {
+                mm_config.fill_ring_path = config_json["fill_ring_path"].get<std::string>();
+            }
+            if (config_json.contains("log_level")) {
+                std::string log_level = config_json["log_level"].get<std::string>();
+                if (log_level == "debug") spdlog::set_level(spdlog::level::debug);
+                else if (log_level == "info") spdlog::set_level(spdlog::level::info);
+                else if (log_level == "warn") spdlog::set_level(spdlog::level::warn);
+                else if (log_level == "error") spdlog::set_level(spdlog::level::err);
             }
 
             spdlog::info("Loaded config from {}", config_file);
@@ -249,13 +265,15 @@ int main(int argc, char** argv) {
 
         while (g_running) {
             try {
+                // Process any fill notifications from Project 16
+                fsm.processFills();
+
+                // Process BBO updates
                 gateway::BBOData bbo_data = g_listener->read_bbo();
                 mm::BBO bbo = convertBboData(bbo_data);
 
                 if (bbo.valid) {
                     fsm.onBboUpdate(bbo);
-                } else {
-                    spdlog::warn("Received invalid BBO");
                 }
             } catch (const std::exception& e) {
                 if (g_running) {
