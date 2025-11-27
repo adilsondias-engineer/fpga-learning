@@ -267,7 +267,7 @@ using namespace timestamp;
 
 int main() {
     // Create timestamping socket (instead of raw UDP socket)
-    TimestampSocket socket(12345);
+    TimestampSocket socket(5000);
 
     // Create latency tracker
     LatencyTracker tracker("order_gateway_rx", 100000);
@@ -405,10 +405,6 @@ rate(latency_kernel_to_app_ns_count[1m])
 sum(rate(latency_kernel_to_app_ns_bucket[1m])) by (le)
 ```
 
-### 3. Sample Grafana Dashboard JSON
-
-See [grafana-dashboard.json](docs/grafana-dashboard.json) for complete dashboard configuration.
-
 ---
 
 ## Troubleshooting
@@ -451,7 +447,7 @@ sudo ethtool -C eth0 rx-usecs 0
 **Solution 1:** Use port >1024:
 ```json
 {
-  "udp_port": 12345,
+  "udp_port": 5000,
   "metrics_port": 9090
 }
 ```
@@ -468,7 +464,7 @@ sudo setcap 'cap_net_bind_service=+ep' ./timestamp_demo
 **Solution:**
 ```bash
 # Allow UDP port
-sudo ufw allow 12345/udp
+sudo ufw allow 5000/udp
 
 # Or disable firewall (testing only)
 sudo ufw disable
@@ -540,23 +536,7 @@ sudo ethtool -T eth0
 #   hardware-receive
 ```
 
----
-
-## Comparison: Software vs Hardware Timestamps
-
-| Feature | Kernel Software | Hardware NIC |
-|---------|----------------|--------------|
-| **Precision** | ~10-50 ns | ~1-10 ns |
-| **Latency** | ~10-100 μs | ~1-10 μs |
-| **CPU Overhead** | Minimal (~100 ns) | Near-zero |
-| **NIC Requirement** | Any NIC | Intel i210, Solarflare, Mellanox |
-| **Cost** | $0 (software only) | $100-$500 (specialized NIC) |
-| **Portability** | Works everywhere | Linux 3.0+ with PTP NIC |
-| **Use Case** | Development, testing, most HFT | Ultra-low-latency HFT (<1μs) |
-
-**Recommendation:** Start with kernel software timestamps (current implementation). Upgrade to hardware timestamps only if you need <5μs latency.
-
----
+--
 
 ## Testing and Validation
 
