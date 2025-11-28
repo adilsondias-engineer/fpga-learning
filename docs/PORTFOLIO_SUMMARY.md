@@ -10,7 +10,7 @@
 
 **Complete full-stack FPGA trading system** from hardware acceleration to multi-platform applications. Implements wire-to-application processing with sub-5μs FPGA latency + multi-protocol distribution (TCP/MQTT/Kafka) to desktop, mobile, and IoT clients.
 
-**Unique Value Proposition:** 20+ years C++ systems engineering + 5 years active futures trading (S&P 500, Nasdaq) + FPGA hardware acceleration + full-stack application development (C++, Java, .NET, IoT).
+**Unique Value Proposition:** 20+ years C++ systems engineering + 17 years active/intermittent futures trading (S&P 500, Nasdaq) + FPGA hardware acceleration + full-stack application development (C++, Java, .NET, IoT).
 
 **Development Achievement:** 18 complete projects, 360+ hours of development, demonstrating end-to-end trading infrastructure from FPGA hardware acceleration to automated market making strategies.
 
@@ -483,7 +483,7 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 - Performance metrics: actual latency numbers, stress test validation
 
 **Domain Expertise:**
-- Active trader background (5 years S&P 500, Nasdaq futures)
+- Active/Intermittent trader background (17 years S&P 500, Nasdaq futures)
 - Understands order books, market data, latency requirements, protocol selection trade-offs
 - Speaks hardware, software, trading, and infrastructure languages
 
@@ -562,8 +562,8 @@ fpga-trading-systems/
 
 ---
 
-**Project Status:** **FUNCTIONAL** - All 15 projects implemented and tested (November 2025)
-**Development Time:** 320+ hours
+**Project Status:** **FUNCTIONAL** - All 18 projects implemented and tested (November 2025)
+**Development Time:** 360+ hours
 **System Status:** Fully integrated and operational with NASDAQ ITCH feed (historic data file simulating live feed)
 
 ---

@@ -726,7 +726,7 @@ Recovery strategy: Always return to IDLE on `udp_payload_end`.
 ## Project Statistics
 
 - **Lines of Code:** ~1,600 VHDL (Phase 2 + Phase 3 modules)
-- **Development Time:** 16 days (Oct 25 - Nov 10, 2025) - ~200 hours intensive development (12+ hr/day incl. weekends)
+- **Development Time:** ~200 hours intensive development after business hours and incl. weekends
 - **Test Cases:** 6 automated Python scripts
 - **Documentation:** Complete specification + comprehensive README
 - **Build Versions:** 45+ tracked builds (v1-v45 since build counter added in v2; many more untracked builds in Projects 1-6)
