@@ -13,7 +13,7 @@ Hardware-accelerated market data processing and order book management for low-la
 
 **Technical Background:**
 - 20+ years C++ systems engineering (distributed systems, real-time processing, network protocols)
-- 5 years active futures trading (S&P 500, Nasdaq 100)
+- 17 years(since 2008) intermittently futures trading (S&P 500, Nasdaq 100)
 - FPGA hardware acceleration specialist focusing on trading infrastructure
 
 **Domain Expertise:** Combining software engineering experience with active trading knowledge to build FPGA-based market data systems and order management infrastructure.
