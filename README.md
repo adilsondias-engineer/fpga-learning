@@ -154,6 +154,7 @@ Progressive architecture development from digital design fundamentals to product
 - **Technologies:** C++20, Boost.Asio (TCP), nlohmann/json, spdlog, LMAX Disruptor (Project 16 integration)
 - **Project 16 Integration:** OrderProducer class for bidirectional Disruptor communication
 - **Status:** Complete, tested with 78,606 real market data samples + order execution loop
+- **Video Demo:** [Order Gateway & Market Maker Console Demo](https://youtu.be/qgB3gz-yDbA) - Live demonstration of Projects 14 and 15 working together
 
 **Project 16: Order Execution Engine - Simulated Exchange** *[COMPLETE]**
 - **Purpose:** Complete order execution loop with FIX 4.2 protocol and price-time priority matching
@@ -247,6 +248,10 @@ Each project includes:
 ![System Architecture](docs/images/system_architecture.png)
 
 *Complete end-to-end trading system showing FPGA → C++ Gateway → Multi-Protocol Distribution (TCP/MQTT/Kafka) → Applications (Desktop/Mobile/IoT)*
+
+**Video Demonstrations:**
+- [Full Application Stack - Desktop, Mobile, and IoT Clients (Part 1)](https://youtube.com/shorts/mg-O1LkSjHM?feature=share)
+- [Full Application Stack - Mobile Applications (Part 2)](https://youtube.com/shorts/PKjIAbwuvL4?feature=share)
 
 ---
 
@@ -344,6 +349,8 @@ The test data includes real order flow and trades from a full trading day, provi
 All performance metrics and latency measurements in this documentation are based on processing this real-world dataset.
 
 **Detailed database information:** See [docs/database.md](docs/database.md) for complete extraction process, message distribution, and data quality validation.
+
+**Video Demonstration:** [Live/Historic NASDAQ ITCH Data Feed to FPGA](https://youtu.be/J0E2pCwZ-QE) - Shows FPGA receiving and processing real NASDAQ ITCH 5.0 market data
 
 ## Technical Skills
 ### HDL Design & Architecture

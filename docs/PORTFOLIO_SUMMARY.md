@@ -67,6 +67,8 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 
 **Detailed Information:** See [database.md](database.md) for extraction process, message distribution, historical context, and data quality validation.
 
+**Video Demonstration:** [Live/Historic NASDAQ ITCH Data Feed to FPGA](https://youtu.be/J0E2pCwZ-QE) - Shows FPGA receiving and processing real NASDAQ ITCH 5.0 market data
+
 ### 4. Production Techniques Demonstrated
 
 **Clock Domain Crossing:**
@@ -196,6 +198,10 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
 **Technologies:** Java 21, JavaFX, Gson, Maven
 **Features:** Live BBO table, spread charts, multi-symbol tracking
 
+**Application Stack Video Demonstrations:**
+- [Full Application Stack - Desktop, Mobile, and IoT Clients (Part 1)](https://youtube.com/shorts/mg-O1LkSjHM?feature=share)
+- [Full Application Stack - Mobile Applications (Part 2)](https://youtube.com/shorts/PKjIAbwuvL4?feature=share)
+
 ### Project 14: C++ Order Gateway (UDP/XDP - Kernel Bypass)
 **Problem Solved:** Eliminate kernel network stack overhead with AF_XDP kernel bypass for minimal latency
 **Architecture:** XDP listener (AF_XDP + eBPF), binary BBO parser, multi-protocol publisher (TCP/MQTT/Kafka)
@@ -254,6 +260,7 @@ Ethernet → UDP/IP Parser → ITCH 5.0 Decoder → Order Book → BBO Tracker �
   - **processFills() method:** Updates position tracker with executed trades
   - **Config flag:** `enable_order_execution` (default: false)
 **Status:** Complete, tested with 78,606 real market data samples + Project 16 order execution loop
+**Video Demo:** [Order Gateway & Market Maker Console Demo](https://youtu.be/qgB3gz-yDbA) - Live demonstration of Projects 14 and 15 working together
 
 ### Project 16: Order Execution Engine - Simulated Exchange
 **Problem Solved:** Complete the order execution loop with FIX 4.2 protocol and price-time priority matching
